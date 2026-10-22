@@ -1,0 +1,39 @@
+{
+  "version": "1.0.0",
+  "date": "2026-10-23",
+  "platform": "Windows",
+  "checks": {
+    "typescript": "pass",
+    "lint": "pass",
+    "typescriptUnitPassed": 28,
+    "rustPassed": 88,
+    "rustIgnored": 2,
+    "playwrightPassed": 107,
+    "frontendProductionBuild": "pass",
+    "windowsReleaseBuild": "pass",
+    "stagedSecretAndPersonalPathScan": "no findings",
+    "gitWhitespaceCheck": "pass"
+  },
+  "releaseBuildSha256": "ECA304EF9116804D2A30AF08DEFA2F1BA94B414FF1CD085923D87EB908E6007B",
+  "priorNativeChecks": {
+    "date": "2026-10-22",
+    "scope": [
+      "Existing recipes and chat retained in the normal Windows user environment",
+      "Seasoning alert icons and compact layout inspected",
+      "Real configured model generated an expiry update for the existing garlic lot with explicit estimate assumptions",
+      "Bought-food and restocked-seasoning phrases matched actual pending items",
+      "Acceptance proposals rejected without business writes"
+    ]
+  },
+  "limits": [
+    "Version 1.0.0 metadata build was not separately installed or live-model-tested; native behavior checks preceded the version-only change.",
+    "Playwright uses fixtures and IPC mocks; it is not complete native desktop acceptance.",
+    "Two live-site Rust tests are ignored by default.",
+    "Installer, upgrade/uninstall lifecycle, backup/restore UI and every provider/model combination are not certified by these checks."
+  ],
+  "publication": {
+    "kind": "source release",
+    "excluded": ["personal databases", "chat history", "credentials", "imported personal media", "build artifacts", "raw references", "historical review bundles", "generated test captures"],
+    "readmeImage": "synthetic browser fixture only"
+  }
+}

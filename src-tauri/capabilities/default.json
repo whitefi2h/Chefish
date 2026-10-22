@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "Local demo window; no filesystem or external service access.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

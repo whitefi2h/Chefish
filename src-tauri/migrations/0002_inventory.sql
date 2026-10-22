@@ -1,0 +1,7 @@
+CREATE TABLE storage_locations(id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE);
+INSERT INTO storage_locations VALUES('chilled','冷藏'),('frozen','冷冻'),('ambient','常温');
+CREATE TABLE inventory_lots(id TEXT PRIMARY KEY, ingredient_id TEXT NOT NULL REFERENCES ingredients(id), amount_decimal TEXT NOT NULL, unit TEXT NOT NULL CHECK(unit IN ('g','ml','个','片','盒')), location_id TEXT NOT NULL REFERENCES storage_locations(id), received_on TEXT NOT NULL, expires_on TEXT, precision TEXT NOT NULL CHECK(precision IN ('exact','rough')), version INTEGER NOT NULL CHECK(version>0));
+CREATE TABLE inventory_events(id TEXT PRIMARY KEY, lot_id TEXT NOT NULL REFERENCES inventory_lots(id), kind TEXT NOT NULL CHECK(kind IN ('receive','use','discard','correct','move','reverse')), before_amount TEXT NOT NULL, after_amount TEXT NOT NULL, before_location TEXT NOT NULL REFERENCES storage_locations(id), after_location TEXT NOT NULL REFERENCES storage_locations(id), after_version INTEGER NOT NULL, reason TEXT NOT NULL, reversed_event_id TEXT UNIQUE REFERENCES inventory_events(id), occurred_at TEXT NOT NULL DEFAULT(strftime('%Y-%m-%dT%H:%M:%fZ','now')));
+CREATE INDEX inventory_events_lot ON inventory_events(lot_id);
+CREATE TRIGGER inventory_events_no_update BEFORE UPDATE ON inventory_events BEGIN SELECT RAISE(ABORT,'immutable inventory event'); END;
+CREATE TRIGGER inventory_events_no_delete BEFORE DELETE ON inventory_events BEGIN SELECT RAISE(ABORT,'immutable inventory event'); END;

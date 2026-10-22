@@ -1,0 +1,22 @@
+:root {
+  --canvas: #fbf9f5;
+  --side: #f3efea;
+  --card: #fff;
+  --ink: #2b2d2f;
+  --muted: #71695e;
+  --primary: #a83f22;
+  --sage: #657f58;
+  --ochre: #99642e;
+  --border: #e7e1d8;
+  --radius: 12px;
+  --radius-sm: 7px;
+  --control-height: 40px;
+  --control-height-compact: 32px;
+  --control-font-size: 14px;
+  --control-font-size-compact: 12px;
+  --control-icon-size: 16px;
+  --shadow: 0 2px 5px #49351c04;
+  --font-body: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  --font-display: Georgia, "STSong", "SimSun", serif;
+  --font-utility: "Segoe UI", sans-serif;
+}
