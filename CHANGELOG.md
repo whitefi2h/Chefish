@@ -14,6 +14,6 @@
 - 上下文承接、口语购买匹配、已有批次日期修改及授权估计说明。
 - 重写中英文 README，合并旧文档，明确当前状态与后续方向。
 
-备份恢复界面、完整导出、正式安装器和自动更新不属于本次交付。第三方站点可用性与模型理解仍有限制。
+提供 Windows x64 安装包与 SHA-256 校验文件。备份恢复、完整导出和自动更新留待后续开发。
 
-First public source release: Chinese-first Windows kitchen management with recipe revisions, pantry batches, seasoning reminders, weekly meals, shopping and cooking records, plus a proposal-based AI assistant. Backup/restore UI, full export, a validated installer and automatic updates remain future work.
+First release: Chinese-first Windows kitchen management with recipe revisions, pantry batches, seasoning reminders, weekly meals, shopping and cooking records, plus a proposal-based AI assistant. Includes a Windows x64 installer and SHA-256 checksums.

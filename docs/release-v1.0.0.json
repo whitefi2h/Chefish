@@ -32,8 +32,20 @@
     "Installer, upgrade/uninstall lifecycle, backup/restore UI and every provider/model combination are not certified by these checks."
   ],
   "publication": {
-    "kind": "source release",
+    "kind": "source and Windows x64 installer release",
     "excluded": ["personal databases", "chat history", "credentials", "imported personal media", "build artifacts", "raw references", "historical review bundles", "generated test captures"],
     "readmeImage": "synthetic browser fixture only"
+  },
+  "installer": {
+    "date": "2026-10-23",
+    "filename": "Chefish_1.0.0_x64-setup.exe",
+    "bytes": 4504412,
+    "sha256": "4CD6D7C0BF6CCB67B20BB0C2EC16E4F04A1C3A3BA56DEE362B8FDB5AB8F5AB6F",
+    "buildCommand": "npm run tauri build -- --bundles nsis --ci",
+    "sourceTag": "v1.0.0",
+    "sourceCommit": "e5b7b58e44abb9097de3c5bc02e4c59904a9a889",
+    "checks": ["Tauri NSIS bundle completed", "PE product and file versions are 1.0.0", "SHA-256 recorded", "installer payload contains application binary, not user database"],
+    "signature": "unsigned",
+    "lifecycleAcceptance": "installer not run against user environment; install, upgrade and uninstall require separate acceptance"
   }
 }
