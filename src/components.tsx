@@ -45,12 +45,14 @@ export function Modal({
   onClose,
   drawer = false,
   className = "",
+  dismissOnEscape = false,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   drawer?: boolean;
   className?: string;
+  dismissOnEscape?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -72,7 +74,10 @@ export function Modal({
       ref={ref}
       aria-labelledby={titleId}
       className={`${drawer ? "dialog drawer" : "dialog"} ${className}`}
-      onCancel={(e) => e.preventDefault()}
+      onCancel={(e) => {
+        e.preventDefault();
+        if (dismissOnEscape) onClose();
+      }}
     >
       <header className="dialog-head">
         <h2 id={titleId}>{title}</h2>

@@ -143,8 +143,8 @@ export default function AISettings({
         </label>
       </div>
       <p className="hint">
-        调用按服务计费。只发送当前对话、候选摘要和你选择整理的菜谱，不发送库存及手记。联网检索使用
-        DeepSeek 密钥；切换模型服务后，该密钥仍保留。
+        调用按服务计费。助手会将当前对话、相关厨房信息和已保存的饮食偏好发送给所选模型。联网检索使用
+        DeepSeek 密钥；密钥保存在 Windows 凭据管理器，不包含在普通备份中。
       </p>
       <div className="actions">
         <button

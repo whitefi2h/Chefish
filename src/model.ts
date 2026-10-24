@@ -1,4 +1,5 @@
 import { localToday } from "./domain/clock";
+import type { AppPreferences } from "./domain/preferences";
 import { isSeasoning, type SeasoningSupply } from "./domain/seasonings";
 import { DEMO_TODAY, DEMO_DAYS } from "./fixtures/demo";
 export { initialState, recipes } from "./fixtures/demo";
@@ -143,6 +144,7 @@ export interface CookingLog {
   note: string;
 }
 export interface DemoState {
+  preferences?: AppPreferences;
   seasonings?: SeasoningSupply[];
   archivedRecipes?: Recipe[];
   recipeHistory?: Recipe[];

@@ -10,6 +10,7 @@ import {
 import { weekOf, type DemoState, type Recipe } from "./model";
 import { demoClock, systemClock, type Clock } from "./domain/clock";
 import { demoClient } from "./services/demoClient";
+import { preferencesOf, type AppPreferences } from "./domain/preferences";
 import {
   kitchenClient,
   nativeMode,
@@ -19,6 +20,8 @@ import {
   type KitchenClient,
 } from "./services/kitchenClient";
 interface Store {
+  preferences: AppPreferences;
+  savePreferences: (preferences: AppPreferences) => Promise<boolean>;
   recipeHistory: (recipeId: string) => Promise<Recipe[]>;
   forecast?: ShoppingForecast;
   forecastError: string;
@@ -104,6 +107,7 @@ export function DemoProvider({
   const forecastLoading = persistent && !forecast && !forecastError;
 
   const state = { ...current, today };
+  const preferences = preferencesOf(state.preferences);
   function notify(text: string) {
     setNotification((n) => ({ text, revision: n.revision + 1 }));
   }
@@ -238,9 +242,32 @@ export function DemoProvider({
     setHistory((h) => (h.length > 1 ? h.slice(0, -1) : h));
     notify("已撤销上一步演示变更");
   }
+  async function savePreferences(next: AppPreferences) {
+    if (!client) {
+      update((s) => ({ ...s, preferences: next }), "设置已保存到当前演示会话");
+      return true;
+    }
+    if (!ready || inFlight.current) return false;
+    inFlight.current = true;
+    setBusy(true);
+    try {
+      if (!client.savePreferences) throw new Error("当前客户端不支持保存设置");
+      await client.savePreferences(next);
+      if (!(await reload())) notify("设置已保存，但界面读取失败，请重试加载。");
+      return true;
+    } catch (error) {
+      notify(errorMessage(error));
+      return false;
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  }
   return (
     <Context.Provider
       value={{
+        preferences,
+        savePreferences,
         recipeHistory: async (recipeId) => {
           if (client) {
             if (!client.recipeHistory)

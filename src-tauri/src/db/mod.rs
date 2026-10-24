@@ -7,6 +7,7 @@ pub mod cooking;
 mod inventory;
 mod library;
 mod planner;
+pub mod preferences;
 pub mod seasonings;
 pub mod shopping;
 use inventory::InventoryDraft;
@@ -1168,6 +1169,7 @@ fn snapshot_inner(conn: &Connection) -> Result<Value> {
     let mut result = json!({"recipes":recipes,"recipeCategories":strings(conn,"SELECT name FROM categories WHERE kind='recipe' ORDER BY sort_order,rowid")?,"ingredientCategories":strings(conn,"SELECT name FROM categories WHERE kind='ingredient' ORDER BY sort_order,rowid")?,"ingredients":ingredients,"favorites":strings(conn,"SELECT f.recipe_id FROM favorite_recipes f JOIN recipes r ON r.id=f.recipe_id WHERE r.archived=0")?,"inspiration":strings(conn,"SELECT f.recipe_id FROM inspiration_recipes f JOIN recipes r ON r.id=f.recipe_id WHERE r.archived=0")?,"logs":logs,"lots":inventory::lots(conn)?,"inventoryEvents":inventory::events(conn)?,"plans":planner::plans(conn)?,"shopping":[],"memo":conn.query_row("SELECT value FROM app_settings WHERE key='shopping_memo'",[],|r|r.get::<_,String>(0))?,"hiddenNeeds":[],"dataRevision":revision});
     result["archivedRecipes"] = json!(archived);
     result["seasonings"] = seasonings::supplies(conn)?;
+    result["preferences"] = json!(preferences::load(conn)?);
     Ok(result)
 }
 

@@ -104,14 +104,17 @@ export function PlanForm({
   recipeId,
   day,
   meal,
+  servings: chosenServings,
 }: {
   onClose: () => void;
   initial?: PlannedMeal;
   recipeId?: string;
   day?: string;
   meal?: MealTime;
+  servings?: number;
 }) {
-  const { state, mutate, persistent, busy, weekStart, today } = useDemo();
+  const { state, mutate, persistent, busy, weekStart, today, preferences } =
+    useDemo();
   const [customName, setCustomName] = useState(initial?.customTitle ?? "");
   const [recipe, setRecipe] = useState(
     (initial?.customTitle ? "__custom" : initial?.recipeId) ??
@@ -124,7 +127,9 @@ export function PlanForm({
   );
   const days = weekDays(weekOf(date));
   const [time, setTime] = useState<MealTime>(initial?.meal ?? meal ?? "晚餐");
-  const [servings, setServings] = useState(initial?.servings ?? 2);
+  const [servings, setServings] = useState(
+    initial?.servings ?? chosenServings ?? preferences.defaultServings,
+  );
   if (initial?.cooking)
     return (
       <Modal title="烹饪记录" onClose={onClose}>
@@ -371,6 +376,7 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
     forecast,
     forecastLoading,
     forecastError,
+    preferences,
   } = useDemo();
   const [query, setQuery] = useState("");
   const [cookingPlan, setCookingPlan] = useState<PlannedMeal | null>(null);
@@ -459,10 +465,18 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
           custom_title: move?.customTitle ?? null,
           day,
           meal,
-          servings: move?.servings ?? 2,
+          servings: move?.servings ?? preferences.defaultServings,
         },
       },
-      (s) => putMeal(s, recipe, day, meal, move?.servings ?? 2, move?.id),
+      (s) =>
+        putMeal(
+          s,
+          recipe,
+          day,
+          meal,
+          move?.servings ?? preferences.defaultServings,
+          move?.id,
+        ),
       "配餐已更新；库存未扣减",
     );
   }

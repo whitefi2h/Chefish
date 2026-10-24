@@ -180,8 +180,8 @@ function RecipeDetail({
   recipe: Recipe;
   onBack: () => void;
 }) {
-  const { state, mutate, persistent, today, busy } = useDemo();
-  const [servings, setServings] = useState(recipe.servings);
+  const { state, mutate, persistent, today, busy, preferences } = useDemo();
+  const [servings, setServings] = useState(preferences.defaultServings);
   const [note, setNote] = useState("");
   const [editing, setEditing] = useState<{
     id: string;
@@ -499,7 +499,13 @@ function RecipeDetail({
       {editing && (
         <NoteEditor entry={editing} onClose={() => setEditing(null)} />
       )}
-      {plan && <PlanForm recipeId={recipe.id} onClose={() => setPlan(false)} />}
+      {plan && (
+        <PlanForm
+          recipeId={recipe.id}
+          servings={servings}
+          onClose={() => setPlan(false)}
+        />
+      )}
       {recipeEditor && (
         <RecipeEditor
           mode="edit"

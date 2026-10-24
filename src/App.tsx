@@ -1,7 +1,7 @@
 import { supplies } from "./domain/seasonings";
 import KitchenAssistant from "./KitchenAssistant";
 import { shoppingPending } from "./domain/shopping";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ChefHat,
   LayoutDashboard,
@@ -14,6 +14,7 @@ import {
   ArrowRight,
   X,
   PanelRightClose,
+  Settings2,
 } from "lucide-react";
 import { DemoProvider, useDemo } from "./store";
 import { putMeal, shiftDate, weekLabel, pendingItems } from "./model";
@@ -23,6 +24,7 @@ import Inventory, { LotDetail } from "./Inventory";
 import Shopping from "./Shopping";
 import Recipes from "./Recipes";
 import Dashboard from "./Dashboard";
+import Settings, { type SettingsTab } from "./Settings";
 const pages = [
   { id: "home", name: "首页", icon: LayoutDashboard },
   { id: "recipes", name: "我的菜谱", icon: BookOpen },
@@ -34,15 +36,23 @@ function Assistant({
   page,
   onClose,
   onNavigate,
+  onOpenSettings,
 }: {
   page: string;
   onClose: () => void;
   onNavigate: (page: string) => void;
+  onOpenSettings: () => void;
 }) {
-  const { state, update, weekStart, persistent } = useDemo();
+  const { state, update, weekStart, persistent, preferences } = useDemo();
   const [proposal, setProposal] = useState(false);
   if (persistent)
-    return <KitchenAssistant onClose={onClose} onNavigate={onNavigate} />;
+    return (
+      <KitchenAssistant
+        onClose={onClose}
+        onNavigate={onNavigate}
+        onOpenSettings={onOpenSettings}
+      />
+    );
   const recipe = state.recipes.find((r) => r.id === "soup")!;
   return (
     <Modal title="Chefish 厨房助手" onClose={onClose} drawer>
@@ -66,7 +76,10 @@ function Assistant({
           <Food image={recipe.image} name={recipe.name} />
           <Badge tone="warm">待确认的草稿</Badge>
           <h3>{recipe.name}</h3>
-          <p>{shiftDate(weekStart, 6)} 周日晚餐 · 2 人份</p>
+          <p>
+            {shiftDate(weekStart, 6)} 周日晚餐 · {preferences.defaultServings}{" "}
+            人份
+          </p>
           <p className="hint">
             确认后加入该餐，与已有菜品一同安排，并更新采购需求；不会扣减库存。
           </p>
@@ -75,7 +88,13 @@ function Assistant({
             onClick={() => {
               update(
                 (s) =>
-                  putMeal(s, recipe.id, shiftDate(weekStart, 6), "晚餐", 2),
+                  putMeal(
+                    s,
+                    recipe.id,
+                    shiftDate(weekStart, 6),
+                    "晚餐",
+                    preferences.defaultServings,
+                  ),
                 "已应用演示提案，采购需求已重算",
               );
               setProposal(false);
@@ -110,8 +129,17 @@ function Shell() {
     loadError,
     reload,
     forecast,
+    preferences,
   } = useDemo();
   const [page, setPage] = useState("planner");
+  const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
+  const startupApplied = useRef(false);
+  useEffect(() => {
+    if (ready && !startupApplied.current) {
+      setPage(preferences.startPage);
+      startupApplied.current = true;
+    }
+  }, [ready, preferences.startPage]);
   const [panel, setPanel] = useState<
     { kind: "ai" } | { kind: "lot"; id: string } | null
   >(null);
@@ -184,16 +212,23 @@ function Shell() {
           </p>
           <small>一点计划，多一份从容。</small>
         </div>
-        <div className="sidebar-footer">
+        <button
+          className="sidebar-footer settings-trigger"
+          aria-label="打开厨房设置"
+          onClick={() => {
+            setPanel(null);
+            setSettingsTab("preferences");
+          }}
+        >
           <span className="avatar">
             <ChefHat size={18} />
           </span>
           <div>
             <strong>{persistent ? "我的厨房" : "我的演示厨房"}</strong>
-            <small>单用户 · 本地界面</small>
+            <small>设置与偏好</small>
           </div>
-          <Badge>{persistent ? "本地" : "Demo"}</Badge>
-        </div>
+          <Settings2 size={16} className="settings-trigger-icon" />
+        </button>
       </aside>
       <div className="workspace">
         <header className="topbar">
@@ -265,6 +300,16 @@ function Shell() {
           page={page}
           onNavigate={setPage}
           onClose={() => setPanel(null)}
+          onOpenSettings={() => {
+            setPanel(null);
+            setSettingsTab("assistant");
+          }}
+        />
+      )}
+      {settingsTab && (
+        <Settings
+          initialTab={settingsTab}
+          onClose={() => setSettingsTab(null)}
         />
       )}
       {panel?.kind === "lot" && (

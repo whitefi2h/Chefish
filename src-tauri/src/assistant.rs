@@ -54,6 +54,8 @@ pub fn context(conn: &Connection, week: Option<&str>) -> Result<Value> {
         )?,
     };
     let mut snapshot = db::snapshot(conn)?;
+    snapshot.as_object_mut().unwrap().remove("preferences");
+    let preferences = db::preferences::load(conn)?;
     without_media(&mut snapshot);
     fn compact(v: &mut Value) {
         match v {
@@ -79,7 +81,7 @@ pub fn context(conn: &Connection, week: Option<&str>) -> Result<Value> {
     }
     compact(&mut snapshot);
     Ok(
-        json!({"today":today,"weekStart":week,"snapshot":snapshot,"shopping":db::shopping::forecast(conn,&week)?,"toolResults":[]}),
+        json!({"today":today,"weekStart":week,"snapshot":snapshot,"preferences":{"defaultServings":preferences.default_servings,"taste":preferences.taste,"restrictions":preferences.restrictions,"equipment":preferences.equipment},"shopping":db::shopping::forecast(conn,&week)?,"toolResults":[]}),
     )
 }
 

@@ -1,4 +1,5 @@
 import type { ShoppingForecast } from "../domain/shopping";
+import type { AppPreferences } from "../domain/preferences";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { DemoState, Recipe, PlannedMeal } from "../model";
 export const nativeMode = isTauri();
@@ -108,7 +109,13 @@ export type KitchenCommand =
       direction: number;
     }
   | { type: "undo_inventory"; lot_id: string; expected_version: number }
-  | { type: "set_lot_expiry"; lot_id: string; expected_version: number; expires: string | null; reason: string }
+  | {
+      type: "set_lot_expiry";
+      lot_id: string;
+      expected_version: number;
+      expires: string | null;
+      reason: string;
+    }
   | {
       type: "receive_lot";
       draft: {
@@ -159,6 +166,7 @@ export type KitchenCommand =
       name: string;
     };
 export interface KitchenClient {
+  savePreferences?(preferences: AppPreferences): Promise<void>;
   recipeHistory?(recipeId: string): Promise<Recipe[]>;
   load(): Promise<DemoState>;
   shopping?(weekStart: string): Promise<ShoppingForecast>;
@@ -188,6 +196,9 @@ type Snapshot = Omit<
   })[];
 };
 export const kitchenClient: KitchenClient = {
+  savePreferences(preferences) {
+    return invoke<void>("kitchen_preferences_save", { preferences });
+  },
   async recipeHistory(recipeId) {
     const rows = await invoke<RecipeSnapshot[]>("kitchen_recipe_history", {
       recipeId,

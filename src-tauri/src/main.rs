@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod ai;
 mod assistant;
+mod backup;
 mod db;
 mod recipe_images;
 mod recipe_import;
@@ -9,6 +10,80 @@ mod site_search;
 use std::sync::Mutex;
 use tauri::Manager;
 struct Database(Mutex<Option<rusqlite::Connection>>, String);
+#[derive(Default)]
+struct RestorePreview(Mutex<Option<backup::StagedRestore>>);
+#[tauri::command]
+fn kitchen_preferences_save(
+    database: tauri::State<Database>,
+    preferences: db::preferences::Preferences,
+) -> db::Result<()> {
+    let mut guard = database.0.lock().map_err(|_| db::ApiError {
+        code: "DATABASE_ERROR".into(),
+        message: "数据库暂不可用".into(),
+    })?;
+    let conn = guard.as_mut().ok_or_else(|| db::ApiError {
+        code: "BOOTSTRAP_FAILED".into(),
+        message: database.1.clone(),
+    })?;
+    db::preferences::save(conn, preferences)
+}
+
+#[tauri::command]
+fn kitchen_backup_status(app: tauri::AppHandle) -> db::Result<serde_json::Value> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|_| db::ApiError {
+            code: "BACKUP_PATH".into(),
+            message: "无法定位备份目录".into(),
+        })?
+        .join("backups");
+    std::fs::create_dir_all(&dir).map_err(|_| db::ApiError {
+        code: "BACKUP_PATH".into(),
+        message: "无法读取备份目录".into(),
+    })?;
+    let files: Vec<_> = std::fs::read_dir(&dir)
+        .map_err(|_| db::ApiError {
+            code: "BACKUP_PATH".into(),
+            message: "无法读取备份目录".into(),
+        })?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().extension().is_some_and(|s| s == "sqlite3"))
+        .filter_map(|entry| {
+            entry
+                .metadata()
+                .ok()
+                .filter(|m| m.is_file())
+                .and_then(|m| m.modified().ok())
+        })
+        .collect();
+    let latest = files
+        .iter()
+        .max()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs());
+    Ok(serde_json::json!({"directory":dir.to_string_lossy(),"latest":latest,"count":files.len()}))
+}
+
+#[tauri::command]
+fn kitchen_backup_open_folder(app: tauri::AppHandle) -> db::Result<()> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|_| db::ApiError {
+            code: "BACKUP_PATH".into(),
+            message: "无法定位备份目录".into(),
+        })?
+        .join("backups");
+    std::fs::create_dir_all(&dir).map_err(|_| db::ApiError {
+        code: "BACKUP_PATH".into(),
+        message: "无法创建备份目录".into(),
+    })?;
+    open::that(dir).map_err(|_| db::ApiError {
+        code: "BACKUP_PATH".into(),
+        message: "无法打开备份目录".into(),
+    })
+}
 #[tauri::command]
 fn kitchen_bootstrap(database: tauri::State<Database>) -> db::Result<serde_json::Value> {
     let guard = database.0.lock().map_err(|_| db::ApiError {
@@ -84,6 +159,110 @@ fn kitchen_recipe_history(
     })?;
     db::recipe_history(conn, &recipe_id)
 }
+#[tauri::command]
+fn kitchen_backup_create(database: tauri::State<Database>) -> db::Result<Option<String>> {
+    let Some(path) = rfd::FileDialog::new()
+        .set_file_name("Chefish-本地备份.sqlite3")
+        .add_filter("Chefish 本地备份", &["sqlite3"])
+        .save_file()
+    else {
+        return Ok(None);
+    };
+    let guard = database.0.lock().map_err(|_| db::ApiError {
+        code: "DATABASE_ERROR".into(),
+        message: "数据库暂不可用".into(),
+    })?;
+    let conn = guard.as_ref().ok_or_else(|| db::ApiError {
+        code: "BOOTSTRAP_FAILED".into(),
+        message: database.1.clone(),
+    })?;
+    backup::create(conn, &path)?;
+    Ok(Some(
+        path.file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("备份文件")
+            .to_owned(),
+    ))
+}
+#[tauri::command]
+fn kitchen_backup_preview(
+    app: tauri::AppHandle,
+    restore: tauri::State<RestorePreview>,
+) -> db::Result<Option<backup::Preview>> {
+    let Some(path) = rfd::FileDialog::new()
+        .add_filter("Chefish 本地备份", &["sqlite3", "db"])
+        .pick_file()
+    else {
+        return Ok(None);
+    };
+    let stage_dir = app.path().app_data_dir().map_err(|_| db::ApiError {
+        code: "RESTORE_STAGE".into(),
+        message: "无法定位恢复暂存目录".into(),
+    })?;
+    let staged = backup::preview(&path, &stage_dir)?;
+    let public_preview = staged.preview.clone();
+    let mut slot = restore.0.lock().map_err(|_| db::ApiError {
+        code: "RESTORE_STAGE".into(),
+        message: "恢复预览不可用，请重试".into(),
+    })?;
+    if let Some(previous) = slot.replace(staged) {
+        let _ = std::fs::remove_file(previous.path);
+    }
+    Ok(Some(public_preview))
+}
+#[tauri::command]
+fn kitchen_backup_restore(
+    app: tauri::AppHandle,
+    database: tauri::State<Database>,
+    restore: tauri::State<RestorePreview>,
+    proposals: tauri::State<assistant::Proposals>,
+    token: String,
+) -> db::Result<()> {
+    let mut staged_guard = restore.0.lock().map_err(|_| db::ApiError {
+        code: "RESTORE_STAGE".into(),
+        message: "恢复预览已失效，请重新选择备份".into(),
+    })?;
+    let staged = staged_guard
+        .as_ref()
+        .filter(|s| s.preview.token == token)
+        .ok_or_else(|| db::ApiError {
+            code: "RESTORE_STAGE".into(),
+            message: "恢复预览已失效，请重新选择备份".into(),
+        })?;
+    let dir = app.path().app_data_dir().map_err(|_| db::ApiError {
+        code: "RESTORE_BACKUP".into(),
+        message: "无法定位本机数据目录".into(),
+    })?;
+    let safety_dir = dir.join("backups");
+    std::fs::create_dir_all(&safety_dir).map_err(|_| db::ApiError {
+        code: "RESTORE_BACKUP".into(),
+        message: "无法准备恢复前安全备份".into(),
+    })?;
+    let safety_path = safety_dir.join(format!("before-restore-{}.sqlite3", uuid::Uuid::new_v4()));
+    let mut db_guard = database.0.lock().map_err(|_| db::ApiError {
+        code: "DATABASE_ERROR".into(),
+        message: "数据库暂不可用".into(),
+    })?;
+    backup::replace_live_database(&mut db_guard, &staged.path, &safety_path)?;
+    if let Ok(mut pending) = proposals.0.lock() {
+        pending.clear();
+    }
+    if let Some(staged) = staged_guard.take() {
+        let _ = std::fs::remove_file(staged.path);
+    }
+    Ok(())
+}
+#[tauri::command]
+fn kitchen_backup_cancel(restore: tauri::State<RestorePreview>) -> db::Result<()> {
+    let mut slot = restore.0.lock().map_err(|_| db::ApiError {
+        code: "RESTORE_STAGE".into(),
+        message: "无法取消恢复预览".into(),
+    })?;
+    if let Some(staged) = slot.take() {
+        let _ = std::fs::remove_file(staged.path);
+    }
+    Ok(())
+}
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -96,19 +275,32 @@ fn main() {
                 db::open(&dir.join("chefish.sqlite3")).map_err(|e| e.message)
             })();
             let database = match result {
-                Ok(conn) => Database(Mutex::new(Some(conn)), String::new()),
+                Ok(conn) => {
+                    if let Ok(dir) = app.path().app_data_dir() {
+                        let _ = backup::automatic(&conn, &dir);
+                    }
+                    Database(Mutex::new(Some(conn)), String::new())
+                }
                 Err(message) => Database(Mutex::new(None), message),
             };
             app.manage(database);
+            app.manage(RestorePreview::default());
             app.manage(assistant::Proposals::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             kitchen_bootstrap,
+            kitchen_preferences_save,
+            kitchen_backup_status,
+            kitchen_backup_open_folder,
             kitchen_execute,
             kitchen_shopping,
             kitchen_cooking,
             kitchen_recipe_history,
+            kitchen_backup_create,
+            kitchen_backup_preview,
+            kitchen_backup_restore,
+            kitchen_backup_cancel,
             kitchen_import_url,
             kitchen_import_images,
             kitchen_recipe_images,

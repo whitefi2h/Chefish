@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { Settings, Send, RotateCcw, ExternalLink } from "lucide-react";
 import { Modal } from "./components";
 import { useDemo } from "./store";
-import AISettings from "./AISettings";
 import RecipeEditor, { type RecipeDraft } from "./RecipeEditor";
 import { recipeTextFromHtml } from "./domain/recipeImport";
 import {
@@ -21,11 +20,13 @@ import { errorMessage } from "./services/kitchenClient";
 export default function KitchenAssistant({
   onClose,
   onNavigate,
+  onOpenSettings,
 }: {
   onClose: () => void;
   onNavigate?: (page: string) => void;
+  onOpenSettings: () => void;
 }) {
-  const { state, weekStart, reload, reloadForecast } = useDemo();
+  const { state, weekStart, reload, reloadForecast, preferences } = useDemo();
   const [proposal, setProposal] = useState<AssistantProposal | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [copy, setCopy] = useState<{ title: string; text: string } | null>(
@@ -37,7 +38,6 @@ export default function KitchenAssistant({
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState("");
   const [error, setError] = useState("");
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [configured, setConfigured] = useState(false);
   const [draft, setDraft] = useState<RecipeDraft | null>(null);
   const [pendingUrl, setPendingUrl] = useState("");
@@ -275,8 +275,8 @@ export default function KitchenAssistant({
   }
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = settingsOpen ? 0 : el.scrollHeight;
-  }, [messages, candidates, busy, settingsOpen]);
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, candidates, busy]);
   useEffect(() => {
     let alive = true;
     aiStatus()
@@ -382,7 +382,7 @@ export default function KitchenAssistant({
       } else if (route.action === "copy_shopping" && route.copy) {
         setCopy(route.copy);
       } else if (route.action === "navigate") {
-        if (route.page === "settings") setSettingsOpen(true);
+        if (route.page === "settings") onOpenSettings();
         else if (
           route.page &&
           ["home", "recipes", "pantry", "planner", "shopping"].includes(
@@ -632,11 +632,7 @@ export default function KitchenAssistant({
           {configured ? "已连接模型配置" : "请先配置模型"} ·
           聊天记录自动保存在本机
         </span>
-        <button
-          aria-label="模型设置"
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          disabled={busy}
-        >
+        <button aria-label="模型设置" onClick={onOpenSettings} disabled={busy}>
           <Settings size={17} />
         </button>
       </div>
@@ -682,13 +678,6 @@ export default function KitchenAssistant({
               重试搜索
             </button>
           </div>
-        )}
-        {settingsOpen && (
-          <AISettings
-            onSaved={(s) =>
-              setConfigured(s.configured.includes(s.settings.provider))
-            }
-          />
         )}
         <div className="assistant-conversation" aria-live="polite">
           {!messages.length && (
@@ -808,7 +797,7 @@ export default function KitchenAssistant({
           </p>
         )}
       </div>
-      {!settingsOpen && (
+      {
         <form
           className="assistant-compose"
           onSubmit={(e) => {
@@ -822,6 +811,9 @@ export default function KitchenAssistant({
               if (
                 e.key === "Enter" &&
                 !e.shiftKey &&
+                (preferences.sendShortcut === "enter" ||
+                  e.ctrlKey ||
+                  e.metaKey) &&
                 !e.nativeEvent.isComposing &&
                 e.nativeEvent.keyCode !== 229
               ) {
@@ -854,7 +846,7 @@ export default function KitchenAssistant({
             </button>
           </div>
         </form>
-      )}
+      }
     </Modal>
   );
 }
