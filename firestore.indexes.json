@@ -1,0 +1,7 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "chunks", "fieldPath": "data", "indexes": [] },
+    { "collectionGroup": "backups", "fieldPath": "chunks", "indexes": [] }
+  ]
+}

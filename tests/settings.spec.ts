@@ -286,6 +286,16 @@ test("dragging a new dish uses the saved default without rewriting existing meal
 test("cloud settings explain an unconnected project without changing local data", async ({
   page,
 }) => {
+  await page.route("**/src/services/cloudClient.ts*", (route) =>
+    route.fulfill({
+      contentType: "application/javascript",
+      body: `export const cloudConfigured = false;
+      export const cloudError = () => '';
+      const idle = () => {};
+      export { idle as login, idle as logout, idle as refreshAccount, idle as repository, idle as resetPassword, idle as verifyEmail, idle as watchAccount };
+      export const snapshotBridge = {};`,
+    }),
+  );
   await fixture(page);
   const dialog = await openSettings(page);
   await dialog.getByRole("tab", { name: "账户与云端", exact: true }).click();

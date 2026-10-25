@@ -116,6 +116,9 @@ export function cloudError(error: unknown): string {
     "auth/email-already-in-use": "这个邮箱已经注册，请直接登录。",
     "auth/invalid-email": "请输入有效的邮箱地址。",
     "auth/weak-password": "密码至少需要 6 个字符。",
+    "auth/configuration-not-found":
+      "云端邮箱登录尚未启用，请联系维护者完成配置。",
+    "auth/operation-not-allowed": "云端尚未开启邮箱密码登录，请联系维护者。",
     "auth/too-many-requests": "尝试次数过多，请稍后重试。",
     "auth/network-request-failed": "无法连接账户服务，请检查网络后重试。",
     "permission-denied": "云服务拒绝了请求，请确认邮箱已验证及项目权限已部署。",

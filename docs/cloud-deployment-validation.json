@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-25",
+  "projectId": "chefish-kitchen",
+  "projectNumber": "116537936775",
+  "webAppId": "1:116537936775:web:8948281997c3992f62e122",
+  "database": {
+    "location": "asia-east2",
+    "edition": "STANDARD",
+    "freeTier": true,
+    "deleteProtection": "DELETE_PROTECTION_ENABLED"
+  },
+  "billing": {
+    "enabled": false,
+    "linked": false
+  },
+  "rules": {
+    "matchesLocal": true,
+    "ruleset": "projects/chefish-kitchen/rulesets/028586ee-a782-4571-a5f4-80afc5af509a",
+    "sha256": "375036122ffe7995aba55d24443dfffec7b6e582650826ddde1d97347a7da056"
+  },
+  "indexExemptions": {
+    "chunkData": true,
+    "manifestChunks": true
+  },
+  "auth": {
+    "emailPasswordEnabled": true,
+    "passwordRequired": true,
+    "subtype": "FIREBASE_AUTH"
+  },
+  "checks": {
+    "anonymousRead": "403 PERMISSION_DENIED",
+    "typecheck": "passed",
+    "lint": "passed",
+    "settingsUi": 7,
+    "windowsX64NsisBuild": "passed",
+    "realCloudSyntheticTransport": {
+      "passed": 1,
+      "registration": true,
+      "unverifiedAccountDenied": true,
+      "emailVerifiedByAdminForTestOnly": true,
+      "ownerUploadDownloadAndDeduplication": true,
+      "otherAccountAndGuestDenied": true,
+      "temporaryAccountsAndDocumentsCleaned": true,
+      "noEmailSent": true
+    }
+  },
+  "productionKitchenDataUploaded": false,
+  "zenfishModified": false,
+  "notValidated": [
+    "Windows WebView2 real account login and email verification",
+    "Native desktop cloud backup roundtrip",
+    "Two-computer restoration"
+  ],
+  "artifacts": [
+    {
+      "path": "src-tauri/target/release/chefish.exe",
+      "sha256": "1c0ad8c2a77c675b8f1458a97d06f6b4f9f56b8a852b4f1d3932afa891ff5b58",
+      "bytes": 17779712
+    },
+    {
+      "path": "src-tauri/target/release/bundle/nsis/Chefish_1.0.0_x64-setup.exe",
+      "sha256": "60bcac34f24e8b3e92c87e76084ef9bd18a709045f8fdf32f7633dc3d3f7e28d",
+      "bytes": 4811552
+    }
+  ]
+}
