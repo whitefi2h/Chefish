@@ -16,7 +16,7 @@ use std::{
 use uuid::Uuid;
 
 pub const CHUNK_BYTES: usize = 256 * 1024;
-pub const MAX_SNAPSHOT_BYTES: u64 = 128 * 1024 * 1024;
+pub const MAX_SNAPSHOT_BYTES: u64 = 512 * 1024 * 1024;
 const MAX_COMPRESSED_CHUNK: usize = CHUNK_BYTES + 8192;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -141,7 +141,7 @@ pub fn prepare(conn: &Connection, root: &Path) -> Result<PreparedSnapshot> {
         .map_err(|_| fail("无法读取云备份快照"))?
         .len();
     if size_bytes == 0 || size_bytes > MAX_SNAPSHOT_BYTES {
-        return Err(fail("云备份目前支持最大 128 MiB 的本地快照"));
+        return Err(fail("云备份目前支持最大 512 MiB 的本地快照"));
     }
     let mut file = fs::File::open(&path).map_err(|_| fail("无法读取云备份快照"))?;
     let mut digest = Sha256::new();
@@ -374,6 +374,35 @@ mod tests {
         drop(live);
         drop(prepared);
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn snapshot_manifest_accepts_more_than_128_mib_through_512_mib_and_rejects_larger() {
+        for (size_bytes, allowed) in [
+            (128_u64 * 1024 * 1024 + 1, true),
+            (512 * 1024 * 1024, true),
+            (512 * 1024 * 1024 + 1, false),
+        ] {
+            let chunks = (0..size_bytes.div_ceil(CHUNK_BYTES as u64))
+                .map(|index| ChunkReference {
+                    hash: "a".repeat(64),
+                    compressed_bytes: 4,
+                    raw_bytes: (size_bytes - index * CHUNK_BYTES as u64).min(CHUNK_BYTES as u64)
+                        as usize,
+                })
+                .collect();
+            let manifest = Manifest {
+                id: Uuid::new_v4().to_string(),
+                format_version: 1,
+                schema_version: backup::CURRENT_SCHEMA,
+                created_at: 1,
+                size_bytes,
+                sha256: "b".repeat(64),
+                includes_chat: false,
+                chunks,
+            };
+            assert_eq!(manifest.validate().is_ok(), allowed, "size {size_bytes}");
+        }
     }
 
     #[test]

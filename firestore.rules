@@ -33,7 +33,7 @@ service cloud.firestore {
         && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
         && request.resource.data.createdAt <= request.time.toMillis() / 1000 + 300
         && request.resource.data.sizeBytes is int
-        && request.resource.data.sizeBytes > 0 && request.resource.data.sizeBytes <= 134217728
+        && request.resource.data.sizeBytes > 0 && request.resource.data.sizeBytes <= 536870912
         && request.resource.data.sha256 is string && request.resource.data.sha256.matches('^[0-9a-f]{64}$')
         && request.resource.data.includesChat == false
         && request.resource.data.chunks is list

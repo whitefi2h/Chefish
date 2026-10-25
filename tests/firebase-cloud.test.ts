@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   beforeAll,
   afterAll,
@@ -145,12 +145,35 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
       const backup = doc(store, "users/alice/backups", manifest.id);
       for (const bad of [
         { ...manifest, includesChat: true },
-        { ...manifest, sizeBytes: 134217729 },
+        { ...manifest, sizeBytes: 536870913 },
         { ...manifest, chunks: [] },
         { ...manifest, id: "different" },
         { ...manifest, secret: "no" },
       ])
         await assertFails(setDoc(backup, bad));
+    });
+    it("accepts manifests above 128 MiB up to 512 MiB and denies one byte beyond", async () => {
+      const store = db("alice");
+      for (const sizeBytes of [134217729, 536870912, 536870913]) {
+        const value = {
+          ...manifest,
+          id: randomUUID(),
+          sizeBytes,
+          chunks: Array.from(
+            { length: Math.ceil(sizeBytes / 262144) },
+            (_, index) => ({
+              ...manifest.chunks[0],
+              rawBytes: Math.min(262144, sizeBytes - index * 262144),
+            }),
+          ),
+        };
+        const write = setDoc(
+          doc(store, "users/alice/backups", value.id),
+          value,
+        );
+        if (sizeBytes <= 536870912) await assertSucceeds(write);
+        else await assertFails(write);
+      }
     });
     it("interrupted uploads never publish a backup and always release native scratch files", async () => {
       const native = bridge();

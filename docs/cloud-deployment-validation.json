@@ -15,8 +15,8 @@
   },
   "rules": {
     "matchesLocal": true,
-    "ruleset": "projects/chefish-kitchen/rulesets/028586ee-a782-4571-a5f4-80afc5af509a",
-    "sha256": "375036122ffe7995aba55d24443dfffec7b6e582650826ddde1d97347a7da056"
+    "ruleset": "projects/chefish-kitchen/rulesets/5d77ea6f-febf-4049-8663-7d6cbb1c73d8",
+    "sha256": "2c7b2f993c82e9f5191beabcf830473e68c5a9c8d953c7ebc5be4c0ff5257941"
   },
   "indexExemptions": {
     "chunkData": true,
@@ -42,6 +42,16 @@
       "otherAccountAndGuestDenied": true,
       "temporaryAccountsAndDocumentsCleaned": true,
       "noEmailSent": true
+    },
+    "capacityChange": {
+      "nativeSnapshotTestsPassed": 5,
+      "firestoreEmulatorTestsPassed": 7,
+      "manifestBoundaryBytes": [
+        134217729,
+        536870912,
+        536870913
+      ],
+      "full512MiBTransferTested": false
     }
   },
   "productionKitchenDataUploaded": false,
@@ -54,13 +64,18 @@
   "artifacts": [
     {
       "path": "src-tauri/target/release/chefish.exe",
-      "sha256": "1c0ad8c2a77c675b8f1458a97d06f6b4f9f56b8a852b4f1d3932afa891ff5b58",
+      "sha256": "cd317d1b0c4ac52290f49673bbeef13e36f2643fdb93dd11714a02943404311a",
       "bytes": 17779712
     },
     {
       "path": "src-tauri/target/release/bundle/nsis/Chefish_1.0.0_x64-setup.exe",
-      "sha256": "60bcac34f24e8b3e92c87e76084ef9bd18a709045f8fdf32f7633dc3d3f7e28d",
-      "bytes": 4811552
+      "sha256": "905b2e249a662ae7dd0023246aeeaa09952182cad98c658cf3cb71027492008b",
+      "bytes": 4810342
     }
-  ]
+  ],
+  "snapshotSizeLimit": {
+    "rawBytes": 536870912,
+    "rawMiB": 512,
+    "chunkBytes": 262144
+  }
 }
