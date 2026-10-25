@@ -11,17 +11,21 @@
     "test:ui": "playwright test",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test:cloud": "vitest run tests/firebase-cloud.test.ts",
+    "test:cloud:emulator": "firebase emulators:exec --project demo-chefish --only firestore \"npm run test:cloud\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@tauri-apps/api": "^2.12.4",
+    "firebase": "^12.19.0",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@playwright/test": "^1.56.0",
     "@tauri-apps/cli": "^2.0.0",
     "@types/react": "^19.0.0",
@@ -29,6 +33,7 @@
     "@vitejs/plugin-react": "^4.4.0",
     "eslint": "^9.0.0",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "firebase-tools": "^15.34.1",
     "globals": "^16.0.0",
     "prettier": "^3.9.10",
     "typescript": "~5.8.3",

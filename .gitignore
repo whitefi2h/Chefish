@@ -4,6 +4,10 @@ dist/
 src-tauri/target/
 test-results/
 playwright-report/
+/.firebase/
+firestore-debug.log
+firebase-debug.log
+ui-debug.log
 *.log
 
 # Local design references, historical review bundles and generated evidence

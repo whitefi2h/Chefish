@@ -1,0 +1,74 @@
+.cloud-intro {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--muted);
+}
+.cloud-intro > svg {
+  color: var(--sage);
+  margin: 0 auto 14px;
+}
+.cloud-intro h3 {
+  color: var(--ink);
+  margin: 0 0 12px;
+}
+.cloud-intro p {
+  max-width: 400px;
+  margin: 10px auto;
+  line-height: 1.8;
+}
+.cloud-login {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0;
+}
+.cloud-login label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+.cloud-login input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+}
+.cloud-settings button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.cloud-settings .actions {
+  flex-wrap: wrap;
+}
+.cloud-list-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 26px;
+}
+.cloud-backup-list {
+  list-style: none;
+  margin: 10px 0;
+  padding: 0;
+}
+.cloud-backup-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.cloud-backup-list li div {
+  display: grid;
+  gap: 6px;
+}
+.cloud-backup-list small {
+  color: var(--muted);
+}
+.cloud-settings .error {
+  overflow-wrap: anywhere;
+}

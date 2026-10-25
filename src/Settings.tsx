@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import {
   ChefHat,
   Utensils,
@@ -9,6 +9,7 @@ import {
   Minus,
   Plus,
   Check,
+  Cloud,
 } from "lucide-react";
 import { Modal } from "./components";
 import { useDemo } from "./store";
@@ -17,6 +18,7 @@ import Backup from "./Backup";
 import { nativeMode } from "./services/kitchenClient";
 import { type AppPreferences } from "./domain/preferences";
 import { version } from "../package.json";
+const CloudBackup = lazy(() => import("./CloudBackup"));
 
 const sections = [
   {
@@ -42,6 +44,12 @@ const sections = [
     label: "数据与备份",
     icon: ArchiveRestore,
     description: "为积累的菜谱和厨房记录，留一份备份。",
+  },
+  {
+    id: "cloud",
+    label: "账户与云端",
+    icon: Cloud,
+    description: "把厨房备份带到另一台电脑。",
   },
   {
     id: "about",
@@ -374,6 +382,17 @@ export default function Settings({
                   onBusyChange={setBackupBusy}
                 />
               </>
+            )}
+            {tab === "cloud" && (
+              <Suspense fallback={<p role="status">正在加载云服务…</p>}>
+                <CloudBackup
+                  onBusyChange={setBackupBusy}
+                  onRestored={async () => {
+                    setMessage("");
+                    return reload();
+                  }}
+                />
+              </Suspense>
             )}
             {tab === "about" && (
               <div className="settings-about">

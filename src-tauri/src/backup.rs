@@ -8,7 +8,7 @@ use std::{
 };
 use uuid::Uuid;
 
-const CURRENT_SCHEMA: i64 = 11;
+pub const CURRENT_SCHEMA: i64 = 11;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,6 +26,7 @@ pub struct Preview {
 pub struct StagedRestore {
     pub path: PathBuf,
     pub preview: Preview,
+    pub preserve_local_settings: bool,
 }
 
 fn fail(code: &str, message: impl Into<String>) -> ApiError {
@@ -180,6 +181,7 @@ pub fn preview(path: &Path, staging_dir: &Path) -> Result<StagedRestore> {
     let token = Uuid::new_v4().to_string();
     Ok(StagedRestore {
         path: staged,
+        preserve_local_settings: false,
         preview: Preview {
             token,
             schema_version: version,

@@ -14,6 +14,8 @@ Tauri 2 承载 React / TypeScript 界面，Rust 管理 SQLite、业务事务、�
 | `src/Planner.tsx`、`src/Shopping.tsx`、`src/Cooking.tsx` | 菜单、采购、烹饪 |
 | `src/KitchenAssistant.tsx`、`src/AISettings.tsx` | 对话、提案与配置 |
 | `src/Settings.tsx`、`src/Backup.tsx` | 统一设置弹窗、用餐偏好与本地备份恢复 |
+| `src/CloudBackup.tsx`、`src/services/cloudClient.ts`、`cloudRepository.ts` | 可选邮箱账户、Firestore 不可变分块与备份清单；按需加载 |
+| `src-tauri/src/cloud_snapshot.rs`、`cloud_commands.rs` | 去除聊天和本机配置、分块校验与恢复暂存；复用本地备份流程 |
 | `src-tauri/src/main.rs` | IPC 注册与原生协调 |
 | `src-tauri/src/db/`、`src-tauri/migrations/` | 业务事务与结构升级 |
 | `src-tauri/src/assistant.rs`、`assistant_prompt.txt` | 上下文、提案和提示词 |

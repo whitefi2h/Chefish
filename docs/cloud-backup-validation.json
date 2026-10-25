@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-25",
+  "version": "1.0.0-unreleased",
+  "scope": "Optional Firebase cloud backups; continuous multi-device synchronization is not implemented",
+  "referenceProjectModified": false,
+  "productionKitchenDataUsed": false,
+  "productionCloudProjectDeployed": false,
+  "firebaseCli": "requires_reauthentication",
+  "checks": {
+    "typecheck": "passed",
+    "lint": "passed",
+    "frontendUnit": {
+      "cloudTestsSkippedWithoutEmulator": 6,
+      "passed": 28
+    },
+    "rust": {
+      "ignoredLiveSiteTests": 2,
+      "passed": 100
+    },
+    "firebaseFirestoreEmulator": {
+      "passed": 6,
+      "project": "demo-chefish",
+      "realCloud": false
+    },
+    "playwright": {
+      "serviceAndIpcFixtures": true,
+      "passed": 114
+    },
+    "windowsX64NsisBuild": "passed"
+  },
+  "notValidated": [
+    "Real Firebase project deployment",
+    "Windows WebView2 authentication and email verification",
+    "Two-computer backup roundtrip on the user network",
+    "Installed upgrade and uninstall data retention"
+  ],
+  "artifacts": [
+    {
+      "path": "src-tauri/target/release/chefish.exe",
+      "sha256": "09cdfd74b1e38220ad91ba0075f6dbfbc4c9b12d59969bf3615c2d0063c22b31",
+      "bytes": 17779712
+    },
+    {
+      "path": "src-tauri/target/release/bundle/nsis/Chefish_1.0.0_x64-setup.exe",
+      "sha256": "d629b9720b21a8f7cbed4b60d50b3a0de19f01723c3801d5450d8efb5de5c4df",
+      "bytes": 4811154
+    }
+  ]
+}

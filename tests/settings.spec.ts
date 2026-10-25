@@ -282,3 +282,99 @@ test("dragging a new dish uses the saved default without rewriting existing meal
     page.locator('[data-slot="2026-10-13|午餐"] .planned-card'),
   ).toContainText("2 人份");
 });
+
+test("cloud settings explain an unconnected project without changing local data", async ({
+  page,
+}) => {
+  await fixture(page);
+  const dialog = await openSettings(page);
+  await dialog.getByRole("tab", { name: "账户与云端", exact: true }).click();
+  await expect(
+    dialog.getByRole("heading", { name: "云服务尚未连接" }),
+  ).toBeVisible();
+  await expect(dialog).toContainText("Chefish 独立云项目");
+  await expect(dialog).toContainText("本机数据与本地备份仍可正常使用");
+  const calls = await page.evaluate(
+    () => (window as unknown as { settingsCalls: string[] }).settingsCalls,
+  );
+  expect(calls.filter((name) => name.startsWith("cloud_backup_"))).toEqual([]);
+  await page.screenshot({
+    path: "docs/screenshots/settings/cloud-unconfigured.png",
+  });
+  await dialog.getByRole("tab", { name: "数据与备份", exact: true }).click();
+  await expect(
+    dialog.getByRole("button", { name: "立即备份", exact: true }),
+  ).toBeEnabled();
+});
+
+test("cloud verification, upload, preview and confirmed restore keep settings usable", async ({
+  page,
+}) => {
+  // Service fixture for account/UI states; transport and rules use real emulators.
+  await page.route("**/src/services/cloudClient.ts*", (route) =>
+    route.fulfill({
+      contentType: "application/javascript",
+      body: `
+      export const cloudConfigured = true;
+      export const cloudError = e => e.message || '测试错误';
+      let listener, user = null;
+      export function watchAccount(next) { listener = next; queueMicrotask(() => next(user)); return () => { listener = null; }; }
+      export async function login(email, password, register) { user = { uid: 'synthetic-user', email, emailVerified: !register }; listener?.(user); }
+      export async function logout() { user = null; listener?.(null); }
+      export async function resetPassword() {}
+      export async function verifyEmail() {}
+      export async function refreshAccount() { user.emailVerified = true; return user; }
+      export const snapshotBridge = {};
+      const backup = { id: 'synthetic-backup', createdAt: 1792886400, sizeBytes: 102400, chunks: [] };
+      export const repository = () => ({
+        list: async () => [backup],
+        upload: async (_, progress) => { progress('正在上传 1 / 1…'); await new Promise(resolve => setTimeout(resolve, 600)); return backup; },
+        download: async () => ({ token: 'cloud-preview-token', recipes: 4, inventoryLots: 2, plannedMeals: 3, cookingSessions: 1, fileName: '云端厨房备份' })
+      });
+    `,
+    }),
+  );
+  await fixture(page);
+  const dialog = await openSettings(page);
+  await dialog.getByRole("tab", { name: "账户与云端", exact: true }).click();
+  await dialog.getByRole("button", { name: "注册新账户", exact: true }).click();
+  await dialog
+    .getByLabel("邮箱", { exact: true })
+    .fill("synthetic@example.test");
+  await dialog.getByLabel("密码", { exact: true }).fill("synthetic-password");
+  await dialog.getByRole("button", { name: "创建账户", exact: true }).click();
+  await expect(dialog).toContainText("请先验证邮箱");
+  await expect(
+    dialog.getByRole("button", { name: "上传备份", exact: true }),
+  ).toHaveCount(0);
+  await dialog
+    .getByRole("button", { name: "我已验证，刷新", exact: true })
+    .click();
+  await dialog.getByRole("button", { name: "上传备份", exact: true }).click();
+  await expect(dialog.getByRole("tab", { name: "数据与备份" })).toBeDisabled();
+  await expect(dialog.getByRole("status")).toHaveText("厨房备份已上传。");
+  await dialog.getByRole("button", { name: "下载预览", exact: true }).click();
+  const preview = dialog.getByRole("region", { name: "云备份恢复预览" });
+  await expect(preview).toContainText("本机聊天记录、通用设置及模型密钥会保留");
+  await page.screenshot({
+    path: "docs/screenshots/settings/cloud-preview-fixture.png",
+  });
+  page.once("dialog", (prompt) => prompt.dismiss());
+  await preview.getByRole("button", { name: "确认恢复云备份" }).click();
+  expect(
+    await page.evaluate(() =>
+      (window as unknown as { settingsCalls: string[] }).settingsCalls.filter(
+        (c) => c === "kitchen_backup_restore",
+      ),
+    ),
+  ).toHaveLength(0);
+  page.once("dialog", (prompt) => prompt.accept());
+  await preview.getByRole("button", { name: "确认恢复云备份" }).click();
+  await expect(dialog.getByRole("status")).toContainText("厨房数据已恢复");
+  await dialog.getByRole("button", { name: "退出登录", exact: true }).click();
+  await expect(
+    dialog.getByRole("button", { name: "登录", exact: true }),
+  ).toBeVisible();
+  await dialog.getByRole("tab", { name: "用餐与偏好", exact: true }).click();
+  await expect(dialog.getByLabel("默认用餐人数")).toHaveValue("3");
+});

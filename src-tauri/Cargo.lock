@@ -556,6 +556,7 @@ name = "chefish"
 version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
+ "flate2",
  "keyring",
  "open",
  "reqwest 0.12.28",
@@ -565,6 +566,7 @@ dependencies = [
  "scraper",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "uuid",

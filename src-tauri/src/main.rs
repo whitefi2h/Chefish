@@ -2,6 +2,8 @@
 mod ai;
 mod assistant;
 mod backup;
+mod cloud_commands;
+mod cloud_snapshot;
 mod db;
 mod recipe_images;
 mod recipe_import;
@@ -243,6 +245,13 @@ fn kitchen_backup_restore(
         code: "DATABASE_ERROR".into(),
         message: "数据库暂不可用".into(),
     })?;
+    if staged.preserve_local_settings {
+        let live = db_guard.as_ref().ok_or_else(|| db::ApiError {
+            code: "DATABASE_ERROR".into(),
+            message: "数据库暂不可用".into(),
+        })?;
+        cloud_snapshot::preserve_local_settings(live, &staged.path)?;
+    }
     backup::replace_live_database(&mut db_guard, &staged.path, &safety_path)?;
     if let Ok(mut pending) = proposals.0.lock() {
         pending.clear();
@@ -285,6 +294,7 @@ fn main() {
             };
             app.manage(database);
             app.manage(RestorePreview::default());
+            app.manage(cloud_commands::Transfers::default());
             app.manage(assistant::Proposals::default());
             Ok(())
         })
@@ -301,6 +311,12 @@ fn main() {
             kitchen_backup_preview,
             kitchen_backup_restore,
             kitchen_backup_cancel,
+            cloud_commands::cloud_backup_prepare,
+            cloud_commands::cloud_backup_read_chunk,
+            cloud_commands::cloud_backup_begin_download,
+            cloud_commands::cloud_backup_accept_chunk,
+            cloud_commands::cloud_backup_finish_download,
+            cloud_commands::cloud_backup_release,
             kitchen_import_url,
             kitchen_import_images,
             kitchen_recipe_images,

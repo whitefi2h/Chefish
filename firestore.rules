@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owner(uid) {
+      return request.auth != null && request.auth.uid == uid && request.auth.token.email_verified == true;
+    }
+    match /users/{uid}/chunks/{hash} {
+      allow read: if owner(uid);
+      allow create: if owner(uid)
+        && hash.matches('^[0-9a-f]{64}$')
+        && request.resource.data.keys().hasAll(['hash','compressedBytes','rawBytes','data'])
+        && request.resource.data.keys().hasOnly(['hash','compressedBytes','rawBytes','data'])
+        && request.resource.data.hash == hash
+        && request.resource.data.compressedBytes is int
+        && request.resource.data.compressedBytes > 0 && request.resource.data.compressedBytes <= 270336
+        && request.resource.data.rawBytes is int
+        && request.resource.data.rawBytes > 0 && request.resource.data.rawBytes <= 262144
+        && request.resource.data.data is string
+        && request.resource.data.data.size() <= 360448
+        && request.resource.data.data.size() == int((request.resource.data.compressedBytes + 2) / 3) * 4;
+      // Identical concurrent uploads may safely converge; mutations are denied.
+      allow update: if owner(uid) && request.resource.data == resource.data;
+    }
+    match /users/{uid}/backups/{id} {
+      allow read: if owner(uid);
+      allow create: if owner(uid)
+        && id.matches('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+        && request.resource.data.keys().hasAll(['id','formatVersion','schemaVersion','createdAt','sizeBytes','sha256','includesChat','chunks'])
+        && request.resource.data.keys().hasOnly(['id','formatVersion','schemaVersion','createdAt','sizeBytes','sha256','includesChat','chunks'])
+        && request.resource.data.id == id && request.resource.data.formatVersion == 1
+        && request.resource.data.schemaVersion is int
+        && request.resource.data.schemaVersion >= 1 && request.resource.data.schemaVersion <= 11
+        && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
+        && request.resource.data.createdAt <= request.time.toMillis() / 1000 + 300
+        && request.resource.data.sizeBytes is int
+        && request.resource.data.sizeBytes > 0 && request.resource.data.sizeBytes <= 134217728
+        && request.resource.data.sha256 is string && request.resource.data.sha256.matches('^[0-9a-f]{64}$')
+        && request.resource.data.includesChat == false
+        && request.resource.data.chunks is list
+        && request.resource.data.chunks.size() == int((request.resource.data.sizeBytes + 262143) / 262144);
+      allow update: if owner(uid) && request.resource.data == resource.data;
+    }
+  }
+}
