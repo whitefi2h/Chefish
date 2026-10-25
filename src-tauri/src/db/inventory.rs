@@ -555,7 +555,7 @@ mod tests {
         assert_eq!(
             conn.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
                 .unwrap(),
-            11
+            crate::db::CURRENT_SCHEMA
         );
         let prefix = path.file_stem().unwrap().to_str().unwrap();
         assert!(std::fs::read_dir(path.parent().unwrap())

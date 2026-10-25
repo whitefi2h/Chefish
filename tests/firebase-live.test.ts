@@ -80,7 +80,7 @@ it.skipIf(process.env.CHEFISH_LIVE_CLOUD_TEST !== "1")(
     const manifest: CloudManifest = {
       id: randomUUID(),
       formatVersion: 1,
-      schemaVersion: 11,
+      schemaVersion: 12,
       createdAt: Math.floor(Date.now() / 1000),
       sizeBytes: raw.length,
       sha256: hash(raw),

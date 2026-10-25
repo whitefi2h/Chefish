@@ -134,6 +134,7 @@ pub fn prepare(conn: &Connection, root: &Path) -> Result<PreparedSnapshot> {
     preferences.send_shortcut = defaults.send_shortcut;
     preferences.automatic_backup = defaults.automatic_backup;
     crate::db::preferences::save(&mut snapshot, preferences)?;
+    crate::db::sync::strip_local_metadata(&snapshot)?;
     snapshot.execute_batch("VACUUM;")?;
     let schema_version = snapshot.query_row("PRAGMA user_version", [], |r| r.get(0))?;
     drop(snapshot);
@@ -340,8 +341,29 @@ mod tests {
         let image = "data:image/png;base64,iVBORw0KGgo=";
         crate::db::execute(&mut live, &Uuid::new_v4().to_string(), serde_json::from_value(json!({"type":"create_recipe","draft":{"name":"云备份测试菜","category":"家常菜","minutes":10,"servings":2,"subtitle":"","seasoning":"","ingredients":[],"steps":["洗净"],"media":{"cover":image,"steps":[{"image":image,"sourceStep":1}]}}})).unwrap()).unwrap();
         let before = crate::db::snapshot(&live).unwrap();
+        let replica = crate::db::sync::status(&live).unwrap();
+        assert_eq!(replica.queued_operations, 1);
         let prepared = prepare(&live, &root.join("cache")).unwrap();
         let raw = fs::read(prepared.scratch.0.join("snapshot.sqlite3")).unwrap();
+        assert!(!raw
+            .windows(replica.replica_id.len())
+            .any(|window| window == replica.replica_id.as_bytes()));
+        let sanitized = Connection::open(prepared.scratch.0.join("snapshot.sqlite3")).unwrap();
+        assert_eq!(
+            sanitized
+                .query_row("SELECT count(*) FROM local_sync_outbox", [], |row| row
+                    .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            sanitized
+                .query_row("SELECT count(*) FROM local_sync_state", [], |row| row
+                    .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        drop(sanitized);
         assert!(!raw
             .windows(b"PRIVATE_CHAT_MARKER".len())
             .any(|w| w == b"PRIVATE_CHAT_MARKER"));

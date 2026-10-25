@@ -232,6 +232,7 @@ mod tests {
         });
         execute(&mut conn, &id(), Command::CreateRecipe { draft: d }).unwrap();
         let before = snapshot(&conn).unwrap();
+        super::super::sync::remove_for_legacy_fixture(&conn);
         conn.execute_batch("DROP TABLE recipe_ingredient_kinds; DROP TABLE seasoning_supplies; DELETE FROM schema_migrations WHERE version=11; PRAGMA user_version=10;").unwrap();
         drop(conn);
         let conn = open(&path).unwrap();

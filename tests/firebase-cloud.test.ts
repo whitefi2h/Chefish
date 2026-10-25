@@ -25,7 +25,7 @@ import {
 const manifest: CloudManifest = {
   id: "00000000-0000-4000-8000-000000000001",
   formatVersion: 1,
-  schemaVersion: 11,
+  schemaVersion: 12,
   createdAt: 1792886400,
   sizeBytes: 4,
   sha256: "b".repeat(64),
@@ -130,6 +130,18 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
       );
       await assertFails(deleteDoc(ref));
       await assertFails(deleteDoc(backup));
+    });
+    it("accepts both old and current schema backups and rejects future schema", async () => {
+      const store = db("alice");
+      for (const schemaVersion of [11, 12, 13]) {
+        const value = { ...manifest, id: randomUUID(), schemaVersion };
+        const write = setDoc(
+          doc(store, "users/alice/backups", value.id),
+          value,
+        );
+        if (schemaVersion <= 12) await assertSucceeds(write);
+        else await assertFails(write);
+      }
     });
     it("rejects oversized, mislabeled, chat-bearing and extra-field documents", async () => {
       const store = db("alice");

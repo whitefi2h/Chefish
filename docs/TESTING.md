@@ -28,3 +28,5 @@ Playwright 使用 Microsoft Edge，自动启动 Vite。`test-results/`、`playwr
 v1.0.0 检查见 [验收记录](release-v1.0.0.json)。此前逐阶段材料已保留在开发者本地，不再作为当前公开文档。
 
 2026-10-25 云备份首版的测试范围与本地构建校验值见 [验证记录](cloud-backup-validation.json)。后续独立 Firebase 项目部署与真实云端合成数据测试见 [部署记录](cloud-deployment-validation.json)；WebView2 真实账户、原生完整往返、双机和安装升级验收仍待完成。
+
+本地同步队列和 schema 12 的验证见 [队列验证记录](sync-outbox-validation.json)，包括事务失败回滚、隐私、恢复和升级。该记录不代表远端重放、冲突合并或双机同步已实现。

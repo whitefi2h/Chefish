@@ -15,6 +15,18 @@ struct Database(Mutex<Option<rusqlite::Connection>>, String);
 #[derive(Default)]
 struct RestorePreview(Mutex<Option<backup::StagedRestore>>);
 #[tauri::command]
+fn kitchen_sync_status(database: tauri::State<Database>) -> db::Result<db::sync::Status> {
+    let guard = database.0.lock().map_err(|_| db::ApiError {
+        code: "DATABASE_ERROR".into(),
+        message: "数据库暂不可用".into(),
+    })?;
+    let conn = guard.as_ref().ok_or_else(|| db::ApiError {
+        code: "BOOTSTRAP_FAILED".into(),
+        message: database.1.clone(),
+    })?;
+    db::sync::status(conn)
+}
+#[tauri::command]
 fn kitchen_preferences_save(
     database: tauri::State<Database>,
     preferences: db::preferences::Preferences,
@@ -300,6 +312,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             kitchen_bootstrap,
+            kitchen_sync_status,
             kitchen_preferences_save,
             kitchen_backup_status,
             kitchen_backup_open_folder,

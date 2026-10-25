@@ -10,6 +10,8 @@ mod planner;
 pub mod preferences;
 pub mod seasonings;
 pub mod shopping;
+pub mod sync;
+pub const CURRENT_SCHEMA: i64 = 12;
 use inventory::InventoryDraft;
 
 #[derive(Debug, Serialize)]
@@ -291,11 +293,12 @@ pub fn open(path: &Path) -> Result<Connection> {
         "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;",
     )?;
     migrate(&mut connection, path)?;
+    sync::initialize(&connection)?;
     Ok(connection)
 }
 fn migrate(connection: &mut Connection, path: &Path) -> Result<()> {
     let version: i64 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-    if version > 11 {
+    if version > CURRENT_SCHEMA {
         return Err(error(
             "NEWER_SCHEMA",
             "数据库版本高于当前程序，请使用较新版本；未重建数据库。",
@@ -482,6 +485,18 @@ fn migrate(connection: &mut Connection, path: &Path) -> Result<()> {
             [],
         )?;
         tx.pragma_update(None, "user_version", 11)?;
+        tx.commit()?;
+    }
+    if version < 12 {
+        connection.backup(
+            "main",
+            path.with_extension(format!("pre-v12-{}.sqlite3", id())),
+            None,
+        )?;
+        let tx = connection.transaction()?;
+        tx.execute_batch(include_str!("../../migrations/0012_sync_outbox.sql"))?;
+        tx.execute("INSERT INTO schema_migrations(version) VALUES(12)", [])?;
+        tx.pragma_update(None, "user_version", 12)?;
         tx.commit()?;
     }
     Ok(())
@@ -758,6 +773,14 @@ pub fn execute(connection: &mut Connection, request_id: &str, command: Command) 
         }
         return Ok(());
     }
+    #[derive(Deserialize)]
+    struct CommandTag {
+        #[serde(rename = "type")]
+        kind: String,
+    }
+    let command_type: CommandTag =
+        serde_json::from_str(&payload).map_err(|_| error("INVALID_INPUT", "操作类型无法解析"))?;
+    let capture = sync::Capture::begin(&tx)?;
     apply(&tx, command)?;
     tx.execute(
         "INSERT INTO command_receipts(request_id,payload) VALUES(?1,?2)",
@@ -767,6 +790,9 @@ pub fn execute(connection: &mut Connection, request_id: &str, command: Command) 
         "UPDATE app_settings SET value=CAST(value AS INTEGER)+1 WHERE key='data_revision'",
         [],
     )?;
+    if let Some(capture) = capture {
+        capture.finish(request_id, &command_type.kind)?;
+    }
     tx.commit()?;
     Ok(())
 }
@@ -1314,6 +1340,7 @@ fn valid_date(date: &str) -> bool {
 mod tests {
     use super::*;
     pub(super) fn downgrade_cooking(c: &Connection) {
+        sync::remove_for_legacy_fixture(c);
         c.execute_batch("DROP TABLE recipe_text_ingredients; DELETE FROM schema_migrations WHERE version=9; DROP TABLE recipe_sources; DELETE FROM schema_migrations WHERE version=8; ALTER TABLE planned_meals DROP COLUMN cooking_session_id; DROP TABLE cooking_consumptions; DROP TABLE cooking_undos; DROP TABLE cooking_sessions; DELETE FROM schema_migrations WHERE version=7;").unwrap();
     }
     pub(super) fn temp() -> std::path::PathBuf {
@@ -1377,6 +1404,7 @@ mod tests {
             recipe_snapshot(&conn, original["revisionId"].as_str().unwrap()).unwrap(),
             original
         );
+        sync::remove_for_legacy_fixture(&conn);
         conn.execute_batch("DROP TABLE recipe_media; DELETE FROM schema_migrations WHERE version=10; PRAGMA user_version=9;").unwrap();
         drop(conn);
         let conn = open(&path).unwrap();
@@ -1419,7 +1447,7 @@ mod tests {
             conn.query_row("SELECT count(*) FROM schema_migrations", [], |r| r
                 .get::<_, i64>(0))
                 .unwrap(),
-            11
+            CURRENT_SCHEMA
         );
     }
     #[test]
@@ -1495,6 +1523,7 @@ mod tests {
         let mut conn = open(&path).unwrap();
         create(&mut conn);
         let before = snapshot(&conn).unwrap();
+        sync::remove_for_legacy_fixture(&conn);
         conn.execute_batch("DROP TABLE recipe_text_ingredients; DELETE FROM schema_migrations WHERE version=9; DROP TABLE recipe_sources; DELETE FROM schema_migrations WHERE version=8; PRAGMA user_version=7;").unwrap();
         drop(conn);
         let conn = open(&path).unwrap();
@@ -1502,7 +1531,7 @@ mod tests {
         assert_eq!(
             conn.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
                 .unwrap(),
-            11
+            CURRENT_SCHEMA
         );
     }
     #[test]

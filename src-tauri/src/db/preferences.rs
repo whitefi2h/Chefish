@@ -70,11 +70,15 @@ pub fn save(conn: &mut Connection, mut value: Preferences) -> Result<()> {
     let encoded =
         serde_json::to_string(&value).map_err(|_| error("INVALID_PREFERENCES", "设置无法保存"))?;
     let tx = conn.transaction()?;
+    let capture = super::sync::Capture::begin(&tx)?;
     tx.execute("INSERT INTO app_settings(key,value) VALUES('preferences_v1',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [encoded])?;
     tx.execute(
         "UPDATE app_settings SET value=CAST(value AS INTEGER)+1 WHERE key='data_revision'",
         [],
     )?;
+    if let Some(capture) = capture {
+        capture.finish(&uuid::Uuid::new_v4().to_string(), "save_dining_preferences")?;
+    }
     tx.commit()?;
     Ok(())
 }

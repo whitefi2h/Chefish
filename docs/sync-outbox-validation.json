@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-25",
+  "schemaVersion": 12,
+  "scope": "Local durable outbox for future incremental synchronization",
+  "sourceBaseCommit": "12fe1f6",
+  "checks": {
+    "rust": {
+      "newOutboxTests": 8,
+      "ignoredLiveSiteTests": 2,
+      "passed": 109
+    },
+    "frontendUnit": {
+      "optInTestsSkipped": 9,
+      "passed": 28
+    },
+    "firebaseEmulator": {
+      "project": "demo-chefish",
+      "schemaVersionRejected": 13,
+      "passed": 8,
+      "schemaVersionsAccepted": [
+        11,
+        12
+      ]
+    },
+    "realCloudSyntheticTransport": {
+      "project": "chefish-kitchen",
+      "schemaVersion": 12,
+      "temporaryAccountsAndDocumentsCleaned": true,
+      "passed": 1
+    },
+    "typecheck": "passed",
+    "lint": "passed",
+    "windowsX64NsisBuild": "passed",
+    "deployedRulesMatchSource": true
+  },
+  "covered": [
+    "Stable generated row IDs and exact decimal strings",
+    "Atomic business write and outbox commit",
+    "Duplicate request receipts and restart",
+    "Batch and outbox write failure rollback",
+    "Complete purchase and cooking groups",
+    "Assistant sandbox isolation",
+    "Exclusion of chat credentials and device settings",
+    "Restore lineage reset and before-restore safety snapshot",
+    "Schema 11 migration backup and business preservation",
+    "Cloud backup removal of local queue and replica bytes"
+  ],
+  "notImplemented": [
+    "Account binding and data ownership migration",
+    "Automatic operation upload and cloud ordering",
+    "Acknowledgement cursor and queue compaction",
+    "Remote idempotent replay and conflict resolution"
+  ],
+  "notValidated": [
+    "Native real-account cloud roundtrip",
+    "Two-device synchronization",
+    "Installation upgrade and uninstall",
+    "Full 512 MiB transfer"
+  ],
+  "productionKitchenDatabaseUsed": false,
+  "personalDataUploaded": false,
+  "artifacts": [
+    {
+      "path": "src-tauri/target/release/chefish.exe",
+      "sha256": "a29b925d0d17014f07383135333e862995f52c6e59dfb510409ee213bcb98b81",
+      "bytes": 17851392
+    },
+    {
+      "path": "src-tauri/target/release/bundle/nsis/Chefish_1.0.0_x64-setup.exe",
+      "sha256": "270eafb054ef1332ae28375f98a1d54c7283f959702cad61e192d28c496331e2",
+      "bytes": 4829278
+    }
+  ]
+}

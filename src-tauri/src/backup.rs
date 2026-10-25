@@ -8,7 +8,7 @@ use std::{
 };
 use uuid::Uuid;
 
-pub const CURRENT_SCHEMA: i64 = 11;
+pub const CURRENT_SCHEMA: i64 = db::CURRENT_SCHEMA;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -207,7 +207,8 @@ pub fn replace_live_database(
         .as_mut()
         .ok_or_else(|| fail("DATABASE_ERROR", "本机数据库不可用，无法恢复"))?;
     create(active, safety_backup)?;
-    let staged = db::open(staged_path)?;
+    let mut staged = db::open(staged_path)?;
+    db::sync::reset(&mut staged)?;
     let result = Backup::new(&staged, active)
         .and_then(|backup| backup.run_to_completion(128, Duration::from_millis(10), None));
     if result.is_err() || sqlite_ok(active).is_err() {

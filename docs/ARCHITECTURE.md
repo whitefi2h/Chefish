@@ -18,6 +18,7 @@ Tauri 2 承载 React / TypeScript 界面，Rust 管理 SQLite、业务事务、�
 | `src-tauri/src/cloud_snapshot.rs`、`cloud_commands.rs` | 去除聊天和本机配置、分块校验与恢复暂存；复用本地备份流程 |
 | `src-tauri/src/main.rs` | IPC 注册与原生协调 |
 | `src-tauri/src/db/`、`src-tauri/migrations/` | 业务事务与结构升级 |
+| `src-tauri/src/db/sync.rs`、`0012_sync_outbox.sql` | 本地原子操作队列、副本标识与恢复重置；网络同步尚未接通 |
 | `src-tauri/src/assistant.rs`、`assistant_prompt.txt` | 上下文、提案和提示词 |
 | `src-tauri/src/ai.rs` | 模型服务、设置与凭据 |
 | `src-tauri/src/recipe_import.rs`、`recipe_images.rs`、`site_search.rs`、`site_access.rs` | 解析、图片与站点访问 |
@@ -34,6 +35,7 @@ Tauri 2 承载 React / TypeScript 界面，Rust 管理 SQLite、业务事务、�
 - 库存保留不可变事件。日期修正复用版本化校正事件，并保存旧日期供撤销；后续批次变化会阻止过时撤销。
 - AI 在数据库副本试运行命令，确认后同事务提交。过时、重复或失败提案不能部分写入。
 - 用餐与通用设置以 `preferences_v1` 保存在 `app_settings`；独立 IPC 保存，AI 操作命令不能修改。仅用餐人数与饮食描述进入模型上下文，修改默认值不重写配方或已有菜单。
+- 业务事务同步记录实际行变化与允许的设置变化；操作组与业务一起提交或回滚，副本标识和队列不进入手动云备份。详见 [离线操作记录](SYNC_OUTBOX.md)。
 
 ## 发布边界
 
