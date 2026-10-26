@@ -102,9 +102,15 @@ test("inventory filters, lot adjustment, undo, drawer focus and Escape", async (
 }) => {
   await page.goto("/");
   await go(page, "食材库存");
-  await page.getByLabel("筛选储存位置").selectOption("冷冻");
+  await page
+    .getByRole("group", { name: "位置筛选", exact: true })
+    .getByRole("button", { name: "冷冻", exact: true })
+    .click();
   await expect(page.locator("tbody tr")).toHaveCount(1);
-  await page.getByLabel("筛选食材类别").selectOption("蔬菜菌菇");
+  await page
+    .getByRole("group", { name: "类别筛选", exact: true })
+    .getByRole("button", { name: "蔬菜菌菇", exact: true })
+    .click();
   await expect(page.locator("tbody tr")).toHaveCount(0);
   await page.getByRole("button", { name: "清除筛选" }).click();
   await page
@@ -112,10 +118,14 @@ test("inventory filters, lot adjustment, undo, drawer focus and Escape", async (
     .first()
     .click();
   await page.getByLabel("选择批次").selectOption("mushroom-2");
-  await page.getByRole("button", { name: "使用", exact: true }).click();
-  await page.getByLabel("使用数量").fill("20");
-  await page.getByRole("button", { name: "确认使用" }).click();
-  await expect(page.locator("dd").first()).toHaveText("80 g");
+  await page
+    .getByRole("dialog")
+    .getByLabel("剩余数量", { exact: false })
+    .fill("80");
+  await page.getByRole("button", { name: "保存修改", exact: true }).click();
+  await expect(
+    page.getByRole("dialog").getByLabel("剩余数量", { exact: false }),
+  ).toHaveValue("80");
   await page.getByRole("button", { name: "关闭面板" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
@@ -123,8 +133,8 @@ test("inventory filters, lot adjustment, undo, drawer focus and Escape", async (
   ).toBeFocused();
   await page.getByRole("button", { name: "撤销上一步" }).click();
   await expect(
-    page.locator("tbody tr").filter({ hasText: "口蘑 / 鲜蘑菇" }).last(),
-  ).toContainText("100 g");
+    page.getByLabel("口蘑 / 鲜蘑菇剩余数量", { exact: true }).last(),
+  ).toHaveValue("100");
 });
 test("recipe filters survive details and notes are actually displayed", async ({
   page,

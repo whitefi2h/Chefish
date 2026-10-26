@@ -68,6 +68,7 @@ async function cookingIPC(page: Page, fail = false, openCooking = true) {
                   servings: number;
                   date: string;
                   note: string;
+                  record?: string;
                   consumptions: unknown[];
                 };
               };
@@ -102,6 +103,14 @@ async function cookingIPC(page: Page, fail = false, openCooking = true) {
                   })),
                 })),
               };
+            if (name === "kitchen_cooking_interpret")
+              return {
+                preview,
+                quantities: { "lot-early": "25", "lot-later": "0" },
+                summary: "牛肉用了25克",
+                assumptions: ["少许按25克估计"],
+              };
+            if (name !== "kitchen_execute") return null;
             const c = args.command!;
             (
               window as unknown as { cookingCommands: unknown[] }
@@ -113,6 +122,7 @@ async function cookingIPC(page: Page, fail = false, openCooking = true) {
                 date: c.draft!.date,
                 servings: c.draft!.servings,
                 note: c.draft!.note,
+                record: c.draft!.record,
                 untracked: true,
                 consumptions: [{ name: "牛肉", quantity: "50", unit: "g" }],
               };
@@ -167,6 +177,7 @@ for (const [width, height] of [
   test(`cooking confirm and record ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     const recipe = await cookingIPC(page);
+    await page.getByText("手动调整实际用量", { exact: true }).click();
     await expect(page.getByRole("button", { name: "确认完成" })).toBeEnabled();
     await expect(page.getByLabel("牛肉 lot-early 实际用量")).toHaveValue("60");
     await expect(page.getByLabel("牛肉 lot-later 实际用量")).toHaveValue("40");
@@ -213,6 +224,7 @@ for (const [width, height] of [
   });
 test("cooking failure retains quantities and note", async ({ page }) => {
   await cookingIPC(page, true);
+  await page.getByText("手动调整实际用量", { exact: true }).click();
   await page.getByLabel("牛肉 lot-early 实际用量").fill("12.123456");
   await page.getByLabel("烹饪心得").fill("保留草稿");
   await expect(page.getByRole("checkbox")).toHaveCount(0);
@@ -245,4 +257,44 @@ test("future plans hide cooking until their scheduled day", async ({
   await expect(
     card.getByRole("button", { name: "完成烹饪", exact: true }),
   ).toBeVisible();
+});
+
+test("written cooking record is interpreted on submit even after opening manual preview", async ({
+  page,
+}) => {
+  const recipe = await cookingIPC(page);
+  const manual = page.getByText("手动调整实际用量", { exact: true });
+  await manual.click();
+  await manual.click();
+  await page.getByLabel("烹饪记录", { exact: true }).fill("牛肉只用了一点点");
+  await page.getByLabel("烹饪心得").fill("火候正好，下次少放盐");
+  await page.screenshot({ path: "docs/screenshots/cooking/text-first.png" });
+  await page.getByRole("button", { name: "确认完成" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const commands = await page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          cookingCommands: {
+            type: string;
+            draft: {
+              record: string;
+              note: string;
+              consumptions: { lot_id: string; quantity: string }[];
+            };
+          }[];
+        }
+      ).cookingCommands,
+  );
+  const done = commands.find((c) => c.type === "complete_cooking")!;
+  expect(done.draft.record).toBe("牛肉只用了一点点");
+  expect(done.draft.note).toContain("少放盐");
+  expect(done.draft.consumptions).toEqual([
+    { lot_id: "lot-early", expected_version: 1, quantity: "25" },
+  ]);
+  const card = page.getByRole("article", {
+    name: `2026-10-19晚餐 · ${recipe.name}`,
+  });
+  await card.getByRole("button", { name: "查看烹饪记录" }).click();
+  await expect(page.getByRole("dialog")).toContainText("牛肉只用了一点点");
 });

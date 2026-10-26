@@ -58,6 +58,7 @@ export default function AISettings({
       setConfigured(s.configured);
       setMessage(remove ? "密钥已移除" : "配置已保存");
       onSaved?.(s);
+      window.dispatchEvent(new Event("chefish:ingredient-images-wake"));
     } catch (e) {
       setError(errorMessage(e));
     } finally {

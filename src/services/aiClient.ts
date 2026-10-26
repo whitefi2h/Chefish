@@ -43,6 +43,7 @@ export interface AssistantProposal {
   expectedRevision: string;
 }
 export interface Route {
+  dataChanged?: boolean;
   limit?: number;
   proposal?: AssistantProposal;
   copy?: { title: string; text: string };

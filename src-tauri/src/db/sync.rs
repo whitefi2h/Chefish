@@ -72,6 +72,13 @@ pub fn strip_local_metadata(conn: &Connection) -> Result<()> {
     )? {
         conn.execute_batch("DELETE FROM local_sync_binding; DELETE FROM local_sync_applied;")?;
     }
+    if conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='local_undo_history')",
+        [],
+        |r| r.get::<_, bool>(0),
+    )? {
+        conn.execute("DELETE FROM local_undo_history", [])?;
+    }
     if exists(conn)? {
         conn.execute_batch("DELETE FROM local_sync_outbox; DELETE FROM local_sync_state; DELETE FROM sqlite_sequence WHERE name='local_sync_outbox';")?;
     }
@@ -105,7 +112,7 @@ pub fn status(conn: &Connection) -> Result<Status> {
 }
 
 pub(super) fn settings(conn: &Connection) -> Result<BTreeMap<String, Value>> {
-    let mut stmt = conn.prepare("SELECT key,value FROM app_settings WHERE key='shopping_memo' OR key GLOB 'seasoning_hidden:*' OR key GLOB 'inventory_expiry_before:*' ORDER BY key")?;
+    let mut stmt = conn.prepare("SELECT key,value FROM app_settings WHERE key='shopping_memo' OR key GLOB 'seasoning_hidden:*' OR key GLOB 'inventory_expiry_before:*' OR key GLOB 'inventory_deleted:*' OR key GLOB 'inventory_properties_before:*' OR key GLOB 'ingredient_image:*' OR key GLOB 'seasoning_image:*' OR key GLOB 'cooking_record:*' OR key GLOB 'ingredient_resolution:*' ORDER BY key")?;
     let mut values = stmt
         .query_map([], |row| {
             Ok((row.get::<_, String>(0)?, Value::String(row.get(1)?)))
@@ -254,7 +261,12 @@ impl<'a> Capture<'a> {
             let schema_version: i64 =
                 conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
             let result_revision = revision(conn)?;
-            let payload = serde_json::to_vec(&json!({"formatVersion":1,"schemaVersion":schema_version,"operationId":operation_id,"replicaId":replica_id,"baseRevision":self.base_revision,"resultRevision":result_revision,"rows":rows,"settings":settings})).map_err(|_| error("SYNC_RECORD", "无法记录同步操作，当前操作未保存"))?;
+            let mut document = json!({"formatVersion":1,"schemaVersion":schema_version,"operationId":operation_id,"replicaId":replica_id,"baseRevision":self.base_revision,"resultRevision":result_revision,"rows":rows,"settings":settings});
+            if command_type == "undo" {
+                document["undo"] = json!(true);
+            }
+            let payload = serde_json::to_vec(&document)
+                .map_err(|_| error("SYNC_RECORD", "无法记录同步操作，当前操作未保存"))?;
             let mut encoder = GzBuilder::new()
                 .mtime(0)
                 .operating_system(255)
@@ -265,6 +277,7 @@ impl<'a> Capture<'a> {
             let compressed = encoder
                 .finish()
                 .map_err(|_| error("SYNC_RECORD", "同步操作压缩失败，当前操作未保存"))?;
+            super::undo::record(conn, operation_id, command_type, &compressed)?;
             let sha256 = format!("{:x}", Sha256::digest(&compressed));
             conn.execute("INSERT INTO local_sync_outbox(operation_id,replica_id,command_type,base_revision,result_revision,format_version,payload,payload_sha256) VALUES(?1,?2,?3,?4,?5,1,?6,?7)", params![operation_id,replica_id,command_type,self.base_revision,result_revision,compressed,sha256])?;
         }
@@ -298,6 +311,10 @@ pub fn remove_for_legacy_fixture(conn: &Connection) {
         .unwrap();
     }
     conn.execute_batch("DROP TABLE IF EXISTS temp.sync_capture_rows; DROP TABLE IF EXISTS temp.sync_capture_context; DROP TABLE local_sync_outbox; DROP TABLE local_sync_state; DELETE FROM schema_migrations WHERE version=12;").unwrap();
+    conn.execute_batch(
+        "DROP TABLE IF EXISTS local_undo_history; DELETE FROM schema_migrations WHERE version=14;",
+    )
+    .unwrap();
     conn.execute_batch("DROP TABLE IF EXISTS local_sync_binding; DROP TABLE IF EXISTS local_sync_applied; DELETE FROM schema_migrations WHERE version=13;").unwrap();
 }
 

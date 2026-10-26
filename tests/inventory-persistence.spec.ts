@@ -60,7 +60,10 @@ for (const [width, height] of [
     await expect(
       page.getByRole("button", { name: "食材购买", exact: true }),
     ).toBeEnabled();
-    await expect(page.locator("tbody")).toContainText("未记录有效期");
+    await expect(page.locator("tbody")).not.toContainText("粗略");
+    await expect(page.locator(".attention-items")).not.toContainText("牛肉");
+    await expect(page.locator("tbody")).not.toContainText("已用完");
+    await page.getByLabel("显示已用完").check();
     await expect(page.locator("tbody tr").last()).toContainText("已用完");
     await page.screenshot({
       path: `docs/screenshots/inventory-m2/${width}-inventory.png`,
@@ -83,10 +86,13 @@ for (const [width, height] of [
       .getByRole("button", { name: "查看牛肉批次", exact: true })
       .first()
       .click();
-    await expect(page.getByRole("dialog")).toContainText("未记录有效期");
+    await expect(page.getByRole("dialog")).not.toContainText("待核对");
     await expect(
-      page.getByRole("button", { name: "确认校正", exact: true }),
-    ).toBeEnabled();
+      page.getByRole("dialog").getByLabel("剩余数量", { exact: false }),
+    ).toBeEditable();
+    await expect(
+      page.getByRole("heading", { name: "数量操作", exact: true }),
+    ).toHaveCount(0);
     await page.screenshot({
       path: `docs/screenshots/inventory-m2/${width}-lot.png`,
     });
@@ -134,51 +140,70 @@ test("failed native receipt retains draft and sends explicit unknown expiry", as
   ]);
 });
 
-for (const operation of ["校正", "使用", "丢弃"]) {
-  test(`inventory ${operation} submits with no operation note`, async ({
-    page,
-  }) => {
-    await inventoryIPC(page, true);
-    await page
-      .getByRole("button", { name: "查看牛肉批次", exact: true })
-      .first()
-      .click();
-    await page.getByRole("button", { name: operation, exact: true }).click();
-    const reason = page.getByLabel("操作说明（选填）");
-    await expect(reason).toHaveValue("");
-    await expect(reason).not.toHaveAttribute("required", "");
-    await page
-      .getByLabel(operation === "校正" ? "校正后剩余量" : `${operation}数量`, {
-        exact: false,
-      })
-      .fill("20");
-    await page
-      .getByRole("button", { name: `确认${operation}`, exact: true })
-      .click();
-    await expect(page.locator(".toast")).toContainText("库存写入失败");
-    const commands = await page.evaluate(
+test("direct edit keeps failed draft and needs no reason", async ({ page }) => {
+  await inventoryIPC(page, true);
+  await page
+    .getByRole("button", { name: "查看牛肉批次", exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByLabel("剩余数量", { exact: false })
+    .fill("20");
+  await page.getByLabel("储存位置", { exact: true }).selectOption("冷冻");
+  await page.getByLabel("到期日期", { exact: true }).fill("2026-11-01");
+  await expect(page.getByLabel("操作说明", { exact: false })).toHaveCount(0);
+  await page.getByRole("button", { name: "保存修改", exact: true }).click();
+  await expect(page.locator(".toast")).toContainText("库存写入失败");
+  await expect(
+    page.getByRole("dialog").getByLabel("剩余数量", { exact: false }),
+  ).toHaveValue("20");
+  expect(
+    await page.evaluate(
       () =>
-        (
-          window as unknown as {
-            inventoryCommands: { reason: string; operation: string }[];
-          }
-        ).inventoryCommands,
-    );
-    expect(commands.at(-1)).toMatchObject({
-      reason: "",
-      operation:
-        operation === "校正"
-          ? "correct"
-          : operation === "使用"
-            ? "use"
-            : "discard",
-    });
-    if (operation === "丢弃")
-      await page.screenshot({
-        path: "docs/screenshots/inventory-optional-note.png",
-      });
-  });
-}
+        (window as unknown as { inventoryCommands: unknown[] })
+          .inventoryCommands,
+    ),
+  ).toMatchObject([
+    {
+      type: "edit_lot",
+      lot_id: "beef-1",
+      expected_version: 1,
+      draft: { quantity: "20", location: "冷冻", expires: "2026-11-01" },
+    },
+  ]);
+});
+
+test("list deletion requires confirmation and cancelling keeps the batch", async ({
+  page,
+}) => {
+  await inventoryIPC(page);
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await page
+    .getByRole("button", { name: "删除牛肉批次", exact: true })
+    .first()
+    .click();
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { inventoryCommands: unknown[] })
+          .inventoryCommands,
+    ),
+  ).toEqual([]);
+  page.once("dialog", (dialog) => dialog.accept());
+  await page
+    .getByRole("button", { name: "删除牛肉批次", exact: true })
+    .first()
+    .click();
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { inventoryCommands: unknown[] })
+          .inventoryCommands,
+    ),
+  ).toEqual([{ type: "delete_lot", lot_id: "beef-1", expected_version: 1 }]);
+});
+
 test("undo last action submits immediately without a reason field", async ({
   page,
 }) => {
@@ -196,4 +221,70 @@ test("undo last action submits immediately without a reason field", async ({
   expect(commands).toEqual([
     { type: "undo_inventory", lot_id: "beef-1", expected_version: 1 },
   ]);
+});
+
+test("preview cells and detail share editing and deletion, with empty batches hidden by default", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "食材库存" })
+    .click();
+  await page.getByLabel("鸡蛋剩余数量", { exact: true }).fill("0");
+  await page.getByLabel("鸡蛋剩余数量", { exact: true }).press("Enter");
+  const rows = page.locator("tbody tr").filter({ hasText: "鸡蛋" });
+  await expect(rows).toHaveCount(0);
+  await page.getByLabel("显示已用完").check();
+  await expect(rows).toContainText("已用完");
+  await page.getByLabel("鸡蛋储存位置", { exact: true }).selectOption("常温");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByLabel("鸡蛋储存位置", { exact: true })).toHaveValue(
+    "常温",
+  );
+  await page.getByRole("button", { name: "查看鸡蛋批次", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("储存位置", { exact: true })).toHaveValue(
+    "常温",
+  );
+  page.once("dialog", (prompt) => prompt.dismiss());
+  await dialog
+    .getByRole("button", { name: "删除鸡蛋批次", exact: true })
+    .click();
+  await expect(dialog).toBeVisible();
+  page.once("dialog", (prompt) => prompt.accept());
+  await dialog
+    .getByRole("button", { name: "删除鸡蛋批次", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(rows).toHaveCount(0);
+});
+
+test("inline quantity controls use unit steps and never open a dialog", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "食材库存", exact: true })
+    .click();
+  const beef = page.getByLabel("牛肉剩余数量", { exact: true });
+  const eggs = page.getByLabel("鸡蛋剩余数量", { exact: true });
+  await page.getByRole("button", { name: "减少牛肉数量", exact: true }).click();
+  await expect(beef).toHaveValue("350");
+  await page.getByRole("button", { name: "增加牛肉数量", exact: true }).click();
+  await expect(beef).toHaveValue("400");
+  await page.getByRole("button", { name: "减少鸡蛋数量", exact: true }).click();
+  await expect(eggs).toHaveValue("5");
+  await beef.fill("375.5");
+  await beef.press("Enter");
+  await expect(beef).toHaveValue("375.5");
+  await beef.fill("9");
+  await beef.press("Escape");
+  await expect(beef).toHaveValue("375.5");
+  await page.getByLabel("牛肉储存位置", { exact: true }).selectOption("常温");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.locator("tbody").getByRole("button", { name: /修改.*属性/ }),
+  ).toHaveCount(0);
 });

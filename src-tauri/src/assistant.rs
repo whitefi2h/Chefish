@@ -225,6 +225,7 @@ fn destructive(c: &Command) -> bool {
     matches!(
         c,
         Command::DeleteRecipe { .. }
+            | Command::DeleteLot { .. }
             | Command::RemoveSeasoning { .. }
             | Command::DeleteNote { .. }
             | Command::RemovePlan { .. }
@@ -251,6 +252,9 @@ fn label(c: &Command) -> &'static str {
         Command::EditNote { .. } => "编辑手记",
         Command::DeleteNote { .. } => "删除手记",
         Command::ReceiveLot { .. } => "食材入库",
+        Command::EditLot { .. } => "编辑食材属性",
+        Command::DeleteLot { .. } => "删除食材批次",
+        Command::ClassifyInventory { .. } => "自动分类库存食材",
         Command::SetLotExpiry { .. } => "更新批次到期日期",
         Command::ChangeLot { operation, .. } => match operation.as_str() {
             "correct" => "校正库存剩余量",
@@ -516,7 +520,11 @@ pub fn prepare(
     }
     let commands: Vec<Command> = raw
         .into_iter()
-        .map(serde_json::from_value)
+        .enumerate()
+        .map(|(i, v)| {
+            serde_json::from_value(crate::assistant_commands::normalize(v))
+                .map_err(|e| format!("第{}项：{}", i + 1, e))
+        })
         .collect::<std::result::Result<_, _>>()
         .map_err(|e| fail("INVALID_TOOL", &format!("助手操作格式不正确：{}", e)))?;
     if commands.iter().any(|c| matches!(c, Command::Batch { .. })) {
@@ -543,6 +551,13 @@ pub fn prepare(
         diff.push(json!({"section":"采购预测","before":shopping_text(&shop_before),"after":shopping_text(&shop_after)}));
     }
     for c in &commands {
+        if let Command::ReceiveLot { draft } = c {
+            let (name, quantity, unit, estimated) =
+                db::ingredient_standard::amount(&draft.name, &draft.quantity, &draft.unit)?;
+            if estimated {
+                diff.push(json!({"section":"规格估算","before":format!("{} {} {}",draft.name,draft.quantity,draft.unit),"after":format!("{} {} {}（按常见包装规格估算）",name,quantity,unit)}));
+            }
+        }
         if let Command::SetLotExpiry { reason, .. } = c {
             diff.push(json!({"section":"日期依据","before":"","after":reason}));
         }
@@ -719,6 +734,55 @@ pub fn shopping_copy(conn: &Connection, week: &str) -> Result<Value> {
 mod tests {
     use super::*;
     #[test]
+    #[ignore = "explicit live model reproduction using synthetic kitchen only"]
+    fn live_receipt_reproduction() {
+        let conn = seed();
+        let local = context(&conn, None).unwrap();
+        let messages = json!([{"role":"user","content":"还有一些帮我入库一下：青椒2个，猕猴桃3个，意大利面酱2包，10/21入库。Spaghetti 1包，螺旋意面1包，10/8入库。龙口粉丝一包，10/12入库。类型保质期你来填"}]);
+        let route = crate::ai::route(messages, json!([]), local.clone()).unwrap();
+        println!(
+            "synthetic route: {}",
+            json!({"action":route.action,"commands":route.commands})
+        );
+        assert_eq!(route.action, "operate");
+        if route.action == "operate" {
+            let store = Proposals::default();
+            match prepare(
+                &conn,
+                &store,
+                route.commands,
+                local["snapshot"]["dataRevision"].as_str().unwrap(),
+                local["weekStart"].as_str().unwrap(),
+            ) {
+                Ok(_) => println!("proposal valid"),
+                Err(error) => panic!("proposal error: {} {}", error.code, error.message),
+            }
+        }
+    }
+    #[test]
+    fn model_operation_spelling_and_package_units_prepare_as_one_atomic_proposal() {
+        let mut conn = seed();
+        let before = db::snapshot(&conn).unwrap();
+        let store = Proposals::default();
+        let commands = vec![
+            json!({"operation":"receive_lot","draft":{"name":"Spaghetti","quantity":1,"unit":"包","location":"常温","received":"2026-10-08"}}),
+            json!({"operation":"receive_lot","draft":{"name":"意大利面酱","quantity":2,"unit":"包","location":"常温","received":"2026-10-21"}}),
+        ];
+        let p = preview(&conn, &store, commands).unwrap();
+        assert_eq!(db::snapshot(&conn).unwrap(), before);
+        apply(&mut conn, &store, &p.id, false).unwrap();
+        let after = db::snapshot(&conn).unwrap();
+        assert_eq!(
+            after["lots"].as_array().unwrap().len(),
+            before["lots"].as_array().unwrap().len() + 2
+        );
+        assert!(after["lots"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|l| l["quantity"] == "500" && l["unit"] == "g"));
+    }
+    #[test]
     fn bought_intent_uses_pending_amounts_and_seasoning_flags_without_touching_stock() {
         let mut conn = seed();
         let store = Proposals::default();
@@ -737,7 +801,8 @@ mod tests {
             purchase_intent(&c, &json!([{"role":"user","content":"蒜和鸡翅都买了"}])).unwrap();
         assert_eq!(commands.len(), 2);
         assert_eq!(commands[0]["quantity"], "10");
-        assert_eq!(commands[1]["quantity"], "6");
+        assert_eq!(commands[1]["quantity"], "210");
+        assert_eq!(commands[1]["unit"], "g");
         let p = preview(&conn, &store, commands).unwrap();
         apply(&mut conn, &store, &p.id, false).unwrap();
         let after = context(&conn, None).unwrap();

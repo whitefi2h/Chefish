@@ -17,6 +17,8 @@ pub struct CompleteDraft {
     pub servings: i64,
     pub date: String,
     pub note: String,
+    #[serde(default)]
+    pub record: String,
     pub acknowledged: bool,
     pub consumptions: Vec<Consumption>,
 }
@@ -62,15 +64,7 @@ fn requirements(
             [rev],
             |r| r.get(0),
         )?;
-        let mut stmt=conn.prepare("SELECT ingredient_id,unit,amount_decimal FROM recipe_ingredients WHERE revision_id=?1 ORDER BY position")?;
-        for row in stmt.query_map([rev], |r| {
-            Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, String>(2)?,
-            ))
-        })? {
-            let (i, u, n) = row?;
+        for (i, n, u) in ingredient_resolution::requirements(conn, rev)? {
             let name: String =
                 conn.query_row("SELECT name FROM ingredients WHERE id=?1", [&i], |r| {
                     r.get(0)
@@ -78,6 +72,8 @@ fn requirements(
             if seasonings::is_seasoning(conn, rev, &name)? {
                 continue;
             }
+            let i = ingredient_standard::canonical_id(conn, &i)?;
+            let (_, n, u, _) = ingredient_standard::base(&name, &n, &u)?;
             *result.entry((i, u)).or_insert(Decimal::ZERO) +=
                 (number(&n)? * Decimal::from(servings) / Decimal::from(standard))
                     .round_dp_with_strategy(6, RoundingStrategy::ToPositiveInfinity);
@@ -107,21 +103,28 @@ pub fn preview(conn: &Connection, key: &str, servings: i64, date: &str) -> Resul
         let mut left = required;
         let mut lots = Vec::new();
         for lot in inventory::lots(conn)? {
-            if lot["ingredientId"] != ingredient
-                || lot["unit"] != unit
-                || number(lot["quantity"].as_str().unwrap())? == Decimal::ZERO
+            if !ingredient_standard::matches(
+                conn,
+                lot["ingredientId"].as_str().unwrap(),
+                &ingredient,
+            )? || number(lot["quantity"].as_str().unwrap())? == Decimal::ZERO
             {
                 continue;
             }
+            let Some(factor) =
+                ingredient_standard::factor(&name, lot["unit"].as_str().unwrap(), &unit)
+            else {
+                continue;
+            };
             let expires = lot["expires"].as_str();
-            let safe = expires.is_some_and(|d| d >= date) && lot["precision"] == "exact";
+            let safe = expires.is_none_or(|d| d >= date);
             let take = if expires.is_none_or(|d| d >= date) {
-                left.min(number(lot["quantity"].as_str().unwrap())?)
+                left.min(number(lot["quantity"].as_str().unwrap())? * factor)
             } else {
                 Decimal::ZERO
             };
             left -= take;
-            lots.push(json!({"id":lot["id"],"version":lot["version"],"available":lot["quantity"],"location":lot["location"],"expires":lot["expires"],"review":!safe,"suggested":take.normalize().to_string()}));
+            lots.push(json!({"id":lot["id"],"version":lot["version"],"available":lot["quantity"],"location":lot["location"],"expires":lot["expires"],"review":!safe,"suggested":(take/factor).round_dp(6).normalize().to_string(),"unit":lot["unit"],"factor":factor.normalize().to_string()}));
         }
         rows.push(json!({"ingredientId":ingredient,"name":name,"unit":unit,"required":required.normalize().to_string(),"missing":left.normalize().to_string(),"lots":lots}));
     }
@@ -133,7 +136,10 @@ pub fn preview(conn: &Connection, key: &str, servings: i64, date: &str) -> Resul
     Ok(json!({"planVersion":version,"revision":revision,"rows":rows}))
 }
 pub fn complete(tx: &Transaction, d: CompleteDraft) -> Result<()> {
-    if !d.acknowledged || d.note.chars().count() > 2000 || d.consumptions.len() > 500 {
+    if !d.acknowledged
+        || (d.note.chars().count() > 2000 || d.record.chars().count() > 4000)
+        || d.consumptions.len() > 500
+    {
         return Err(error(
             "INVALID_INPUT",
             "请核对实际消耗后确认，备注最多 2000 字",
@@ -160,10 +166,19 @@ pub fn complete(tx: &Transaction, d: CompleteDraft) -> Result<()> {
             [&c.lot_id],
             |r| Ok((r.get(0)?, r.get(1)?)),
         )?;
-        if !requirements.contains_key(&(ingredient.clone(), unit.clone())) {
-            return Err(error("INVALID_INPUT", "批次不属于这道菜的食材或单位"));
+        let name: String = tx.query_row(
+            "SELECT name FROM ingredients WHERE id=?1",
+            [&ingredient],
+            |r| r.get(0),
+        )?;
+        let ingredient = ingredient_standard::canonical_id(tx, &ingredient)?;
+        let (_, quantity, unit, _) = ingredient_standard::base(&name, &c.quantity, &unit)?;
+        if !requirements.contains_key(&(ingredient.clone(), unit.clone()))
+            && d.record.trim().is_empty()
+        {
+            return Err(error("INVALID_INPUT", "实际新增食材请写入烹饪记录"));
         }
-        *totals.entry((ingredient, unit)).or_insert(Decimal::ZERO) += number(&c.quantity)?;
+        *totals.entry((ingredient, unit)).or_insert(Decimal::ZERO) += number(&quantity)?;
     }
     let text_count: i64 = if let Some(rev) = rev.as_deref() {
         tx.query_row(
@@ -180,6 +195,22 @@ pub fn complete(tx: &Transaction, d: CompleteDraft) -> Result<()> {
             .iter()
             .any(|(k, v)| totals.get(k).copied().unwrap_or_default() < *v);
     tx.execute("INSERT INTO cooking_sessions(id,plan_id,recipe_revision_id,date,servings,note,untracked) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![session,d.plan_id,rev,d.date,d.servings,d.note.trim(),untracked])?;
+    if !d.record.trim().is_empty() {
+        tx.execute(
+            "INSERT INTO app_settings(key,value) VALUES(?1,?2)",
+            params![format!("cooking_record:{session}"), d.record.trim()],
+        )?;
+    }
+    if !d.note.trim().is_empty() {
+        if let Some(rev) = &rev {
+            let recipe: String = tx.query_row(
+                "SELECT recipe_id FROM recipe_revisions WHERE id=?1",
+                [rev],
+                |r| r.get(0),
+            )?;
+            tx.execute("INSERT INTO cooking_notes(id,recipe_id,recipe_revision_id,date,note) VALUES(?1,?2,?3,?4,?5)",params![session,recipe,rev,d.date,d.note.trim()])?;
+        }
+    }
     for c in &d.consumptions {
         inventory::change(
             tx,
@@ -216,6 +247,7 @@ pub fn undo(tx: &Transaction, key: &str, expected: i64) -> Result<()> {
     let events = stmt
         .query_map([&session], |r| r.get::<_, String>(0))?
         .collect::<std::result::Result<Vec<_>, _>>()?;
+    tx.execute("DELETE FROM cooking_notes WHERE id=?1", [&session])?;
     for event in events {
         inventory::reverse_inner(tx, &event, "撤销烹饪")?;
     }
@@ -233,6 +265,14 @@ pub fn session(conn: &Connection, key: &str) -> Result<Value> {
     let result=conn.query_row("SELECT s.id,s.date,s.servings,s.note,s.untracked FROM cooking_sessions s JOIN planned_meals p ON p.cooking_session_id=s.id WHERE p.id=?1",[key],|r|Ok(json!({"id":r.get::<_,String>(0)?,"date":r.get::<_,String>(1)?,"servings":r.get::<_,i64>(2)?,"note":r.get::<_,String>(3)?,"untracked":r.get::<_,bool>(4)?}))).optional()?;
     let mut result = result.unwrap_or(Value::Null);
     if !result.is_null() {
+        let record: Option<String> = conn
+            .query_row(
+                "SELECT value FROM app_settings WHERE key=?1",
+                [format!("cooking_record:{}", result["id"].as_str().unwrap())],
+                |r| r.get(0),
+            )
+            .optional()?;
+        result["record"] = json!(record.unwrap_or_default());
         let mut stmt=conn.prepare("SELECT i.name,c.quantity,l.unit FROM cooking_consumptions c JOIN inventory_lots l ON l.id=c.lot_id JOIN ingredients i ON i.id=l.ingredient_id WHERE c.session_id=?1 ORDER BY c.rowid")?;
         result["consumptions"]=Value::Array(stmt.query_map([result["id"].as_str().unwrap()],|r|Ok(json!({"name":r.get::<_,String>(0)?,"quantity":r.get::<_,String>(1)?,"unit":r.get::<_,String>(2)?})))?.collect::<std::result::Result<Vec<_>,_>>()?);
     }
@@ -315,6 +355,7 @@ mod tests {
             })
             .collect();
         CompleteDraft {
+            record: String::new(),
             plan_id: key.into(),
             expected_version: p["planVersion"].as_i64().unwrap(),
             expected_revision: p["revision"].as_str().unwrap().into(),
@@ -324,6 +365,58 @@ mod tests {
             acknowledged: true,
             consumptions,
         }
+    }
+    #[test]
+    fn written_record_and_recipe_notebook_survive_restart_and_undo_together() {
+        let (path, mut c, key) = setup();
+        let before = inventory::lots(&c).unwrap();
+        let mut d = draft(&c, &key);
+        d.record = "西兰花用了100克".into();
+        d.note = "火候正好".into();
+        execute(&mut c, &id(), Command::CompleteCooking { draft: d }).unwrap();
+        drop(c);
+        let mut c = open(&path).unwrap();
+        let saved = session(&c, &key).unwrap();
+        assert_eq!(saved["record"], "西兰花用了100克");
+        assert_eq!(saved["note"], "火候正好");
+        let note: String = c
+            .query_row(
+                "SELECT note FROM cooking_notes WHERE id=?1",
+                [saved["id"].as_str().unwrap()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(note, "火候正好");
+        execute(
+            &mut c,
+            &id(),
+            Command::UndoCooking {
+                plan_id: key.clone(),
+                expected_version: 2,
+            },
+        )
+        .unwrap();
+        assert!(session(&c, &key).unwrap().is_null());
+        assert_eq!(
+            inventory::lots(&c)
+                .unwrap()
+                .iter()
+                .map(|l| l["quantity"].clone())
+                .collect::<Vec<_>>(),
+            before
+                .iter()
+                .map(|l| l["quantity"].clone())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            c.query_row(
+                "SELECT count(*) FROM cooking_notes WHERE id=?1",
+                [saved["id"].as_str().unwrap()],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+            0
+        );
     }
     #[test]
     fn fefo_complete_is_atomic_idempotent_pinned_and_durable_then_undo_restores_all() {
@@ -472,6 +565,7 @@ mod tests {
         assert_eq!(p["rows"][0]["required"], "200");
         assert_eq!(p["rows"][0]["missing"], "0");
         assert_eq!(p["rows"][0]["lots"][2]["suggested"], "50");
+        assert_eq!(p["rows"][0]["lots"][2]["review"], false);
         let shortage = preview(&c, &key, 6, &date).unwrap();
         assert_eq!(shortage["rows"][0]["missing"], "100");
         let mut d = draft(&c, &key);

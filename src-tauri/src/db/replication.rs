@@ -52,6 +52,8 @@ pub struct State {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Payload {
+    #[serde(default)]
+    undo: bool,
     format_version: i64,
     schema_version: i64,
     operation_id: String,
@@ -241,6 +243,9 @@ fn decode(bytes: &[u8]) -> Result<Payload> {
     }
     let p: Payload =
         serde_json::from_slice(&raw).map_err(|_| error("SYNC_INVALID", "同步操作格式无效"))?;
+    if p.undo && p.schema_version < 14 {
+        return Err(error("SYNC_INVALID", "撤销操作需要较新数据库版本"));
+    }
     if p.format_version != 1
         || !(12..=super::CURRENT_SCHEMA).contains(&p.schema_version)
         || Uuid::parse_str(&p.operation_id).is_err()
@@ -417,6 +422,12 @@ fn patch_setting(conn: &Connection, change: &SettingChange, inverse: bool) -> Re
         && change.key != "shopping_memo"
         && !change.key.starts_with("seasoning_hidden:")
         && !change.key.starts_with("inventory_expiry_before:")
+        && !change.key.starts_with("inventory_deleted:")
+        && !change.key.starts_with("inventory_properties_before:")
+        && !change.key.starts_with("ingredient_image:")
+        && !change.key.starts_with("seasoning_image:")
+        && !change.key.starts_with("cooking_record:")
+        && !change.key.starts_with("ingredient_resolution:")
     {
         return Err(error("SYNC_INVALID", "同步操作包含本机私有设置"));
     }
@@ -482,7 +493,7 @@ fn patch(conn: &Connection, p: &Payload, inverse: bool, remote: bool) -> Result<
         }
     } else {
         for row in &p.rows {
-            patch_row(conn, row, false, remote)?;
+            patch_row(conn, row, false, remote && !p.undo)?;
         }
         for setting in &p.settings {
             patch_setting(conn, setting, false)?;
@@ -502,6 +513,15 @@ fn suspend_history(conn: &Connection) -> Result<Vec<String>> {
         }
     }
     Ok(restore)
+}
+pub(super) fn undo_payload(conn: &Connection, bytes: &[u8]) -> Result<()> {
+    let payload = decode(bytes)?;
+    let triggers = suspend_history(conn)?;
+    patch(conn, &payload, true, false)?;
+    for trigger in triggers {
+        conn.execute_batch(&trigger)?;
+    }
+    Ok(())
 }
 fn pending(conn: &Connection) -> Result<Vec<(String, String, Payload)>> {
     let rows = conn

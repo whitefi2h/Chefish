@@ -1,6 +1,7 @@
 import { splitIngredientRows } from "./domain/ingredientRows";
 import { isSeasoning, supplies } from "./domain/seasonings";
 import WebRecipeImport from "./WebRecipeImport";
+import RecipeMediaEditor from "./RecipeMediaEditor";
 import { canonicalRecipeUrl } from "./domain/recipeImport";
 import { useState } from "react";
 import { Modal, Badge } from "./components";
@@ -174,7 +175,9 @@ export function addRecipe(
     source: d.source ?? previous?.source,
     textIngredients: d.textIngredients ?? [],
     media: d.media ?? previous?.media,
-    image: d.media?.cover ?? previous?.image ?? "placeholder",
+    image: d.media
+      ? (d.media.cover ?? "placeholder")
+      : (previous?.image ?? "placeholder"),
     requirements,
   };
   return {
@@ -232,6 +235,10 @@ export default function RecipeEditor({
 }) {
   const { state, mutate, persistent, busy } = useDemo();
   const [name, setName] = useState(initialDraft?.name ?? source?.name ?? "");
+  const [media, setMedia] = useState<RecipeMedia | undefined>(
+    initialDraft?.media ?? source?.media,
+  );
+  const [mediaBusy, setMediaBusy] = useState(false);
   const [category, setCategory] = useState(
     initialDraft?.category ??
       recipe?.category ??
@@ -367,7 +374,7 @@ export default function RecipeEditor({
                   ),
                   subtitle,
                   source: origin ? { ...origin, author } : undefined,
-                  media: initialDraft?.media ?? source?.media,
+                  media,
                   allowSourceDuplicate: initialDraft?.allowSourceDuplicate,
                 }),
               );
@@ -566,6 +573,13 @@ export default function RecipeEditor({
               onChange={(e) => setSeasoning(e.target.value)}
             />
           </label>
+          <RecipeMediaEditor
+            value={media ?? { cover: null, steps: [] }}
+            onChange={setMedia}
+            name={name}
+            disabled={mediaBusy}
+            onBusyChange={setMediaBusy}
+          />
           <div className="step-editor">
             <h3>烹饪步骤</h3>
             {steps.map((step, index) => (
@@ -575,10 +589,24 @@ export default function RecipeEditor({
                   <button
                     type="button"
                     aria-label={`移除步骤${index + 1}`}
-                    disabled={steps.length === 1}
-                    onClick={() =>
-                      setSteps(steps.filter((_, i) => i !== index))
-                    }
+                    disabled={steps.length === 1 || mediaBusy}
+                    onClick={() => {
+                      setSteps(steps.filter((_, i) => i !== index));
+                      setMedia((v) =>
+                        v
+                          ? {
+                              ...v,
+                              steps: v.steps
+                                .filter((s) => s.sourceStep !== index + 1)
+                                .map((s) =>
+                                  s.sourceStep > index + 1
+                                    ? { ...s, sourceStep: s.sourceStep - 1 }
+                                    : s,
+                                ),
+                            }
+                          : v,
+                      );
+                    }}
                   >
                     ×
                   </button>
@@ -615,11 +643,19 @@ export default function RecipeEditor({
                     }
                   />
                 </label>
+                <RecipeMediaEditor
+                  value={media ?? { cover: null, steps: [] }}
+                  onChange={setMedia}
+                  name={name}
+                  step={index + 1}
+                  disabled={mediaBusy}
+                  onBusyChange={setMediaBusy}
+                />
               </section>
             ))}
             <button
               type="button"
-              disabled={steps.length >= 50}
+              disabled={steps.length >= 50 || mediaBusy}
               onClick={() => setSteps([...steps, { title: "", body: "" }])}
             >
               添加步骤
@@ -630,7 +666,7 @@ export default function RecipeEditor({
               {error}
             </p>
           )}
-          <button className="primary" disabled={busy}>
+          <button className="primary" disabled={busy || mediaBusy}>
             {mode === "review"
               ? "确认导入"
               : recipe

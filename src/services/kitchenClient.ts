@@ -26,6 +26,23 @@ export interface PlanInput {
   servings: number;
 }
 export type KitchenCommand =
+  | { type: "undo"; operation_id: string }
+  | {
+      type: "edit_lot";
+      lot_id: string;
+      expected_version: number;
+      draft: {
+        quantity: string;
+        unit: string;
+        location: string;
+        received: string;
+        expires: string | null;
+        precision: string;
+        category: string;
+      };
+    }
+  | { type: "delete_lot"; lot_id: string; expected_version: number }
+  | { type: "classify_inventory"; expected_revision: string }
   | { type: "remove_seasoning"; name: string; expected_revision: string }
   | {
       type: "set_seasoning";
@@ -51,6 +68,7 @@ export type KitchenCommand =
         date: string;
         note: string;
         acknowledged: boolean;
+        record?:string;
         consumptions: {
           lot_id: string;
           expected_version: number;
@@ -165,12 +183,19 @@ export type KitchenCommand =
       entity_id: string;
       name: string;
     };
+export type InventoryUpdate = Pick<
+  DemoState,
+  "lots" | "inventoryEvents" | "dataRevision" | "undo"
+> & { baseRevision: string };
 export interface KitchenClient {
   savePreferences?(preferences: AppPreferences): Promise<void>;
   recipeHistory?(recipeId: string): Promise<Recipe[]>;
   load(): Promise<DemoState>;
   shopping?(weekStart: string): Promise<ShoppingForecast>;
-  execute(command: KitchenCommand, requestId: string): Promise<void>;
+  execute(
+    command: KitchenCommand,
+    requestId: string,
+  ): Promise<InventoryUpdate | void>;
 }
 type RecipeSnapshot = Omit<Recipe, "requirements"> & {
   requirements: { ingredientId: string; quantity: string; unit: string }[];
@@ -227,8 +252,19 @@ export const kitchenClient: KitchenClient = {
       })),
     };
   },
-  execute(command, requestId) {
-    return invoke<void>("kitchen_execute", { requestId, command });
+  async execute(command, requestId) {
+    const update = await invoke<
+      (Omit<InventoryUpdate, "lots"> & { lots: Snapshot["lots"] }) | null
+    >("kitchen_execute", { requestId, command });
+    if (update && command.type === "change_lot")
+      return {
+        ...update,
+        lots: update.lots.map((lot) => ({
+          ...lot,
+          quantityText: lot.quantity,
+          quantity: Number(lot.quantity),
+        })),
+      };
   },
 };
 export function errorMessage(error: unknown) {

@@ -79,6 +79,180 @@ fn transfer(a: &mut Connection, b: &mut Connection) -> Operation {
 fn lots(conn: &Connection) -> Value {
     super::super::snapshot(conn).unwrap()["lots"].clone()
 }
+#[test]
+fn global_undo_replicates_recipe_history_and_inventory_without_copying_private_stack() {
+    let (_aroot, mut a, _broot, mut b) = pair();
+    let before = lots(&a);
+    super::super::execute(
+        &mut a,
+        &Uuid::new_v4().to_string(),
+        super::super::Command::CreateRecipe {
+            draft: super::super::tests::draft(),
+        },
+    )
+    .unwrap();
+    transfer(&mut a, &mut b);
+    let lot = &before[0];
+    execute(
+        &mut a,
+        json!({"type":"change_lot","lot_id":lot["id"],"expected_version":1,"operation":"correct","quantity":"2","location":null,"reason":""}),
+    );
+    transfer(&mut a, &mut b);
+    for _ in 0..2 {
+        let latest = super::super::undo::status(&a).unwrap();
+        execute(
+            &mut a,
+            json!({"type":"undo","operation_id":latest["operationId"]}),
+        );
+        transfer(&mut a, &mut b);
+    }
+    assert_eq!(lots(&a), before);
+    assert_eq!(lots(&b), before);
+    assert!(super::super::snapshot(&b).unwrap()["recipes"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+    assert!(super::super::undo::status(&b).unwrap().is_null());
+}
+#[test]
+fn global_undo_keeps_later_remote_references_and_rolls_back_on_conflict() {
+    let (_aroot, mut a, _broot, mut b) = pair();
+    super::super::execute(
+        &mut a,
+        &Uuid::new_v4().to_string(),
+        super::super::Command::CreateRecipe {
+            draft: super::super::tests::draft(),
+        },
+    )
+    .unwrap();
+    transfer(&mut a, &mut b);
+    let s = super::super::snapshot(&b).unwrap();
+    execute(
+        &mut b,
+        json!({"type":"save_plan","plan_id":null,"expected_version":null,"draft":{"recipe_revision_id":s["recipes"][0]["revisionId"],"custom_title":null,"day":"2026-10-26","meal":"晚餐","servings":2}}),
+    );
+    transfer(&mut b, &mut a);
+    let before = super::super::snapshot(&a).unwrap();
+    let latest = super::super::undo::status(&a).unwrap();
+    assert!(super::super::execute(
+        &mut a,
+        &Uuid::new_v4().to_string(),
+        super::super::Command::Undo {
+            operation_id: latest["operationId"].as_str().unwrap().into()
+        }
+    )
+    .is_err());
+    assert_eq!(super::super::snapshot(&a).unwrap(), before);
+    assert_eq!(super::super::undo::status(&a).unwrap(), latest);
+}
+
+#[test]
+fn ingredient_photo_survives_replication_and_cloud_snapshot_without_stock_changes() {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let (aroot, mut a, broot, mut b) = pair();
+    let before = super::super::snapshot(&a).unwrap();
+    let id = before["ingredients"][0]["id"].as_str().unwrap();
+    let mut jpeg = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new(&mut jpeg)
+        .encode_image(&image::DynamicImage::ImageRgb8(
+            image::RgbImage::from_pixel(2, 2, image::Rgb([255, 250, 240])),
+        ))
+        .unwrap();
+    let photo = json!({"data":format!("data:image/jpeg;base64,{}",STANDARD.encode(jpeg)),"sourceUrl":"https://commons.wikimedia.org/wiki/File:Egg.jpg","author":"Synthetic fixture","license":"CC0","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","title":"Egg"});
+    execute(
+        &mut a,
+        json!({"type":"set_ingredient_image","ingredient_id":id,"expected_source":null,"image":photo}),
+    );
+    transfer(&mut a, &mut b);
+    assert_eq!(lots(&a), before["lots"]);
+    assert_eq!(
+        super::super::snapshot(&b).unwrap()["ingredients"][0]["image"],
+        photo
+    );
+    // Seasonings can have no inventory ingredient ID, including brand aliases.
+    a.execute(
+        "INSERT INTO seasoning_supplies(name,missing) VALUES('品牌白砂糖',0)",
+        [],
+    )
+    .unwrap();
+    b.execute(
+        "INSERT INTO seasoning_supplies(name,missing) VALUES('品牌白砂糖',0)",
+        [],
+    )
+    .unwrap();
+    execute(
+        &mut a,
+        json!({"type":"set_ingredient_image","ingredient_id":"seasoning:糖","expected_source":null,"image":photo}),
+    );
+    transfer(&mut a, &mut b);
+    let seasoning_photo = |conn: &Connection| {
+        super::super::seasonings::supplies(conn)
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["name"] == "糖")
+            .unwrap()["image"]
+            .clone()
+    };
+    assert_eq!(seasoning_photo(&b), photo);
+    let prepared = cloud_snapshot::prepare(&a, &aroot.root).unwrap();
+    let mut incoming =
+        cloud_snapshot::IncomingSnapshot::new(prepared.manifest.clone(), &broot.root).unwrap();
+    for i in 0..prepared.manifest.chunks.len() {
+        incoming
+            .accept_chunk(i, &prepared.read_chunk(i).unwrap())
+            .unwrap();
+    }
+    let restored = incoming.finish(&broot.root).unwrap();
+    let conn = super::super::open(&restored.path).unwrap();
+    assert_eq!(
+        super::super::snapshot(&conn).unwrap()["ingredients"][0]["image"],
+        photo
+    );
+    assert_eq!(lots(&conn), before["lots"]);
+    assert_eq!(seasoning_photo(&conn), photo);
+}
+
+#[test]
+fn inventory_edit_and_deletion_sync_with_business_settings_and_cannot_reappear() {
+    let (_aroot, mut a, _broot, mut b) = pair();
+    let lot = lots(&a)[0].clone();
+    let lot_id = lot["id"].as_str().unwrap().to_string();
+    execute(
+        &mut a,
+        json!({"type":"edit_lot","lot_id":lot_id,"expected_version":1,"draft":{"quantity":"3","unit":"个","location":"冷冻","received":"2026-10-20","expires":null,"precision":"rough","category":"自动分类"}}),
+    );
+    transfer(&mut a, &mut b);
+    assert_eq!(lots(&a), lots(&b));
+    execute(
+        &mut b,
+        json!({"type":"delete_lot","lot_id":lot_id,"expected_version":2}),
+    );
+    transfer(&mut b, &mut a);
+    assert!(lots(&a).as_array().unwrap().is_empty());
+    assert!(lots(&b).as_array().unwrap().is_empty());
+    assert_eq!(
+        a.query_row(
+            "SELECT value FROM app_settings WHERE key=?1",
+            [format!("inventory_deleted:{lot_id}")],
+            |r| r.get::<_, String>(0)
+        )
+        .unwrap(),
+        "1"
+    );
+    let prepared = cloud_snapshot::prepare(&a, &_aroot.root).unwrap();
+    let mut incoming =
+        cloud_snapshot::IncomingSnapshot::new(prepared.manifest.clone(), &_broot.root).unwrap();
+    for i in 0..prepared.manifest.chunks.len() {
+        incoming
+            .accept_chunk(i, &prepared.read_chunk(i).unwrap())
+            .unwrap();
+    }
+    let restored = incoming.finish(&_broot.root).unwrap();
+    let conn = super::super::open(&restored.path).unwrap();
+    assert!(lots(&conn).as_array().unwrap().is_empty());
+}
 
 #[test]
 fn purchase_cooking_and_undo_replay_whole_groups_with_history_intact() {
@@ -516,4 +690,75 @@ fn bridge() {
         );
         io::stdout().flush().unwrap();
     }
+}
+
+#[test]
+fn ai_amount_resolution_and_cooking_record_replay_without_changing_source_recipe() {
+    use super::super::{cooking, ingredient_resolution, shopping};
+    let (_aroot, mut a, _broot, mut b) = pair();
+    let mut d = super::super::tests::draft();
+    d.ingredients[0].quantity = "200".into();
+    d.text_ingredients = vec![super::super::TextIngredient {
+        name: "大蒜".into(),
+        amount_text: "少许".into(),
+    }];
+    super::super::execute(
+        &mut a,
+        &Uuid::new_v4().to_string(),
+        super::super::Command::CreateRecipe { draft: d },
+    )
+    .unwrap();
+    transfer(&mut a, &mut b);
+    let original = super::super::snapshot(&a).unwrap()["recipes"].clone();
+    let rev = original[0]["revisionId"].as_str().unwrap();
+    let work = ingredient_resolution::pending(&a).unwrap().unwrap();
+    assert_eq!(work["revisionId"], rev);
+    let entries = vec![
+        ingredient_resolution::Entry {
+            name: "西兰花".into(),
+            quantity: "999".into(),
+            unit: "g".into(),
+            basis: "model mistake".into(),
+        },
+        ingredient_resolution::Entry {
+            name: "蒜末".into(),
+            quantity: "3".into(),
+            unit: "g".into(),
+            basis: "少许按3克估计".into(),
+        },
+    ];
+    super::super::execute_background(
+        &mut a,
+        &Uuid::new_v4().to_string(),
+        super::super::Command::ResolveIngredients {
+            revision_id: rev.into(),
+            entries,
+        },
+    )
+    .unwrap();
+    transfer(&mut a, &mut b);
+    let requirements = ingredient_resolution::requirements(&b, rev).unwrap();
+    assert_eq!(requirements.len(), 2);
+    assert!(requirements.iter().any(|(_, q, _)| q == "200"));
+    assert!(!requirements.iter().any(|(_, q, _)| q == "999"));
+    assert_eq!(super::super::snapshot(&a).unwrap()["recipes"], original);
+    let date = shopping::local_today(&a).unwrap();
+    execute(
+        &mut a,
+        json!({"type":"save_plan","plan_id":null,"expected_version":null,"draft":{"recipe_revision_id":rev,"custom_title":null,"day":date,"meal":"晚餐","servings":2}}),
+    );
+    transfer(&mut a, &mut b);
+    let s = super::super::snapshot(&a).unwrap();
+    let plan = s["plans"][0]["id"].as_str().unwrap();
+    let preview = cooking::preview(&a, plan, 2, &date).unwrap();
+    execute(
+        &mut a,
+        json!({"type":"complete_cooking","draft":{"plan_id":plan,"expected_version":1,"expected_revision":preview["revision"],"date":date,"servings":2,"note":"味道很好","record":"蔬菜用了少许，未记录入库","acknowledged":true,"consumptions":[]}}),
+    );
+    transfer(&mut a, &mut b);
+    assert_eq!(
+        cooking::session(&b, plan).unwrap()["record"],
+        "蔬菜用了少许，未记录入库"
+    );
+    assert_eq!(cooking::session(&b, plan).unwrap()["note"], "味道很好");
 }

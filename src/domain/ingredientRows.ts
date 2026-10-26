@@ -2,18 +2,19 @@ export interface IngredientRow {
   name: string;
   amountText: string;
 }
+import { ingredientName, normalizedAmount } from "./ingredientStandards";
 
 // Display all amounts together; only unambiguous supported units enter stock calculations.
 export function splitIngredientRows(rows: IngredientRow[]) {
   const ingredients: { name: string; quantity: number; unit: string }[] = [];
   const textIngredients: IngredientRow[] = [];
   for (const row of rows) {
-    const name = row.name.trim();
+    const name = ingredientName(row.name);
     const amountText = row.amountText.trim();
     if (!name && !amountText) continue;
     if (!name || !amountText) throw new Error("请填写食材名称和用量。");
     const match = amountText.match(
-      /^(\d+(?:\.\d+)?)\s*(kg|千克|公斤|克|g|毫升|ml|升|l|斤|个|片|盒)$/i,
+      /^(\d+(?:\.\d+)?)\s*(kg|千克|公斤|公克|克|g|毫升|ml|升|l|斤|两|个|片|盒|包|袋|瓶|罐|瓣|头|根|只|枚|颗|枝|块|份)$/i,
     );
     if (!match) {
       textIngredients.push({ name, amountText });
@@ -37,7 +38,12 @@ export function splitIngredientRows(rows: IngredientRow[]) {
       : ["毫升", "ml", "升", "l"].includes(u)
         ? "ml"
         : u;
-    ingredients.push({ name, quantity, unit });
+    const normalized = normalizedAmount(name, quantity, unit);
+    ingredients.push({
+      name: normalized.name,
+      quantity: normalized.quantity,
+      unit: normalized.unit,
+    });
   }
   return { ingredients, textIngredients };
 }

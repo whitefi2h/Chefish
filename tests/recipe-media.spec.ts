@@ -34,7 +34,9 @@ test("local cover and original step gallery render in recipe detail without remo
     png,
   );
   await page.locator(".recipe-title").first().click();
-  await expect(page.getByRole("heading", { name: "步骤原图" })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "步骤 3", exact: true }),
+  ).toBeVisible();
   await expect(page.getByAltText("原步骤 3")).toHaveAttribute("src", png);
 });
 test("HTML image extraction keeps source-step indices and ignores unrelated images", async ({

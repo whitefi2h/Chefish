@@ -63,7 +63,19 @@ pub fn supplies(conn: &Connection) -> Result<Value> {
             |r| r.get(0),
         )?;
         if !hidden {
-            rows.push(json!({"id":name,"name":name,"missing":missing}));
+            let mut item = json!({"id":name,"name":name,"missing":missing});
+            let photo: Option<String> = conn
+                .query_row(
+                    "SELECT value FROM app_settings WHERE key=?1",
+                    [format!("seasoning_image:{name}")],
+                    |r| r.get(0),
+                )
+                .optional()?;
+            if let Some(photo) = photo {
+                item["image"] = serde_json::from_str(&photo)
+                    .map_err(|_| error("DATABASE_ERROR", "调料图片无法读取"))?;
+            }
+            rows.push(item);
         }
     }
     rows.sort_by_key(|s| s["missing"] != true);

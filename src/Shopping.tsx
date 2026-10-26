@@ -137,7 +137,6 @@ function DemoShopping() {
                     <div className="shopping-name">
                       <div className="shopping-title">
                         <strong title={item.name}>{item.name}</strong>
-                        {n?.review && <Badge tone="warm">需核对</Badge>}
                       </div>
                       <small>
                         {n
@@ -424,9 +423,7 @@ function DemoPurchaseForm({
             />
           </label>
         </div>
-        <p className="hint">
-          确认后更新库存；到期日留空会标记待核对。本页为浏览器演示，刷新重置。
-        </p>
+        <p className="hint">确认后更新库存。本页为浏览器演示，刷新重置。</p>
         <button className="primary" type="submit">
           确认购买
         </button>

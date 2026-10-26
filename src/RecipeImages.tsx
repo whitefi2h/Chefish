@@ -37,6 +37,7 @@ export default function RecipeImages({ recipe }: { recipe: Recipe }) {
       result.media.steps.forEach((s) => steps.set(s.sourceStep, s));
       const media = {
         cover: result.media.cover ?? recipe.media?.cover ?? null,
+        coverCredit: result.media.cover ? undefined : recipe.media?.coverCredit,
         steps: [...steps.values()].sort((a, b) => a.sourceStep - b.sourceStep),
       };
       if (JSON.stringify(media) === JSON.stringify(recipe.media)) {

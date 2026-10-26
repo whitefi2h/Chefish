@@ -1,4 +1,26 @@
 import { test, expect } from "@playwright/test";
+
+test("drawer ignores single backdrop clicks and inside double clicks, and closes on backdrop double click", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "食材库存" })
+    .click();
+  await page
+    .getByRole("button", { name: "查看牛肉批次", exact: true })
+    .first()
+    .click();
+  const dialog = page.getByRole("dialog");
+  await page.mouse.click(15, 150);
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("heading", { name: "食材详情 · 牛肉" }).dblclick();
+  await expect(dialog).toBeVisible();
+  await page.mouse.dblclick(15, 150);
+  await expect(dialog).toHaveCount(0);
+  expect(await page.evaluate(()=>window.getSelection()?.toString())).toBe("");
+});
 test("center modal retains draft on backdrop and Escape; X closes", async ({
   page,
 }) => {
@@ -168,7 +190,11 @@ test("recipe and pantry categories can be added renamed assigned and removed", a
     .first()
     .click();
   await page.getByLabel("食材所属分类").selectOption("烘焙");
+  await page.getByRole("button", { name: "保存修改", exact: true }).click();
   await page.getByRole("button", { name: "关闭面板" }).click();
-  await page.getByLabel("筛选食材类别").selectOption("烘焙");
+  await page
+    .getByRole("group", { name: "类别筛选", exact: true })
+    .getByRole("button", { name: "烘焙", exact: true })
+    .click();
   await expect(page.locator("tbody tr")).toHaveCount(2);
 });

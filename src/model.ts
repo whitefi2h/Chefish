@@ -38,6 +38,15 @@ export interface Ingredient {
   id: string;
   name: string;
   category: Category;
+  image?: IngredientImage;
+}
+export interface IngredientImage {
+  data: string;
+  sourceUrl: string;
+  author: string;
+  license: string;
+  licenseUrl: string;
+  title: string;
 }
 export interface Requirement {
   ingredientId: string;
@@ -46,6 +55,7 @@ export interface Requirement {
 }
 export interface RecipeMedia {
   cover: string | null;
+  coverCredit?: Omit<IngredientImage, "data">;
   steps: { image: string; sourceStep: number }[];
 }
 export interface Recipe {
@@ -91,6 +101,7 @@ export interface InventoryEvent {
   occurredAt: string;
 }
 export interface CookingResult {
+  record?:string;
   consumptions?: { name: string; quantity: string; unit: string }[];
   id: string;
   date: string;
@@ -144,6 +155,7 @@ export interface CookingLog {
   note: string;
 }
 export interface DemoState {
+  undo?: { operationId: string; label: string } | null;
   preferences?: AppPreferences;
   seasonings?: SeasoningSupply[];
   archivedRecipes?: Recipe[];
@@ -174,7 +186,7 @@ export function daysLeft(expires: string | null, today = localToday()) {
 }
 export function expiryLabel(expires: string | null, today = localToday()) {
   const n = daysLeft(expires, today);
-  if (!Number.isFinite(n)) return "未记录有效期";
+  if (!Number.isFinite(n)) return "—";
   return n < 0 ? `已过期 ${-n} 天` : n === 0 ? "今天到期" : `剩 ${n} 天`;
 }
 export function stock(s: DemoState, r: Requirement) {
@@ -183,8 +195,7 @@ export function stock(s: DemoState, r: Requirement) {
       (l) =>
         l.ingredientId === r.ingredientId &&
         l.unit === r.unit &&
-        l.precision === "exact" &&
-        daysLeft(l.expires, s.today ?? localToday()) >= 0,
+        (!l.expires || daysLeft(l.expires, s.today ?? localToday()) >= 0),
     )
     .reduce((n, l) => n + l.quantity, 0);
 }
@@ -237,21 +248,9 @@ export function needs(
           i.source === "plan" &&
           (i.weekStart ?? DAYS[0]) === weekStart &&
           keyOf(i) === keyOf(row) &&
-          (i.status === "bought" ||
-            (i.status === "stocked" &&
-              s.lots.some(
-                (l) =>
-                  l.id === `receipt:${i.id}` && !l.expires && l.quantity > 0,
-              ))),
+          i.status === "bought",
       )
-      .reduce(
-        (n, i) =>
-          n +
-          (i.status === "stocked"
-            ? (s.lots.find((l) => l.id === `receipt:${i.id}`)?.quantity ?? 0)
-            : i.quantity),
-        0,
-      );
+      .reduce((n, i) => n + i.quantity, 0);
     return {
       ...row,
       quantity: Math.max(0, row.required - available - bought),
@@ -260,7 +259,8 @@ export function needs(
       review: s.lots.some(
         (l) =>
           l.ingredientId === row.ingredientId &&
-          (l.unit !== row.unit || l.precision === "rough" || !l.expires),
+          l.quantity > 0 &&
+          l.unit !== row.unit,
       ),
     };
   });

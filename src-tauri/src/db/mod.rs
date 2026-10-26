@@ -4,7 +4,12 @@ use serde_json::{json, Value};
 use std::{path::Path, str::FromStr, time::Duration};
 use uuid::Uuid;
 pub mod cooking;
+mod ingredient_category;
+pub mod ingredient_resolution;
+pub mod ingredient_standard;
 mod inventory;
+pub use inventory::lots as inventory_rows;
+pub use inventory::update_snapshot as inventory_update;
 mod library;
 mod planner;
 pub mod preferences;
@@ -12,7 +17,8 @@ pub mod replication;
 pub mod seasonings;
 pub mod shopping;
 pub mod sync;
-pub const CURRENT_SCHEMA: i64 = 13;
+pub mod undo;
+pub const CURRENT_SCHEMA: i64 = 14;
 use inventory::InventoryDraft;
 
 #[derive(Debug, Serialize)]
@@ -107,6 +113,13 @@ pub struct RecipeDraft {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
+    ResolveIngredients {
+        revision_id: String,
+        entries: Vec<ingredient_resolution::Entry>,
+    },
+    Undo {
+        operation_id: String,
+    },
     SetLotExpiry {
         lot_id: String,
         expected_version: i64,
@@ -211,6 +224,23 @@ pub enum Command {
     },
     ReceiveLot {
         draft: InventoryDraft,
+    },
+    EditLot {
+        lot_id: String,
+        expected_version: i64,
+        draft: inventory::InventoryEdit,
+    },
+    DeleteLot {
+        lot_id: String,
+        expected_version: i64,
+    },
+    ClassifyInventory {
+        expected_revision: String,
+    },
+    SetIngredientImage {
+        ingredient_id: String,
+        expected_source: Option<String>,
+        image: crate::ingredient_images::IngredientImage,
     },
     ChangeLot {
         lot_id: String,
@@ -512,6 +542,18 @@ fn migrate(connection: &mut Connection, path: &Path) -> Result<()> {
         tx.pragma_update(None, "user_version", 13)?;
         tx.commit()?;
     }
+    if version < 14 {
+        connection.backup(
+            "main",
+            path.with_extension(format!("pre-v14-{}.sqlite3", id())),
+            None,
+        )?;
+        let tx = connection.transaction()?;
+        tx.execute_batch(include_str!("../../migrations/0014_global_undo.sql"))?;
+        tx.execute("INSERT INTO schema_migrations(version) VALUES(14)", [])?;
+        tx.pragma_update(None, "user_version", 14)?;
+        tx.commit()?;
+    }
     Ok(())
 }
 fn category(conn: &Connection, kind: &str, name: &str) -> Result<String> {
@@ -721,13 +763,7 @@ fn save_recipe(tx: &Transaction, recipe: Option<(&str, &str)>, draft: &RecipeDra
         )?;
     }
     for (position, item) in draft.ingredients.iter().enumerate() {
-        let existing: Option<String> = tx
-            .query_row(
-                "SELECT id FROM ingredients WHERE name=?1",
-                [item.name.trim()],
-                |r| r.get(0),
-            )
-            .optional()?;
+        let existing = ingredient_standard::find(tx, &item.name)?;
         let ingredient = if let Some(value) = existing {
             value
         } else {
@@ -769,6 +805,21 @@ fn save_recipe(tx: &Transaction, recipe: Option<(&str, &str)>, draft: &RecipeDra
     Ok(())
 }
 pub fn execute(connection: &mut Connection, request_id: &str, command: Command) -> Result<()> {
+    execute_named(connection, request_id, command, false)
+}
+pub fn execute_background(
+    connection: &mut Connection,
+    request_id: &str,
+    command: Command,
+) -> Result<()> {
+    execute_named(connection, request_id, command, true)
+}
+fn execute_named(
+    connection: &mut Connection,
+    request_id: &str,
+    command: Command,
+    background: bool,
+) -> Result<()> {
     Uuid::parse_str(request_id).map_err(|_| error("INVALID_INPUT", "请求 ID 无效"))?;
     let payload =
         serde_json::to_string(&command).map_err(|_| error("INVALID_INPUT", "命令无法解析"))?;
@@ -794,23 +845,49 @@ pub fn execute(connection: &mut Connection, request_id: &str, command: Command) 
     let command_type: CommandTag =
         serde_json::from_str(&payload).map_err(|_| error("INVALID_INPUT", "操作类型无法解析"))?;
     let capture = sync::Capture::begin(&tx)?;
+    let cosmetic = matches!(&command, Command::SetIngredientImage { .. });
     apply(&tx, command)?;
     tx.execute(
         "INSERT INTO command_receipts(request_id,payload) VALUES(?1,?2)",
         params![request_id, payload],
     )?;
-    tx.execute(
-        "UPDATE app_settings SET value=CAST(value AS INTEGER)+1 WHERE key='data_revision'",
-        [],
-    )?;
-    if let Some(capture) = capture {
-        capture.finish(request_id, &command_type.kind)?;
+    if !cosmetic {
+        tx.execute(
+            "UPDATE app_settings SET value=CAST(value AS INTEGER)+1 WHERE key='data_revision'",
+            [],
+        )?;
     }
-    tx.commit()?;
+    if let Some(capture) = capture {
+        capture.finish(
+            request_id,
+            if background {
+                "background_image"
+            } else {
+                &command_type.kind
+            },
+        )?;
+    }
+    tx.commit().map_err(|err| {
+        if command_type.kind == "undo"
+            && err.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation)
+        {
+            error(
+                "UNDO_CONFLICT",
+                "相关记录仍被后续菜单或记录引用，当前操作未撤销",
+            )
+        } else {
+            ApiError::from(err)
+        }
+    })?;
     Ok(())
 }
 fn apply(tx: &Transaction, command: Command) -> Result<()> {
-    match command {
+    match ingredient_standard::command(command)? {
+        Command::ResolveIngredients {
+            revision_id,
+            entries,
+        } => ingredient_resolution::save(tx, &revision_id, entries)?,
+        Command::Undo { operation_id } => undo::apply(tx, &operation_id)?,
         Command::RemoveSeasoning {
             name,
             expected_revision,
@@ -852,7 +929,9 @@ fn apply(tx: &Transaction, command: Command) -> Result<()> {
             }
             if commands.is_empty()
                 || commands.len() > 50
-                || commands.iter().any(|c| matches!(c, Command::Batch { .. }))
+                || commands
+                    .iter()
+                    .any(|c| matches!(c, Command::Batch { .. } | Command::Undo { .. }))
             {
                 return Err(error("INVALID_INPUT", "操作数量须为1–50项，不能嵌套"));
             }
@@ -1012,6 +1091,25 @@ fn apply(tx: &Transaction, command: Command) -> Result<()> {
             )?;
         }
         Command::ReceiveLot { draft } => inventory::receive(&tx, draft)?,
+        Command::EditLot {
+            lot_id,
+            expected_version,
+            draft,
+        } => inventory::edit(&tx, &lot_id, expected_version, draft)?,
+        Command::DeleteLot {
+            lot_id,
+            expected_version,
+        } => inventory::delete(&tx, &lot_id, expected_version)?,
+        Command::ClassifyInventory { expected_revision } => {
+            ingredient_category::classify(&tx, &expected_revision)?
+        }
+        Command::SetIngredientImage {
+            ingredient_id,
+            expected_source,
+            image,
+        } => {
+            crate::ingredient_images::save(&tx, &ingredient_id, expected_source.as_deref(), &image)?
+        }
         Command::SetLotExpiry {
             lot_id,
             expected_version,
@@ -1197,7 +1295,28 @@ fn snapshot_inner(conn: &Connection) -> Result<Value> {
     .map(|rev| recipe_snapshot(conn, rev))
     .collect::<Result<Vec<_>>>()?;
     let mut stmt=conn.prepare("SELECT i.id,i.name,c.name FROM ingredients i JOIN categories c ON c.id=i.category_id ORDER BY i.rowid")?;
-    let ingredients=stmt.query_map([],|r|Ok(json!({"id":r.get::<_,String>(0)?,"name":r.get::<_,String>(1)?,"category":r.get::<_,String>(2)?})))?.collect::<std::result::Result<Vec<_>,_>>()?;
+    let mut ingredients=stmt.query_map([],|r|Ok(json!({"id":r.get::<_,String>(0)?,"name":r.get::<_,String>(1)?,"category":r.get::<_,String>(2)?})))?.collect::<std::result::Result<Vec<_>,_>>()?;
+    for ingredient in &mut ingredients {
+        ingredient["name"] = json!(ingredient_standard::name(
+            ingredient["name"].as_str().unwrap()
+        ));
+    }
+    for ingredient in &mut ingredients {
+        let image: Option<String> = conn
+            .query_row(
+                "SELECT value FROM app_settings WHERE key=?1",
+                [format!(
+                    "ingredient_image:{}",
+                    ingredient["id"].as_str().unwrap()
+                )],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if let Some(image) = image {
+            ingredient["image"] = serde_json::from_str(&image)
+                .map_err(|_| error("DATABASE_ERROR", "食材图片无法读取"))?;
+        }
+    }
     let mut stmt=conn.prepare("SELECT n.id,n.recipe_id,n.recipe_revision_id,n.date,n.note FROM cooking_notes n JOIN recipes r ON r.id=n.recipe_id ORDER BY n.rowid DESC")?;
     let logs=stmt.query_map([],|r|Ok(json!({"id":r.get::<_,String>(0)?,"recipeId":r.get::<_,String>(1)?,"revisionId":r.get::<_,String>(2)?,"date":r.get::<_,String>(3)?,"note":r.get::<_,String>(4)?})))?.collect::<std::result::Result<Vec<_>,_>>()?;
     let revision: String = conn.query_row(
@@ -1388,6 +1507,7 @@ mod tests {
         let mut d = draft();
         let image = "data:image/png;base64,iVBORw0KGgo=".to_string();
         d.media = Some(crate::recipe_images::Media {
+            cover_credit: None,
             cover: Some(image.clone()),
             steps: vec![crate::recipe_images::StepImage {
                 image: image.clone(),

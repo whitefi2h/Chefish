@@ -243,6 +243,7 @@ mod tests {
         RecipeDraft {
             ingredient_kinds: Default::default(),
             media: Some(crate::recipe_images::Media {
+                cover_credit: None,
                 cover: Some("data:image/png;base64,iVBORw0KGgo=".into()),
                 steps: vec![crate::recipe_images::StepImage {
                     image: "data:image/png;base64,iVBORw0KGgo=".into(),

@@ -45,15 +45,17 @@ describe("shared demo invariants", () => {
     ).toHaveLength(0);
     expect(saved.shopping.filter((i) => i.status === "bought")).toHaveLength(0);
   });
-  it("unknown expiry cannot silently cover planned quantities", () => {
+  it("rough quantities and missing expiry count as ordinary inventory", () => {
     const state = initialState();
     state.lots = state.lots.map((lot) =>
-      lot.ingredientId === "beef" ? { ...lot, expires: null } : lot,
+      lot.ingredientId === "beef"
+        ? { ...lot, expires: null, precision: "rough" }
+        : lot,
     );
     const row = needs(state).find((item) => item.ingredientId === "beef")!;
-    expect(row.covered).toBe(0);
-    expect(row.toBuy).toBe(550);
-    expect(row.review).toBe(true);
+    expect(row.covered).toBe(400);
+    expect(row.toBuy).toBe(150);
+    expect(row.review).toBe(false);
   });
   it("aggregates 300g and 250g beef minus 400g stock to 150g", () => {
     const row = needs(initialState()).find((n) => n.ingredientId === "beef")!;
@@ -141,7 +143,7 @@ describe("shared demo invariants", () => {
     expect(expiryLabel("2025-05-16", "2026-10-18")).toMatch(/^已过期/);
     expect(daysLeft("2026-10-18", "2026-10-18")).toBe(0);
     expect(daysLeft(null, "2026-10-18")).toBeNaN();
-    expect(expiryLabel(null, "2026-10-18")).toBe("未记录有效期");
+    expect(expiryLabel(null, "2026-10-18")).toBe("—");
   });
   it("expired, incompatible and rough lots cannot silently cover exact demand", () => {
     const s = initialState();

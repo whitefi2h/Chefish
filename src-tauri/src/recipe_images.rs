@@ -9,7 +9,18 @@ use std::{io::Read, time::Duration};
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Media {
     pub cover: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cover_credit: Option<Credit>,
     pub steps: Vec<StepImage>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Credit {
+    pub source_url: String,
+    pub author: String,
+    pub license: String,
+    pub license_url: String,
+    pub title: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -73,6 +84,9 @@ fn download(client: &Client, raw: &str) -> Result<String> {
     Ok(format!("data:{};base64,{}", kind, STANDARD.encode(bytes)))
 }
 pub fn validate(media: &Media) -> Result<()> {
+    if let Some(credit) = &media.cover_credit {
+        crate::ingredient_images::source_url(&credit.source_url)?;
+    }
     if media.steps.len() > 50 {
         return Err(fail("步骤原图最多50张"));
     }
@@ -304,11 +318,13 @@ mod tests {
             assert!(image_url(url).is_err());
         }
         assert!(validate(&Media {
+            cover_credit: None,
             cover: Some("data:image/svg+xml;base64,PHN2Zz4=".into()),
             steps: vec![]
         })
         .is_err());
         assert!(validate(&Media {
+            cover_credit: None,
             cover: Some(format!(
                 "data:image/png;base64,{}",
                 STANDARD.encode(b"\x89PNG\r\n\x1a\n")

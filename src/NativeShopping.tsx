@@ -125,7 +125,7 @@ function PurchaseForm({
             </label>
           </div>
           <p className="hint">
-            到期日留空会标记待核对，不自动计入可用库存。请核对实际食材和数量后确认。
+            数量可以粗略记录，到期日可留空。购买后会加入库存。
           </p>
         </>
         <button className="primary" disabled={busy} type="submit">
@@ -406,7 +406,7 @@ export default function NativeShopping() {
                   <div className="shopping-name">
                     <div className="shopping-title">
                       <strong title={i.name}>{i.name}</strong>
-                      {i.review && <Badge tone="warm">需核对</Badge>}
+
                       {i.hidden && <Badge>已忽略</Badge>}
                     </div>
                     <small>
@@ -445,16 +445,6 @@ export default function NativeShopping() {
           )}
           {forecast && visible.length === 0 && (
             <Empty>没有食材采购项目，可以安排菜单或手动添加。</Empty>
-          )}
-          {!!forecast?.reviewNotes.length && (
-            <section className="panel shopping-review">
-              <h2>用量待核对</h2>
-              {forecast.reviewNotes.map((note, index) => (
-                <p className="hint" key={index}>
-                  {note}
-                </p>
-              ))}
-            </section>
           )}
           {items.some((i) => i.hidden) && (
             <p className="hint">
@@ -568,7 +558,7 @@ export default function NativeShopping() {
                 {format(detail.covered, detail.unit)} · 仍缺{" "}
                 {format(detail.remaining, detail.unit)}
               </p>
-              {detail.review && <Badge tone="warm">部分信息模糊，需核对</Badge>}
+
               {detail.hidden && <p className="hint">已忽略本周需求</p>}
             </section>
             <section>

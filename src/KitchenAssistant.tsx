@@ -338,10 +338,11 @@ export default function KitchenAssistant({
   }
   async function send() {
     if (!input.trim() || busy || !historyReady) return;
-    const next = [
-      ...messages,
-      { role: "user" as const, content: input.trim() },
-    ];
+    const last = messages[messages.length - 1];
+    const next =
+      error && last?.role === "user" && last.content === input.trim()
+        ? messages
+        : [...messages, { role: "user" as const, content: input.trim() }];
     setMessages(next);
     setInput("");
     setBusy(true);
@@ -356,6 +357,10 @@ export default function KitchenAssistant({
         weekStart,
         proposalId: proposal?.id ?? null,
       });
+      if (route.dataChanged) {
+        await reload();
+        window.dispatchEvent(new Event("chefish:sync-wake"));
+      }
       if (route.message || route.action === "operate")
         setMessages([
           ...next,

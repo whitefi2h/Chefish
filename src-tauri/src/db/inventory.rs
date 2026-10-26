@@ -12,6 +12,17 @@ pub struct InventoryDraft {
     pub expires: Option<String>,
     pub precision: String,
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InventoryEdit {
+    pub quantity: String,
+    pub unit: String,
+    pub location: String,
+    pub received: String,
+    pub expires: Option<String>,
+    pub precision: String,
+    pub category: String,
+}
 fn decimal(value: &str) -> Result<Decimal> {
     let n =
         Decimal::from_str(value).map_err(|_| error("INVALID_QUANTITY", "数量必须是十进制数字"))?;
@@ -37,7 +48,7 @@ struct Lot {
 fn lot(conn: &Connection, id: &str) -> Result<Lot> {
     let (amount, location, version): (String, String, i64) = conn
         .query_row(
-            "SELECT amount_decimal,location_id,version FROM inventory_lots WHERE id=?1",
+            "SELECT amount_decimal,location_id,version FROM inventory_lots WHERE id=?1 AND NOT EXISTS(SELECT 1 FROM app_settings WHERE key='inventory_deleted:'||?1)",
             [id],
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
@@ -89,17 +100,11 @@ pub fn receive_batch(tx: &Transaction, draft: InventoryDraft, reason: &str) -> R
         ));
     }
     let target = location(tx, &draft.location)?;
-    let category = category(tx, "ingredient", &draft.category)?;
-    let existing: Option<String> = tx
-        .query_row(
-            "SELECT id FROM ingredients WHERE name=?1",
-            [draft.name.trim()],
-            |r| r.get(0),
-        )
-        .optional()?;
+    let existing = ingredient_standard::find(tx, &draft.name)?;
     let ingredient = if let Some(existing) = existing {
         existing
     } else {
+        let category = ingredient_category::resolve(tx, &draft.name, &draft.category)?;
         let new_id = id();
         tx.execute(
             "INSERT INTO ingredients VALUES(?1,?2,?3)",
@@ -136,6 +141,87 @@ pub fn receive_batch(tx: &Transaction, draft: InventoryDraft, reason: &str) -> R
         None,
     )?;
     Ok(new_id)
+}
+pub fn edit(tx: &Transaction, lot_id: &str, expected: i64, draft: InventoryEdit) -> Result<()> {
+    let before = lot(tx, lot_id)?;
+    if before.version != expected {
+        return Err(error("STALE_REVISION", "批次已变化，请刷新后再编辑"));
+    }
+    let quantity = decimal(&draft.quantity)?;
+    if !["g", "ml", "个", "片", "盒"].contains(&draft.unit.as_str())
+        || !["exact", "rough"].contains(&draft.precision.as_str())
+    {
+        return Err(error("INVALID_INPUT", "请核对单位和数量精度"));
+    }
+    if !valid_date(&draft.received)
+        || draft
+            .expires
+            .as_ref()
+            .is_some_and(|d| !valid_date(d) || d < &draft.received)
+    {
+        return Err(error("INVALID_INPUT", "请核对购买日期和到期日期"));
+    }
+    let target = location(tx, &draft.location)?;
+    let (ingredient,name,prior):(String,String,String)=tx.query_row("SELECT i.id,i.name,json_object('unit',l.unit,'received',l.received_on,'expires',l.expires_on,'precision',l.precision) FROM inventory_lots l JOIN ingredients i ON i.id=l.ingredient_id WHERE l.id=?1",[lot_id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?;
+    let previous: Value =
+        serde_json::from_str(&prior).map_err(|_| error("DATABASE_ERROR", "批次属性无法读取"))?;
+    if previous["unit"].as_str() != Some(draft.unit.as_str()) {
+        return Err(error(
+            "INVALID_INPUT",
+            "批次单位保持不变；不同单位请新增购买",
+        ));
+    }
+    let category = ingredient_category::resolve(tx, &name, &draft.category)?;
+    tx.execute("UPDATE inventory_lots SET amount_decimal=?1,unit=?2,location_id=?3,received_on=?4,expires_on=?5,precision=?6,version=version+1 WHERE id=?7",params![quantity.normalize().to_string(),draft.unit,target,draft.received,draft.expires,draft.precision,lot_id])?;
+    tx.execute(
+        "UPDATE ingredients SET category_id=?1 WHERE id=?2",
+        params![category, ingredient],
+    )?;
+    event(
+        tx,
+        lot_id,
+        "correct",
+        &before,
+        quantity,
+        &target,
+        "编辑食材",
+        None,
+    )?;
+    let event_id: String = tx.query_row(
+        "SELECT id FROM inventory_events WHERE lot_id=?1 AND after_version=?2",
+        params![lot_id, before.version + 1],
+        |r| r.get(0),
+    )?;
+    tx.execute(
+        "INSERT INTO app_settings(key,value) VALUES(?1,?2)",
+        params![format!("inventory_properties_before:{event_id}"), prior],
+    )?;
+    Ok(())
+}
+pub fn delete(tx: &Transaction, lot_id: &str, expected: i64) -> Result<()> {
+    let before = lot(tx, lot_id)?;
+    if before.version != expected {
+        return Err(error("STALE_REVISION", "批次已变化，请刷新后再删除"));
+    }
+    tx.execute(
+        "UPDATE inventory_lots SET amount_decimal='0',version=version+1 WHERE id=?1",
+        [lot_id],
+    )?;
+    event(
+        tx,
+        lot_id,
+        "discard",
+        &before,
+        Decimal::ZERO,
+        &before.location,
+        "删除批次",
+        None,
+    )?;
+    tx.execute(
+        "INSERT INTO app_settings(key,value) VALUES(?1,'1')",
+        [format!("inventory_deleted:{lot_id}")],
+    )?;
+    Ok(())
 }
 pub fn change(
     tx: &Transaction,
@@ -289,6 +375,18 @@ pub(super) fn reverse_inner(tx: &Transaction, event_id: &str, reason: &str) -> R
             params![expires, lot_id],
         )?;
     }
+    let properties: Option<String> = tx
+        .query_row(
+            "SELECT value FROM app_settings WHERE key=?1",
+            [format!("inventory_properties_before:{event_id}")],
+            |r| r.get(0),
+        )
+        .optional()?;
+    if let Some(properties) = properties {
+        let properties: Value = serde_json::from_str(&properties)
+            .map_err(|_| error("DATABASE_ERROR", "属性历史无法读取"))?;
+        tx.execute("UPDATE inventory_lots SET unit=?1,received_on=?2,expires_on=?3,precision=?4 WHERE id=?5",params![properties["unit"].as_str(),properties["received"].as_str(),properties["expires"].as_str(),properties["precision"].as_str(),lot_id])?;
+    }
     let next = decimal(&amount)?;
     tx.execute(
         "UPDATE inventory_lots SET amount_decimal=?1,location_id=?2,version=version+1 WHERE id=?3",
@@ -306,9 +404,19 @@ pub(super) fn reverse_inner(tx: &Transaction, event_id: &str, reason: &str) -> R
     )
 }
 pub fn lots(conn: &Connection) -> Result<Vec<Value>> {
-    let mut stmt=conn.prepare("SELECT l.id,l.ingredient_id,l.amount_decimal,l.unit,s.name,l.received_on,l.expires_on,l.precision,l.version FROM inventory_lots l JOIN storage_locations s ON s.id=l.location_id ORDER BY (l.amount_decimal='0'),l.expires_on IS NULL,l.expires_on,l.received_on,l.id")?;
+    let mut stmt=conn.prepare("SELECT l.id,l.ingredient_id,l.amount_decimal,l.unit,s.name,l.received_on,l.expires_on,l.precision,l.version FROM inventory_lots l JOIN storage_locations s ON s.id=l.location_id WHERE NOT EXISTS(SELECT 1 FROM app_settings WHERE key='inventory_deleted:'||l.id) ORDER BY (l.amount_decimal='0'),l.expires_on IS NULL,l.expires_on,l.received_on,l.id")?;
     let rows=stmt.query_map([],|r|Ok(json!({"id":r.get::<_,String>(0)?,"ingredientId":r.get::<_,String>(1)?,"quantity":r.get::<_,String>(2)?,"unit":r.get::<_,String>(3)?,"location":r.get::<_,String>(4)?,"received":r.get::<_,String>(5)?,"expires":r.get::<_,Option<String>>(6)?,"precision":r.get::<_,String>(7)?,"version":r.get::<_,i64>(8)?})))?.collect::<std::result::Result<Vec<_>,_>>()?;
     Ok(rows)
+}
+pub fn update_snapshot(conn: &Connection, base_revision: &str) -> Result<Value> {
+    let revision: String = conn.query_row(
+        "SELECT value FROM app_settings WHERE key='data_revision'",
+        [],
+        |r| r.get(0),
+    )?;
+    Ok(
+        json!({"baseRevision":base_revision,"dataRevision":revision,"lots":lots(conn)?,"inventoryEvents":events(conn)?,"undo":super::undo::status(conn)?}),
+    )
 }
 pub fn events(conn: &Connection) -> Result<Vec<Value>> {
     let mut stmt=conn.prepare("SELECT e.id,e.lot_id,e.kind,e.before_amount,e.after_amount,a.name,b.name,e.after_version,e.reason,e.reversed_event_id,e.occurred_at FROM inventory_events e JOIN storage_locations a ON a.id=e.before_location JOIN storage_locations b ON b.id=e.after_location ORDER BY e.rowid DESC")?;
@@ -318,6 +426,173 @@ pub fn events(conn: &Connection) -> Result<Vec<Value>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn inline_update_returns_authoritative_stock_without_recipe_payloads() {
+        let mut conn = open(&temp()).unwrap();
+        execute(&mut conn, &id(), Command::ReceiveLot { draft: draft() }).unwrap();
+        let before = snapshot(&conn).unwrap();
+        let lot = &before["lots"][0];
+        execute(
+            &mut conn,
+            &id(),
+            Command::ChangeLot {
+                lot_id: lot["id"].as_str().unwrap().into(),
+                expected_version: 1,
+                operation: "correct".into(),
+                quantity: "250".into(),
+                location: None,
+                reason: "".into(),
+            },
+        )
+        .unwrap();
+        let delta = update_snapshot(&conn, before["dataRevision"].as_str().unwrap()).unwrap();
+        let full = snapshot(&conn).unwrap();
+        assert_eq!(delta["lots"], full["lots"]);
+        assert_eq!(delta["inventoryEvents"], full["inventoryEvents"]);
+        assert_eq!(delta["dataRevision"], full["dataRevision"]);
+        assert_eq!(delta["baseRevision"], before["dataRevision"]);
+        assert_eq!(delta.as_object().unwrap().len(), 5);
+        assert_eq!(delta["lots"][0]["quantity"], "250");
+        assert_eq!(delta["lots"][0]["version"], 2);
+    }
+    #[test]
+    fn direct_edit_is_atomic_and_undo_restores_quantity_dates_and_location() {
+        let mut conn = open(&temp()).unwrap();
+        execute(&mut conn, &id(), Command::ReceiveLot { draft: draft() }).unwrap();
+        let original = lots(&conn).unwrap()[0].clone();
+        let lot_id = original["id"].as_str().unwrap().to_string();
+        let edit = InventoryEdit {
+            quantity: "1.25".into(),
+            unit: "g".into(),
+            location: "冷冻".into(),
+            received: "2026-10-01".into(),
+            expires: None,
+            precision: "rough".into(),
+            category: "自动分类".into(),
+        };
+        execute(
+            &mut conn,
+            &id(),
+            Command::EditLot {
+                lot_id: lot_id.clone(),
+                expected_version: 1,
+                draft: edit.clone(),
+            },
+        )
+        .unwrap();
+        let current = lots(&conn).unwrap()[0].clone();
+        assert_eq!(current["quantity"], "1.25");
+        assert_eq!(current["location"], "冷冻");
+        assert_eq!(current["expires"], Value::Null);
+        assert_eq!(current["precision"], "rough");
+        let before = snapshot(&conn).unwrap();
+        assert!(execute(
+            &mut conn,
+            &id(),
+            Command::EditLot {
+                lot_id: lot_id.clone(),
+                expected_version: 1,
+                draft: edit
+            }
+        )
+        .is_err());
+        assert_eq!(snapshot(&conn).unwrap(), before);
+        execute(
+            &mut conn,
+            &id(),
+            Command::UndoInventory {
+                lot_id,
+                expected_version: 2,
+            },
+        )
+        .unwrap();
+        let restored = lots(&conn).unwrap()[0].clone();
+        for key in ["quantity", "location", "received", "expires", "precision"] {
+            assert_eq!(restored[key], original[key], "{key}");
+        }
+    }
+    #[test]
+    fn deletion_stays_removed_after_restart_and_keeps_history_references() {
+        let path = temp();
+        let mut conn = open(&path).unwrap();
+        execute(&mut conn, &id(), Command::ReceiveLot { draft: draft() }).unwrap();
+        let lot = lots(&conn).unwrap()[0].clone();
+        let lot_id = lot["id"].as_str().unwrap().to_string();
+        let command = Command::DeleteLot {
+            lot_id: lot_id.clone(),
+            expected_version: 1,
+        };
+        let request = id();
+        execute(&mut conn, &request, command.clone()).unwrap();
+        execute(&mut conn, &request, command).unwrap();
+        assert!(lots(&conn).unwrap().is_empty());
+        assert_eq!(events(&conn).unwrap().len(), 2);
+        assert_eq!(
+            conn.query_row(
+                "SELECT count(*) FROM inventory_lots WHERE id=?1",
+                [&lot_id],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1
+        );
+        drop(conn);
+        let mut conn = open(&path).unwrap();
+        assert!(lots(&conn).unwrap().is_empty());
+        assert!(execute(
+            &mut conn,
+            &id(),
+            Command::ChangeLot {
+                lot_id,
+                expected_version: 2,
+                operation: "correct".into(),
+                quantity: "1".into(),
+                location: None,
+                reason: "".into()
+            }
+        )
+        .is_err());
+    }
+    #[test]
+    fn automatic_classification_fills_only_unclassified_inventory_and_new_receipts() {
+        let mut conn = open(&temp()).unwrap();
+        let mut garlic = draft();
+        garlic.name = "大蒜".into();
+        execute(&mut conn, &id(), Command::ReceiveLot { draft: garlic }).unwrap();
+        let mut custom = draft();
+        custom.name = "牛肉".into();
+        custom.category = "蔬菜菌菇".into();
+        ensure_category(&conn, "ingredient", "蔬菜菌菇").unwrap();
+        execute(&mut conn, &id(), Command::ReceiveLot { draft: custom }).unwrap();
+        let revision = snapshot(&conn).unwrap()["dataRevision"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        execute(
+            &mut conn,
+            &id(),
+            Command::ClassifyInventory {
+                expected_revision: revision,
+            },
+        )
+        .unwrap();
+        let rows = snapshot(&conn).unwrap()["ingredients"].clone();
+        assert!(rows
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|i| i["name"] == "大蒜" || i["name"] == "牛肉")
+            .all(|i| i["category"] == "蔬菜菌菇"));
+        let mut fish = draft();
+        fish.name = "三文鱼".into();
+        fish.category = "自动分类".into();
+        execute(&mut conn, &id(), Command::ReceiveLot { draft: fish }).unwrap();
+        assert!(snapshot(&conn).unwrap()["ingredients"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|i| i["name"] == "三文鱼" && i["category"] == "水产海鲜"));
+    }
     fn temp() -> std::path::PathBuf {
         std::env::temp_dir().join(format!("chefish-m2-{}.sqlite3", id()))
     }

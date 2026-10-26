@@ -61,7 +61,7 @@
   color: var(--sage);
   display: grid;
   place-items: center;
-  background: #e9ede4;
+  background: transparent;
   width: 40px;
   height: 40px;
   border-radius: 13px;
@@ -525,7 +525,7 @@
   height: 68px;
   display: grid;
   place-items: center;
-  background: #f3eee6;
+  background: transparent;
   color: var(--primary);
   border-radius: 21px;
 }

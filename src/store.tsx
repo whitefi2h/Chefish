@@ -148,6 +148,8 @@ export function DemoProvider({
     if (!nativeMode || client !== kitchenClient || !ready) return;
     let alive = true;
     let stop: (() => void) | undefined;
+    let stopImages: (() => void) | undefined;
+    let stopResolver: (() => void) | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const refresh = () => {
       if (!alive) return;
@@ -175,9 +177,21 @@ export function DemoProvider({
     void import("./services/syncRuntime").then(({ syncRuntime }) => {
       if (alive) stop = syncRuntime.start();
     });
+    void import("./services/ingredientImages").then(
+      ({ startIngredientImages }) => {
+        if (alive) stopImages = startIngredientImages();
+      },
+    );
+    void import("./services/ingredientResolver").then(
+      ({ startIngredientResolver }) => {
+        if (alive) stopResolver = startIngredientResolver();
+      },
+    );
     return () => {
       alive = false;
       stop?.();
+      stopImages?.();
+      stopResolver?.();
       clearTimeout(timer);
       window.removeEventListener("chefish:sync-data", refresh);
     };
@@ -219,6 +233,10 @@ export function DemoProvider({
     message: string,
   ) {
     const inventoryAction = [
+      "undo",
+      "edit_lot",
+      "delete_lot",
+      "classify_inventory",
       "complete_cooking",
       "undo_cooking",
       "change_lot",
@@ -250,9 +268,26 @@ export function DemoProvider({
           ? pending.current
           : { key, id: crypto.randomUUID() };
       pending.current = request;
-      await client.execute(command, request.id);
+      const changed = await client.execute(command, request.id);
       window.dispatchEvent(new Event("chefish:sync-wake"));
       pending.current = null;
+      if (
+        command.type === "change_lot" &&
+        changed &&
+        changed.baseRevision === current.dataRevision
+      ) {
+        setHistory((h) => [
+          {
+            ...h[h.length - 1],
+            lots: changed.lots,
+            inventoryEvents: changed.inventoryEvents,
+            dataRevision: changed.dataRevision,
+            undo: changed.undo,
+          },
+        ]);
+        refreshRequired.current = false;
+        return true;
+      }
       refreshRequired.current = true;
       if (!(await reload())) {
         notify("已写入本地数据库，但界面读取失败。请重试加载，不要重复提交。");
@@ -277,7 +312,15 @@ export function DemoProvider({
     }
   }
   function undo() {
-    if (persistent) return;
+    if (persistent) {
+      if (current.undo && !busy)
+        void mutate(
+          { type: "undo", operation_id: current.undo.operationId },
+          (s) => s,
+          `已撤销${current.undo.label}`,
+        );
+      return;
+    }
     setHistory((h) => (h.length > 1 ? h.slice(0, -1) : h));
     notify("已撤销上一步演示变更");
   }
@@ -339,7 +382,7 @@ export function DemoProvider({
         update,
         mutate,
         undo,
-        canUndo: !persistent && history.length > 1,
+        canUndo: persistent ? !!current.undo : history.length > 1,
         notice: notification.text,
         notify,
         weekStart,

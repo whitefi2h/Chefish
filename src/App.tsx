@@ -3,7 +3,6 @@ import KitchenAssistant from "./KitchenAssistant";
 import { shoppingPending } from "./domain/shopping";
 import { useEffect, useRef, useState } from "react";
 import {
-  ChefHat,
   LayoutDashboard,
   BookOpen,
   Refrigerator,
@@ -11,6 +10,7 @@ import {
   ShoppingBasket,
   Sparkles,
   Undo2,
+  ArrowLeft,
   ArrowRight,
   X,
   PanelRightClose,
@@ -26,6 +26,7 @@ import Recipes from "./Recipes";
 import Dashboard from "./Dashboard";
 import Settings, { type SettingsTab } from "./Settings";
 import SyncIndicator from "./SyncIndicator";
+import { NavigationProvider, useNavigation } from "./navigation";
 const pages = [
   { id: "home", name: "首页", icon: LayoutDashboard },
   { id: "recipes", name: "我的菜谱", icon: BookOpen },
@@ -132,18 +133,41 @@ function Shell() {
     forecast,
     preferences,
   } = useDemo();
-  const [page, setPage] = useState("planner");
+  const { route, navigate: setPage, back, canBack, reset } = useNavigation();
+  const page = route.page;
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
   const startupApplied = useRef(false);
   useEffect(() => {
     if (ready && !startupApplied.current) {
-      setPage(preferences.startPage);
+      reset(preferences.startPage);
       startupApplied.current = true;
     }
-  }, [ready, preferences.startPage]);
+  }, [ready, preferences.startPage, reset]);
   const [panel, setPanel] = useState<
     { kind: "ai" } | { kind: "lot"; id: string } | null
   >(null);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.altKey && e.key === "ArrowLeft") {
+        e.preventDefault();
+        back();
+      }
+      const target = e.target as HTMLElement;
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "z" &&
+        !e.shiftKey &&
+        !target.closest("input,textarea,select,[contenteditable=true]")
+      ) {
+        if (canUndo && !busy) {
+          e.preventDefault();
+          undo();
+        }
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [back, undo, canUndo, busy]);
   const count = persistent
     ? shoppingPending(forecast).length +
       supplies(state).filter((s) => s.missing).length
@@ -175,7 +199,12 @@ function Shell() {
           }}
         >
           <span className="brand-mark">
-            <ChefHat size={26} />
+            <img
+              className="app-logo"
+              src="/brand.svg"
+              alt=""
+              aria-hidden="true"
+            />
           </span>
           <div>
             <strong>
@@ -222,7 +251,12 @@ function Shell() {
           }}
         >
           <span className="avatar">
-            <ChefHat size={18} />
+            <img
+              className="app-logo"
+              src="/brand.svg"
+              alt=""
+              aria-hidden="true"
+            />
           </span>
           <div>
             <strong>{persistent ? "我的厨房" : "我的演示厨房"}</strong>
@@ -234,6 +268,16 @@ function Shell() {
       <div className="workspace">
         <header className="topbar">
           <div className="breadcrumb">
+            <button
+              className="global-back"
+              onClick={back}
+              disabled={!canBack}
+              aria-label="返回上一页面"
+              title="返回上一页面（Alt+←）"
+            >
+              <ArrowLeft size={17} />
+              返回
+            </button>
             我的厨房 <span>/</span>{" "}
             <strong>{pages.find((p) => p.id === page)?.name}</strong>
           </div>
@@ -248,7 +292,16 @@ function Shell() {
                   : "本地数据库"
                 : "演示数据 · 刷新后重置"}
             </span>
-            <button onClick={undo} disabled={!canUndo} aria-label="撤销上一步">
+            <button
+              onClick={undo}
+              disabled={!canUndo || busy}
+              aria-label="撤销上一步"
+              title={
+                state.undo
+                  ? `撤销${state.undo.label}（Ctrl+Z）`
+                  : "撤销最近保存的操作（Ctrl+Z）"
+              }
+            >
               <Undo2 size={15} />
               撤销
             </button>
@@ -343,7 +396,9 @@ function LeafMark() {
 export default function App() {
   return (
     <DemoProvider>
-      <Shell />
+      <NavigationProvider>
+        <Shell />
+      </NavigationProvider>
     </DemoProvider>
   );
 }

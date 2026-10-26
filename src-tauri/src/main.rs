@@ -1,10 +1,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod ai;
 mod assistant;
+mod assistant_commands;
 mod backup;
 mod cloud_commands;
 mod cloud_snapshot;
+mod cooking_ai;
 mod db;
+mod ingredient_images;
+mod ingredient_resolver;
 mod recipe_images;
 mod recipe_import;
 mod site_access;
@@ -100,7 +104,7 @@ fn kitchen_backup_open_folder(app: tauri::AppHandle) -> db::Result<()> {
         message: "无法打开备份目录".into(),
     })
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn kitchen_bootstrap(database: tauri::State<Database>) -> db::Result<serde_json::Value> {
     let guard = database.0.lock().map_err(|_| db::ApiError {
         code: "DATABASE_ERROR".into(),
@@ -110,14 +114,16 @@ fn kitchen_bootstrap(database: tauri::State<Database>) -> db::Result<serde_json:
         code: "BOOTSTRAP_FAILED".into(),
         message: database.1.clone(),
     })?;
-    db::snapshot(conn)
+    let mut snapshot = db::snapshot(conn)?;
+    snapshot["undo"] = db::undo::status(conn)?;
+    Ok(snapshot)
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn kitchen_execute(
     database: tauri::State<Database>,
     request_id: String,
     command: db::Command,
-) -> db::Result<()> {
+) -> db::Result<Option<serde_json::Value>> {
     let mut guard = database.0.lock().map_err(|_| db::ApiError {
         code: "DATABASE_ERROR".into(),
         message: "数据库不可用，请重启应用".into(),
@@ -126,9 +132,20 @@ fn kitchen_execute(
         code: "BOOTSTRAP_FAILED".into(),
         message: database.1.clone(),
     })?;
-    db::execute(conn, &request_id, command)
+    let inline = matches!(&command, db::Command::ChangeLot { .. });
+    let revision: String = conn.query_row(
+        "SELECT value FROM app_settings WHERE key='data_revision'",
+        [],
+        |r| r.get(0),
+    )?;
+    db::execute(conn, &request_id, command)?;
+    if inline {
+        Ok(Some(db::inventory_update(conn, &revision)?))
+    } else {
+        Ok(None)
+    }
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn kitchen_shopping(
     database: tauri::State<Database>,
     week_start: String,
@@ -311,9 +328,13 @@ fn main() {
             app.manage(cloud_commands::Transfers::default());
             app.manage(sync_commands::Transfers::default());
             app.manage(assistant::Proposals::default());
+            app.manage(ingredient_images::Jobs::default());
+            app.manage(ingredient_resolver::Jobs::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            ingredient_images::kitchen_ingredient_images,
+            ingredient_images::kitchen_open_image_source,
             kitchen_bootstrap,
             kitchen_sync_status,
             sync_commands::sync_state,
@@ -351,6 +372,9 @@ fn main() {
             kitchen_import_url,
             kitchen_import_images,
             kitchen_recipe_images,
+            kitchen_recipe_cover,
+            ingredient_resolver::kitchen_resolve_ingredients,
+            cooking_ai::kitchen_cooking_interpret,
             kitchen_ai_settings,
             kitchen_ai_save_settings,
             kitchen_ai_test,
@@ -392,6 +416,20 @@ async fn kitchen_import_images(
 async fn kitchen_recipe_images(url: String) -> db::Result<serde_json::Value> {
     ai_block(move || recipe_images::from_recipe(&url)).await
 }
+#[tauri::command]
+async fn kitchen_recipe_cover(
+    name: String,
+    preference: String,
+    previous: Option<String>,
+) -> db::Result<serde_json::Value> {
+    if name.trim().is_empty() || name.len() > 400 || preference.len() > 2000 {
+        return Err(db::ApiError {
+            code: "INVALID_INPUT".into(),
+            message: "请填写菜谱名称和简短的图片偏好".into(),
+        });
+    }
+    ai_block(move || ingredient_images::recipe_cover(&name, &preference, previous.as_deref())).await
+}
 
 async fn ai_block<T: Send + 'static>(
     f: impl FnOnce() -> db::Result<T> + Send + 'static,
@@ -421,6 +459,7 @@ async fn kitchen_ai_test() -> db::Result<()> {
 }
 #[tauri::command]
 async fn kitchen_ai_route(
+    app: tauri::AppHandle,
     database: tauri::State<'_, Database>,
     proposals: tauri::State<'_, assistant::Proposals>,
     messages: serde_json::Value,
@@ -442,7 +481,7 @@ async fn kitchen_ai_route(
         )?
     };
     local["pendingProposal"] = assistant::pending(&proposals, proposal_id.as_deref());
-    let revision = local["snapshot"]["dataRevision"]
+    let mut revision = local["snapshot"]["dataRevision"]
         .as_str()
         .unwrap_or("")
         .to_string();
@@ -467,7 +506,8 @@ async fn kitchen_ai_route(
         );
     }
     let mut corrections = 0;
-    for _ in 0..6 {
+    let mut refreshes = 0;
+    for _ in 0..8 {
         let m = messages.clone();
         let c = candidates.clone();
         let l = local.clone();
@@ -498,6 +538,14 @@ async fn kitchen_ai_route(
             code: "AI_RESPONSE".into(),
             message: "助手响应无法读取".into(),
         })?;
+        if route.action == "ingredient_image" {
+            let id = route.candidate_id.clone().unwrap_or_default();
+            let instruction = route.query.clone().unwrap_or_default();
+            ai_block(move || ingredient_images::run(&app, Some(id), instruction)).await?;
+            return Ok(
+                serde_json::json!({"action":"none","message":"食材图片已更换，同名食材的所有批次都会使用这张图片。","dataChanged":true}),
+            );
+        }
         if route.action == "copy_shopping" {
             let guard = database.0.lock().map_err(|_| db::ApiError {
                 code: "DATABASE_ERROR".into(),
@@ -570,13 +618,21 @@ async fn kitchen_ai_route(
                 assistant::prepare(conn, &proposals, route.commands.clone(), &revision, &week);
             match preview {
                 Ok(preview) => out["proposal"] = serde_json::to_value(preview).unwrap(),
+                Err(e) if e.code == "STALE_REVISION" && refreshes < 2 => {
+                    refreshes += 1;
+                    local = assistant::context(conn, Some(&week))?;
+                    local["pendingProposal"] =
+                        assistant::pending(&proposals, proposal_id.as_deref());
+                    revision = local["snapshot"]["dataRevision"].as_str().unwrap().into();
+                    continue;
+                }
                 Err(e)
                     if corrections < 2
                         && !["STALE_REVISION", "DATABASE_ERROR", "DATABASE_BUSY"]
                             .contains(&e.code.as_str()) =>
                 {
                     corrections += 1;
-                    local["toolResults"].as_array_mut().unwrap().push(serde_json::json!({"request":{"kind":"validate_proposal","commands":route.commands},"result":{"error":e,"instruction":"仅修正操作格式和无效参数，保留用户意图。save_plan字段plan_id,expected_version,draft内部recipe_revision_id,custom_title,day,meal,servings，不能用camelCase；不要增加未定义字段。返回完整的替代commands，不要声称已执行。"}}));
+                    local["toolResults"].as_array_mut().unwrap().push(serde_json::json!({"request":{"kind":"validate_proposal","commands":route.commands},"result":{"error":e,"instruction":"仅修正操作格式和无效参数，保留用户意图。每项用type指定命令名，绝不能用operation指定receive_lot等命令。quantity用字符串。receive_lot只包含draft，draft内name/category/quantity/unit/location/received/expires/precision，包袋可交给程序统一。不要丢掉有效操作。save_plan字段plan_id,expected_version,draft内部recipe_revision_id,custom_title,day,meal,servings，不能用camelCase；不要增加未定义字段。返回完整的替代commands，不要声称已执行。"}}));
                     continue;
                 }
                 Err(e) => {

@@ -125,7 +125,7 @@ fn chronological_fefo_reserves_once_across_weeks_without_changing_stock() {
     assert_eq!(snapshot(&c).unwrap(), before);
 }
 #[test]
-fn cooking_date_expiry_unknown_rough_units_and_future_receipts_require_review() {
+fn rough_and_undated_stock_cover_demand_while_expiry_units_and_future_dates_still_apply() {
     let mut c = open(&temp()).unwrap();
     let (r, _) = recipe(&mut c, "300", 2);
     stock(&mut c, "100", Some("2099-01-06"), "exact", "g");
@@ -135,9 +135,20 @@ fn cooking_date_expiry_unknown_rough_units_and_future_receipts_require_review() 
     stock(&mut c, "900", Some("2099-12-31"), "exact", "个");
     plan(&mut c, &r, "2099-01-07", 2);
     let v = view(&c, "2099-01-05");
-    assert_eq!(v["items"][0]["covered"], "100");
-    assert_eq!(v["items"][0]["shortage"], "200");
+    assert_eq!(v["items"][0]["covered"], "300");
+    assert_eq!(v["items"][0]["shortage"], "0");
     assert_eq!(v["items"][0]["review"], true);
+    c.execute(
+        "UPDATE inventory_lots SET amount_decimal='0' WHERE unit='个'",
+        [],
+    )
+    .unwrap();
+    assert_eq!(view(&c, "2099-01-05")["items"][0]["review"], false);
+    c.execute(
+        "UPDATE inventory_lots SET amount_decimal='0' WHERE amount_decimal='900'",
+        [],
+    )
+    .unwrap();
     c.execute("UPDATE inventory_lots SET received_on='2099-01-06' WHERE amount_decimal='100' AND expires_on='2099-12-31'",[]).unwrap();
     assert_eq!(view(&c, "2099-01-05")["items"][0]["covered"], "0");
 }
@@ -567,7 +578,7 @@ fn household_purchase_failure_rolls_back_purchase_lot_receipt_and_revision() {
 }
 
 #[test]
-fn household_purchase_with_unknown_expiry_fulfils_own_item_without_covering_other_weeks() {
+fn household_purchase_without_expiry_covers_later_meals_without_duplicate_stock() {
     let mut c = open(&temp()).unwrap();
     let (revision, ingredient) = recipe(&mut c, "100", 2);
     plan(&mut c, &revision, "2099-01-05", 2);
@@ -586,10 +597,10 @@ fn household_purchase_with_unknown_expiry_fulfils_own_item_without_covering_othe
     assert_eq!(v["items"][0]["remaining"], "0");
     assert_eq!(v["items"][0]["required"], "100");
     assert_eq!(v["items"][0]["purchased"], "200");
-    assert_eq!(v["items"][0]["shortage"], "100"); // Stock-only gap; UI uses remaining purchase need.
-    assert_eq!(v["items"][0]["covered"], "0");
-    assert_eq!(v["items"][0]["review"], true);
-    assert_eq!(view(&c, "2099-01-12")["items"][0]["remaining"], "100");
+    assert_eq!(v["items"][0]["shortage"], "0");
+    assert_eq!(v["items"][0]["covered"], "100");
+    assert_eq!(v["items"][0]["review"], false);
+    assert_eq!(view(&c, "2099-01-12")["items"][0]["remaining"], "0");
 }
 
 #[test]

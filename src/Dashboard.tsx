@@ -1,3 +1,4 @@
+import IngredientAvatar from "./IngredientAvatar";
 import { shoppingPending } from "./domain/shopping";
 import Seasonings from "./Seasonings";
 import { isSeasoning, supplies } from "./domain/seasonings";
@@ -18,20 +19,31 @@ import {
 } from "./model";
 import { useDemo } from "./store";
 import { Badge, Food } from "./components";
+import { useState, useEffect } from "react";
+import { nextMealDishes } from "./domain/nextMeal";
 export default function Dashboard({
   navigate,
 }: {
   navigate: (page: string) => void;
 }) {
   const { state, today, persistent, forecast, forecastError } = useDemo();
-  const next = state.plans
-    .filter((p) => p.day >= today)
-    .sort(
-      (a, b) =>
-        a.day.localeCompare(b.day) ||
-        ["早餐", "午餐", "晚餐"].indexOf(a.meal) -
-          ["早餐", "午餐", "晚餐"].indexOf(b.meal),
-    )[0];
+  const minuteNow = () => new Date().getHours() * 60 + new Date().getMinutes();
+  const [minute, setMinute] = useState(minuteNow);
+  useEffect(() => {
+    const tick = () => setMinute(minuteNow());
+    const timer = setInterval(tick, 30000);
+    window.addEventListener("focus", tick);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", tick);
+    };
+  }, []);
+  const dishes = nextMealDishes(
+    state.plans,
+    today,
+    persistent ? minute : 9 * 60,
+  );
+  const next = dishes[0];
   const recipe = next ? recipeForPlan(state, next) : undefined;
   const alerts = state.lots.filter(
     (l) =>
@@ -39,7 +51,8 @@ export default function Dashboard({
         state.ingredients.find((i) => i.id === l.ingredientId)?.name ?? "",
       ) &&
       l.quantity > 0 &&
-      (!l.expires || daysLeft(l.expires, today) <= 3),
+      !!l.expires &&
+      daysLeft(l.expires, today) <= 3,
   );
   const pending = (persistent ? [] : pendingItems(state)).filter(
     (i) => i.status === "pending",
@@ -59,12 +72,56 @@ export default function Dashboard({
         </Badge>
       </div>
       <div className="dashboard-top">
-        <section className="next-meal panel">
-          {recipe ? (
+        <section
+          className={`next-meal panel ${dishes.length > 1 ? "multiple" : ""}`}
+        >
+          {dishes.length > 1 ? (
+            <>
+              <div className="next-meal-heading">
+                <Badge tone="warm">
+                  下一餐 · {next.day > today ? `${next.day} · ` : ""}
+                  {next.meal}
+                </Badge>
+                <span>{dishes.length} 道菜</span>
+              </div>
+              <div className="next-meal-dishes">
+                {dishes.slice(0, 2).map((plan) => {
+                  const dish = recipeForPlan(state, plan);
+                  return (
+                    <article className="next-meal-dish" key={plan.id}>
+                      <Food image={dish.image} name={dish.name} />
+                      <div>
+                        <h2>{dish.name}</h2>
+                        <p>{dish.subtitle}</p>
+                        <span className="inline muted">
+                          <Clock size={13} />
+                          {dish.minutes ? `${dish.minutes} 分钟 · ` : ""}
+                          {plan.servings} 人份
+                        </span>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              <div className="next-meal-footer">
+                <span>
+                  {dishes.length > 2
+                    ? `还有 ${dishes.length - 2} 道菜`
+                    : "这一餐，慢慢做好"}
+                </span>
+                <button className="primary" onClick={() => navigate("planner")}>
+                  查看菜单安排 <ArrowRight size={15} />
+                </button>
+              </div>
+            </>
+          ) : recipe ? (
             <>
               <Food image={recipe.image} name={recipe.name} />
               <div className="next-meal-content">
-                <Badge tone="warm">下一餐 · {next.meal}</Badge>
+                <Badge tone="warm">
+                  下一餐 · {next.day > today ? `${next.day} · ` : ""}
+                  {next.meal}
+                </Badge>
                 <h2>{recipe.name}</h2>
                 <p>{recipe.subtitle}</p>
                 <span className="inline muted">
@@ -97,7 +154,12 @@ export default function Dashboard({
           </div>
           {alerts.slice(0, 3).map((l) => (
             <div className="alert-line" key={l.id}>
-              <span>
+              <span className="inventory-ingredient">
+                <IngredientAvatar
+                  ingredient={state.ingredients.find(
+                    (i) => i.id === l.ingredientId,
+                  )!}
+                />
                 {state.ingredients.find((i) => i.id === l.ingredientId)!.name}
               </span>
               <Badge tone={daysLeft(l.expires, today) < 0 ? "red" : "warm"}>

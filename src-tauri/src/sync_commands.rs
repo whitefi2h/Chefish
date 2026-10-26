@@ -13,7 +13,7 @@ fn fail() -> ApiError {
         message: "同步暂不可用，请重试".into(),
     }
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn sync_state(database: State<Database>) -> Result<replication::State> {
     let g = database.0.lock().map_err(|_| fail())?;
     replication::state(g.as_ref().ok_or_else(fail)?)

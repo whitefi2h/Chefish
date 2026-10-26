@@ -106,13 +106,7 @@ pub fn save_manual(
     } else if expected.is_some() {
         return Err(error("INVALID_INPUT", "新增项目无需版本号"));
     }
-    let ingredient: Option<String> = tx
-        .query_row(
-            "SELECT id FROM ingredients WHERE name=?1",
-            [draft.name.trim()],
-            |r| r.get(0),
-        )
-        .optional()?;
+    let ingredient = ingredient_standard::find(tx, &draft.name)?;
     let ingredient = match ingredient {
         Some(i) => i,
         None => {
@@ -362,16 +356,14 @@ struct Stock {
     remaining: Decimal,
     expires: Option<String>,
     received: String,
-    exact: bool,
-    shopping_line: Option<String>,
 }
 #[derive(Default)]
 struct Demand {
     required: Decimal,
     covered: Decimal,
+    carried_purchase: Decimal,
     review: bool,
     sources: Vec<String>,
-    confirmed_unknown_expiry: Decimal,
 }
 pub fn forecast(conn: &Connection, scope: &str) -> Result<Value> {
     validate_week(conn, scope)?;
@@ -382,7 +374,7 @@ pub fn forecast(conn: &Connection, scope: &str) -> Result<Value> {
     Ok(result)
 }
 fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> {
-    let mut stmt=conn.prepare("SELECT ingredient_id,unit,amount_decimal,expires_on,received_on,precision,(SELECT p.line_id FROM shopping_receipts r JOIN purchase_events p ON p.id=r.purchase_id WHERE r.lot_id=l.id AND NOT EXISTS(SELECT 1 FROM shopping_receipt_undos u WHERE u.receipt_id=r.id) LIMIT 1) FROM inventory_lots l ORDER BY expires_on IS NULL,expires_on,received_on,rowid")?;
+    let mut stmt=conn.prepare("SELECT ingredient_id,unit,amount_decimal,expires_on,received_on FROM inventory_lots l WHERE NOT EXISTS(SELECT 1 FROM app_settings WHERE key='inventory_deleted:'||l.id) ORDER BY expires_on IS NULL,expires_on,received_on,rowid")?;
     let lots = stmt
         .query_map([], |r| {
             Ok((
@@ -391,26 +383,20 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
                 r.get::<_, String>(2)?,
                 r.get::<_, Option<String>>(3)?,
                 r.get::<_, String>(4)?,
-                r.get::<_, String>(5)?,
-                r.get::<_, Option<String>>(6)?,
             ))
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
     let mut stock = lots
         .into_iter()
-        .map(
-            |(ingredient, unit, n, expires, received, precision, shopping_line)| {
-                Ok(Stock {
-                    ingredient,
-                    unit,
-                    remaining: number(&n)?,
-                    expires,
-                    received,
-                    exact: precision == "exact",
-                    shopping_line,
-                })
-            },
-        )
+        .map(|(ingredient, unit, n, expires, received)| {
+            Ok(Stock {
+                ingredient,
+                unit,
+                remaining: number(&n)?,
+                expires,
+                received,
+            })
+        })
         .collect::<Result<Vec<_>>>()?;
     let mut stmt=conn.prepare("SELECT p.day,p.meal,p.servings,v.servings,v.id,v.name,p.custom_title FROM planned_meals p LEFT JOIN recipe_revisions v ON v.id=p.recipe_revision_id WHERE p.removed=0 AND p.cooking_session_id IS NULL AND p.day>=?1 ORDER BY p.day,CASE p.meal WHEN '早餐' THEN 0 WHEN '午餐' THEN 1 ELSE 2 END,p.sort_order,p.rowid")?;
     let plans = stmt
@@ -441,16 +427,7 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
             }
             continue;
         };
-        let mut stmt=conn.prepare("SELECT ingredient_id,amount_decimal,unit FROM recipe_ingredients WHERE revision_id=?1 ORDER BY position")?;
-        let requirements = stmt
-            .query_map([&rev], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, String>(1)?,
-                    r.get::<_, String>(2)?,
-                ))
-            })?
-            .collect::<std::result::Result<Vec<_>, _>>()?;
+        let requirements = ingredient_resolution::requirements(conn, &rev)?;
         if in_scope {
             let seasoning: String = conn.query_row(
                 "SELECT seasoning FROM recipe_revisions WHERE id=?1",
@@ -490,6 +467,13 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
             }
         }
         for (ingredient, n, u) in requirements {
+            let raw_name: String = conn.query_row(
+                "SELECT name FROM ingredients WHERE id=?1",
+                [&ingredient],
+                |r| r.get(0),
+            )?;
+            let (_, n, u, _) = ingredient_standard::base(&raw_name, &n, &u)?;
+            let ingredient = ingredient_standard::canonical_id(conn, &ingredient)?;
             let ingredient_name: String = conn.query_row(
                 "SELECT name FROM ingredients WHERE id=?1",
                 [&ingredient],
@@ -504,20 +488,21 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
             let mut remaining = required;
             let mut review = false;
             for lot in &mut stock {
-                if lot.ingredient != ingredient
+                if !ingredient_standard::matches(conn, &lot.ingredient, &ingredient)?
                     || lot.remaining <= Decimal::ZERO
                     || lot.received.as_str() > today
                     || lot.expires.as_ref().is_some_and(|d| d < &day)
                 {
                     continue;
                 }
-                if lot.unit != u || !lot.exact || lot.expires.is_none() {
+                let Some(factor) = ingredient_standard::factor(&ingredient_name, &lot.unit, &u)
+                else {
                     review = true;
                     continue;
-                }
-                let take = remaining.min(lot.remaining);
+                };
+                let take = remaining.min(lot.remaining * factor);
                 remaining -= take;
-                lot.remaining -= take;
+                lot.remaining -= take / factor;
             }
             if in_scope {
                 let row = demand.entry((ingredient, u)).or_default();
@@ -545,36 +530,52 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
     let mut items = Vec::new();
-    for (key, ingredient, u, source, requested, version) in lines {
-        let mut d = if source == "plan" {
-            demand
-                .remove(&(ingredient.clone(), u.clone()))
-                .unwrap_or_default()
+    for (key, ingredient, u, source, requested, version) in &lines {
+        let d = if source == "plan" {
+            let raw: String = conn.query_row(
+                "SELECT name FROM ingredients WHERE id=?1",
+                [ingredient],
+                |r| r.get(0),
+            )?;
+            let canonical = ingredient_standard::canonical_id(conn, ingredient)?;
+            let (_, factor, base_unit, _) = ingredient_standard::base(&raw, "1", u)?;
+            let factor = number(&factor)?;
+            let mut d = demand
+                .remove(&(canonical.clone(), base_unit.clone()))
+                .unwrap_or_default();
+            d.required = (d.required / factor)
+                .round_dp_with_strategy(6, RoundingStrategy::ToPositiveInfinity);
+            d.covered = (d.covered / factor).round_dp(6);
+            if d.required > Decimal::ZERO {
+                for (other, other_ingredient, other_unit, other_source, _, _) in &lines {
+                    if other == key
+                        || other_source != "plan"
+                        || ingredient_standard::canonical_id(conn, other_ingredient)? != canonical
+                    {
+                        continue;
+                    }
+                    let (_, other_factor, other_base, _) =
+                        ingredient_standard::base(&raw, "1", other_unit)?;
+                    if other_base == base_unit {
+                        let (bought, received) = totals(conn, other)?;
+                        d.carried_purchase += (bought - received) * number(&other_factor)? / factor;
+                    }
+                }
+            }
+            d
         } else {
             Demand {
-                required: number(&requested)?,
+                required: number(requested)?,
                 ..Default::default()
             }
         };
-        // A confirmed purchase with unknown expiry fulfils its own shopping item,
-        // while remaining ineligible for automatic inventory coverage elsewhere.
-        d.confirmed_unknown_expiry = stock
-            .iter()
-            .filter(|l| {
-                l.shopping_line.as_deref() == Some(key.as_str())
-                    && l.expires.is_none()
-                    && l.exact
-                    && l.received.as_str() <= today
-            })
-            .map(|l| l.remaining)
-            .sum();
         items.push(item(
             conn,
-            Some(key),
-            version,
-            &ingredient,
-            &u,
-            &source,
+            Some(key.clone()),
+            *version,
+            ingredient,
+            u,
+            source,
             scope,
             d,
         )?);
@@ -617,7 +618,7 @@ fn item(
             - if source == "manual" {
                 purchased
             } else {
-                outstanding + d.confirmed_unknown_expiry
+                outstanding + d.carried_purchase
             })
         .max(Decimal::ZERO)
     };
@@ -627,7 +628,7 @@ fn item(
         history=stmt.query_map([key],|r|Ok(json!({"kind":r.get::<_,String>(0)?,"id":r.get::<_,String>(1)?,"quantity":r.get::<_,String>(2)?,"at":r.get::<_,String>(3)?,"lotId":r.get::<_,Option<String>>(4)?})))?.collect::<std::result::Result<Vec<_>,_>>()?;
     }
     Ok(
-        json!({"id":key,"version":version,"ingredientId":ingredient,"name":name,"category":category,"unit":u,"source":source,"weekStart":if source=="plan"{Some(scope)}else{None},"required":show(d.required),"covered":show(d.covered),"shortage":show(shortage),"purchased":show(purchased),"received":show(received),"unreceived":show(outstanding),"remaining":show(remaining),"review":d.review,"hidden":hidden,"surplus":source=="plan" && outstanding>shortage,"sources":d.sources,"history":history}),
+        json!({"id":key,"version":version,"ingredientId":ingredient,"name":ingredient_standard::name(&name),"category":category,"unit":u,"source":source,"weekStart":if source=="plan"{Some(scope)}else{None},"required":show(d.required),"covered":show(d.covered),"shortage":show(shortage),"purchased":show(purchased),"received":show(received),"unreceived":show(outstanding),"remaining":show(remaining),"review":d.review,"hidden":hidden,"surplus":source=="plan" && outstanding>shortage,"sources":d.sources,"history":history}),
     )
 }
 

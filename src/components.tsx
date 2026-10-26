@@ -74,6 +74,31 @@ export function Modal({
       ref={ref}
       aria-labelledby={titleId}
       className={`${drawer ? "dialog drawer" : "dialog"} ${className}`}
+      onMouseDown={(e) => {
+        if (!drawer || e.target !== e.currentTarget) return;
+        const bounds = e.currentTarget.getBoundingClientRect();
+        if (
+          e.clientX < bounds.left ||
+          e.clientX > bounds.right ||
+          e.clientY < bounds.top ||
+          e.clientY > bounds.bottom
+        )
+          e.preventDefault();
+      }}
+      onDoubleClick={(e) => {
+        if (!drawer || e.target !== e.currentTarget) return;
+        const bounds = e.currentTarget.getBoundingClientRect();
+        if (
+          e.clientX < bounds.left ||
+          e.clientX > bounds.right ||
+          e.clientY < bounds.top ||
+          e.clientY > bounds.bottom
+        ) {
+          e.preventDefault();
+          window.getSelection()?.removeAllRanges();
+          onClose();
+        }
+      }}
       onCancel={(e) => {
         e.preventDefault();
         if (dismissOnEscape) onClose();
@@ -81,7 +106,7 @@ export function Modal({
     >
       <header className="dialog-head">
         <h2 id={titleId}>{title}</h2>
-        <button aria-label="关闭面板" onClick={onClose}>
+        <button type="button" aria-label="关闭面板" onClick={onClose}>
           <X size={19} />
         </button>
       </header>

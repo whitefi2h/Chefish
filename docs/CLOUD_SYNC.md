@@ -22,7 +22,7 @@
 | 菜谱、封面与步骤图、历史配方、分类、收藏和灵感 | 同步实际对象 ID 与版本；图片随实际行载荷分块传输 |
 | 库存、事件、菜单、采购、收货、烹饪与手记 | 整个事务为一个操作组，失败时整体回滚 |
 | 默认人数、口味、忌口、厨具 | 同步四项用餐偏好 |
-| 采购备忘、调料缺货/隐藏与撤销日期原值 | 同步允许的业务设置 |
+| 采购备忘、调料缺货/隐藏、批次删除标记与属性撤销原值 | 同步允许的业务设置 |
 | 聊天、启动页、发送快捷键、自动备份开关 | 各设备保留自己的内容 |
 | 模型密钥、Firebase 凭据、未知设置字段 | 不进入同步载荷与云备份 |
 
@@ -84,3 +84,7 @@ npm run test:ui
 最新证据与边界见 [同步验证记录](sync-validation.json)。真实邮箱收信、Windows WebView2 内个人账户登录、两台实体电脑和长时间运行仍未作为自动测试完成；没有上传用户现有厨房。
 
 官方参考：[Firestore 配额](https://firebase.google.com/docs/firestore/quotas)、[事务](https://firebase.google.com/docs/firestore/manage-data/transactions)、[原子操作规则](https://firebase.google.com/docs/firestore/security/rules-conditions#access_other_documents)、[Cloud Storage 方案](https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024)。
+
+2026-10-26 schema 14 增加本机全局撤销记录，升级前创建 `pre-v14-*.sqlite3`。撤销结果作为显式事务同步，撤销栈和原始本机撤销凭据不进入云备份；恢复后重新积累。Firestore 规则上限更新到 14，所有连接同一厨房的客户端需更新后再使用撤销。
+
+2026-10-26 schema 14 规则已部署到 chefish-kitchen。此前登录与部署失败实际是 Firebase CLI 未继承 Windows 系统代理，访问 Google OAuth 超时；并非已确认的凭据过期。为单次部署进程设置系统代理对应的 HTTPS_PROXY / HTTP_PROXY 后，现有登录凭据可用，规则编译、上传与发布均成功。未改变系统代理、项目计费或个人厨房数据。

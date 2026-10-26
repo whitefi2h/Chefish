@@ -3,6 +3,9 @@ import { useState } from "react";
 import { useDemo } from "./store";
 import { Badge } from "./components";
 import { supplies, setSupply } from "./domain/seasonings";
+import IngredientAvatar from "./IngredientAvatar";
+import { invoke } from "@tauri-apps/api/core";
+import { errorMessage } from "./services/kitchenClient";
 
 export default function Seasonings({
   reminder = false,
@@ -11,8 +14,9 @@ export default function Seasonings({
   reminder?: boolean;
   onOpen?: () => void;
 }) {
-  const { state, mutate, busy } = useDemo();
+  const { state, mutate, busy, persistent, notify } = useDemo();
   const [name, setName] = useState("");
+  const [replacing, setReplacing] = useState<string | null>(null);
   const all = supplies(state);
   const rows = reminder ? all.filter((s) => s.missing) : all;
   if (reminder && !rows.length) return null;
@@ -46,9 +50,52 @@ export default function Seasonings({
             className={`seasoning-row ${s.missing ? "missing" : ""}`}
             key={s.id}
           >
-            <div>
-              <strong>{s.name}</strong>
-              {s.missing && <span className="seasoning-status">缺货</span>}
+            <div className="seasoning-identity">
+              {persistent ? (
+                <button
+                  className="seasoning-avatar"
+                  aria-label={`让 AI 更换${s.name}图片`}
+                  title={
+                    s.image
+                      ? `图片：${s.image.author} · ${s.image.license}。点击换图，右键查看来源与许可`
+                      : "让 AI 换张图片"
+                  }
+                  onContextMenu={
+                    s.image
+                      ? (e) => {
+                          e.preventDefault();
+                          void invoke("kitchen_open_image_source", {
+                            url: s.image!.sourceUrl,
+                          }).catch((error) => notify(errorMessage(error)));
+                        }
+                      : undefined
+                  }
+                  disabled={replacing !== null}
+                  onClick={async () => {
+                    setReplacing(s.id);
+                    try {
+                      await invoke("kitchen_ingredient_images", {
+                        ingredientId: `seasoning:${s.name}`,
+                        instruction: "换张不同的调料图片，主体清楚、背景干净",
+                      });
+                      window.dispatchEvent(new Event("chefish:sync-data"));
+                      window.dispatchEvent(new Event("chefish:sync-wake"));
+                    } catch (error) {
+                      notify(errorMessage(error));
+                    } finally {
+                      setReplacing(null);
+                    }
+                  }}
+                >
+                  <IngredientAvatar ingredient={s} />
+                </button>
+              ) : (
+                <IngredientAvatar ingredient={s} />
+              )}
+              <span className="seasoning-name">
+                <strong>{s.name}</strong>
+                {s.missing && <span className="seasoning-status">缺货</span>}
+              </span>
             </div>
             <div className="seasoning-actions">
               <button

@@ -7,11 +7,11 @@ describe("one ingredients list", () => {
       { name: "蒜末", amountText: "3瓣" },
       { name: "盐", amountText: "少许" },
     ]);
-    expect(out.ingredients).toEqual([{ name: "肉", quantity: 150, unit: "g" }]);
-    expect(out.textIngredients).toEqual([
-      { name: "蒜末", amountText: "3瓣" },
-      { name: "盐", amountText: "少许" },
+    expect(out.ingredients).toEqual([
+      { name: "肉", quantity: 150, unit: "g" },
+      { name: "大蒜", quantity: 15, unit: "g" },
     ]);
+    expect(out.textIngredients).toEqual([{ name: "盐", amountText: "少许" }]);
   });
   it("supports editing between numeric and free quantities without guessing", () => {
     expect(

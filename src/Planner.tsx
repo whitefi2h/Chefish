@@ -1,3 +1,4 @@
+import { useNavigation } from "./navigation";
 import { CookingForm } from "./Cooking";
 import { shoppingPending } from "./domain/shopping";
 import { useState, useRef, useEffect } from "react";
@@ -115,6 +116,7 @@ export function PlanForm({
 }) {
   const { state, mutate, persistent, busy, weekStart, today, preferences } =
     useDemo();
+  const { navigate } = useNavigation();
   const [customName, setCustomName] = useState(initial?.customTitle ?? "");
   const [recipe, setRecipe] = useState(
     (initial?.customTitle ? "__custom" : initial?.recipeId) ??
@@ -135,10 +137,27 @@ export function PlanForm({
       <Modal title="烹饪记录" onClose={onClose}>
         <div className="form-stack">
           <h3>{recipeForPlan(state, initial).name}</h3>
+          {recipe !== "__custom" && (
+            <button
+              className="text-button"
+              onClick={() => {
+                onClose();
+                navigate("recipes", recipe);
+              }}
+            >
+              查看对应菜谱 ↗
+            </button>
+          )}
           <p>
             {initial.cooking.date} · {initial.cooking.servings} 人份
           </p>
           <p>{initial.cooking.note || "未填写心得"}</p>
+          {initial.cooking.record && (
+            <section>
+              <h3>烹饪记录</h3>
+              <p className="cooking-record-text">{initial.cooking.record}</p>
+            </section>
+          )}
           <section>
             <h3>实际消耗</h3>
             {initial.cooking.consumptions?.length ? (
@@ -151,9 +170,6 @@ export function PlanForm({
               <p className="hint">未记录库存扣减</p>
             )}
           </section>
-          {initial.cooking.untracked && (
-            <Badge tone="warm">部分用量未记入库存</Badge>
-          )}
           <p className="hint">
             撤销会恢复本次扣减的所有批次。批次后续有其他操作时，请先核对并撤销后续操作。
           </p>
@@ -181,6 +197,18 @@ export function PlanForm({
     );
   return (
     <Modal title={initial ? "编辑这餐" : "安排一餐"} onClose={onClose}>
+      {recipe !== "__custom" && (
+        <button
+          className="text-button plan-recipe-link"
+          type="button"
+          onClick={() => {
+            onClose();
+            navigate("recipes", recipe);
+          }}
+        >
+          查看对应菜谱 ↗
+        </button>
+      )}
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -847,9 +875,7 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
                 </span>
               ))}
           {persistent && forecast && shoppingPending(forecast).length === 0 && (
-            <span className="hint">
-              暂无待买项目{forecast.reviewNotes.length ? "，有用量待核对" : ""}
-            </span>
+            <span className="hint">暂无待买项目</span>
           )}
           {!persistent &&
             shopping.slice(0, 3).map((n) => (

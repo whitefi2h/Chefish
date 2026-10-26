@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import {
-  ChefHat,
   Utensils,
   SlidersHorizontal,
   Sparkles,
@@ -109,7 +108,12 @@ export default function Settings({
         <aside className="settings-sidebar">
           <div className="settings-kitchen">
             <span>
-              <ChefHat size={23} strokeWidth={1.5} />
+              <img
+                className="app-logo"
+                src="/brand.svg"
+                alt=""
+                aria-hidden="true"
+              />
             </span>
             <div>
               <strong>我的厨房</strong>
@@ -397,7 +401,12 @@ export default function Settings({
             {tab === "about" && (
               <div className="settings-about">
                 <div className="settings-about-mark">
-                  <ChefHat size={38} strokeWidth={1.4} />
+                  <img
+                    className="app-logo"
+                    src="/brand.svg"
+                    alt=""
+                    aria-hidden="true"
+                  />
                 </div>
                 <h3>Chefish</h3>
                 <p>日常的好滋味</p>

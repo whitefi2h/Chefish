@@ -251,7 +251,8 @@ for (const [width, height] of [
     ).toHaveText(["牛肉", "大米", "口蘑", "三文鱼"]);
     await expect(page.getByRole("main")).not.toContainText("累计已买");
     await expect(page.getByRole("main")).not.toContainText("入库");
-    await expect(page.getByText("需核对", { exact: true })).toBeVisible();
+    await expect(page.getByText("需核对", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("用量待核对", { exact: true })).toHaveCount(0);
     expect(
       await beef
         .locator(".shopping-name small")

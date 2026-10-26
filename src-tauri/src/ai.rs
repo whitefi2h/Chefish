@@ -159,16 +159,26 @@ fn key<'a>(s: &'a Stored, provider: &str) -> Result<&'a str> {
         )
     })
 }
-fn completion(system: &str, input: Value) -> Result<Value> {
+pub(crate) fn completion(system: &str, input: Value) -> Result<Value> {
     let stored = load()?;
     validate_settings(&stored.settings)?;
     let body = chat_body(&stored.settings, system, input);
-    let result = post(
-        &client(stored.settings.timeout)?,
-        endpoint(&stored.settings.provider)?,
-        key(&stored, &stored.settings.provider)?,
-        &body,
-    )?;
+    let client = client(stored.settings.timeout)?;
+    let send = || {
+        post(
+            &client,
+            endpoint(&stored.settings.provider)?,
+            key(&stored, &stored.settings.provider)?,
+            &body,
+        )
+    };
+    let result = match send() {
+        Err(e) if ["AI_NETWORK", "AI_TRANSIENT"].contains(&e.code.as_str()) => {
+            std::thread::sleep(Duration::from_millis(500));
+            send()?
+        }
+        other => other?,
+    };
     decode_completion(result)
 }
 fn chat_body(s: &Settings, system: &str, input: Value) -> Value {
@@ -249,6 +259,7 @@ pub fn route(messages: Value, candidates: Value, local: Value) -> Result<Route> 
         "read",
         "navigate",
         "repair_images",
+        "ingredient_image",
         "copy_shopping",
     ]
     .contains(&out.action.as_str())
@@ -562,7 +573,9 @@ fn normalize_ai_ingredients(result: &mut Value) -> Result<Vec<String>> {
                     && !canonical.is_empty()
             });
         if let Some(number) = number {
-            exact.push(json!({"name":name,"quantity":number.to_string(),"unit":canonical}));
+            let (name, quantity, unit, _) =
+                crate::db::ingredient_standard::amount(name, &number.to_string(), canonical)?;
+            exact.push(json!({"name":name,"quantity":quantity,"unit":unit}));
         } else {
             let amount = if raw_quantity.is_empty() {
                 if unit.is_empty() {
@@ -579,12 +592,21 @@ fn normalize_ai_ingredients(result: &mut Value) -> Result<Vec<String>> {
             if !text.iter().any(|v| {
                 v["name"].as_str() == Some(name) && v["amountText"].as_str() == Some(&amount)
             }) {
-                text.push(json!({"name":name,"amountText":amount}));
+                if let Ok((name, quantity, unit, _)) =
+                    crate::db::ingredient_standard::amount(name, &raw_quantity, unit)
+                {
+                    if ["g", "ml", "个", "片", "盒"].contains(&unit.as_str())
+                        && Decimal::from_str(&quantity).is_ok_and(|n| n > Decimal::ZERO)
+                    {
+                        exact.push(json!({"name":name,"quantity":quantity,"unit":unit}));
+                        continue;
+                    }
+                }
+                text.push(
+                    json!({"name":crate::db::ingredient_standard::name(name),"amountText":amount}),
+                );
             }
-            warnings.push(format!(
-                "{}：用量已保留为原文，请在导入前核对；不会自动换算或扣减库存。",
-                name
-            ));
+            warnings.push(format!("{}：用量保留原文，采购时由 AI 自动整理。", name));
         }
     }
     let mut seen = std::collections::HashSet::new();
@@ -616,14 +638,14 @@ mod tests {
             {"name":"生粉","amountText":"2勺"}, {"name":"盐","amountText":"2克"}, {"name":"糖","amountText":"5克"}]});
         prefer_source_ingredients(&mut result, &rows.to_string()).unwrap();
         normalize_ai_ingredients(&mut result).unwrap();
-        assert_eq!(result["draft"]["ingredients"].as_array().unwrap().len(), 4);
+        assert_eq!(result["draft"]["ingredients"].as_array().unwrap().len(), 5);
         assert_eq!(
             result["draft"]["textIngredients"].as_array().unwrap().len(),
-            5
+            4
         );
         assert_eq!(
-            result["draft"]["textIngredients"][0],
-            json!({"name":"蒜末","amountText":"3 瓣"})
+            result["draft"]["ingredients"][2],
+            json!({"name":"大蒜","quantity":"15","unit":"g"})
         );
         assert!(!result["draft"]["textIngredients"]
             .as_array()

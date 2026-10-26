@@ -1,5 +1,5 @@
 import names from "./seasoningNames.json";
-import type { DemoState } from "../model";
+import type { DemoState, IngredientImage } from "../model";
 
 // Match whole ingredient names or a branded suffix, never vegetable names containing a seasoning word.
 export function isSeasoning(
@@ -18,6 +18,7 @@ export interface SeasoningSupply {
   id: string;
   name: string;
   missing: boolean;
+  image?: IngredientImage;
 }
 export function canonicalSeasoning(name: string): string {
   const n = name.trim().replaceAll("耗", "蚝");
@@ -28,7 +29,7 @@ export function canonicalSeasoning(name: string): string {
   );
 }
 export function supplies(state: DemoState): SeasoningSupply[] {
-  const rows = [
+  const rows: SeasoningSupply[] = [
     ...(state.seasonings ??
       ["盐", "糖", "生抽", "老抽", "蚝油", "料酒", "醋", "食用油"].map(
         (name) => ({ id: name, name, missing: false }),
@@ -41,6 +42,11 @@ export function supplies(state: DemoState): SeasoningSupply[] {
       id: name,
       name,
       missing: row.missing || grouped.get(name)?.missing || false,
+      image:
+        row.image ??
+        grouped.get(name)?.image ??
+        state.ingredients.find((i) => canonicalSeasoning(i.name) === name)
+          ?.image,
     });
   }
   return [...grouped.values()].sort(
@@ -55,11 +61,17 @@ export function setSupply(
   missing: boolean,
 ): DemoState {
   name = canonicalSeasoning(name);
+  const previous = supplies(state);
   return {
     ...state,
     seasonings: [
-      ...supplies(state).filter((s) => s.name !== name),
-      { id: name, name, missing },
+      ...previous.filter((s) => s.name !== name),
+      {
+        id: name,
+        name,
+        missing,
+        image: previous.find((s) => s.name === name)?.image,
+      },
     ],
   };
 }

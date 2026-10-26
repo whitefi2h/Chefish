@@ -1,7 +1,10 @@
+import ImageViewer from "./ImageViewer";
+import RecipeStep from "./RecipeStep";
+import { useNavigation } from "./navigation";
 import { isSeasoning } from "./domain/seasonings";
 import RecipeSourceLink from "./RecipeSourceLink";
 import RecipeImages from "./RecipeImages";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   Search,
   Heart,
@@ -182,6 +185,10 @@ function RecipeDetail({
 }) {
   const { state, mutate, persistent, today, busy, preferences } = useDemo();
   const [servings, setServings] = useState(preferences.defaultServings);
+  const [imageView, setImageView] = useState<{
+    image: string;
+    title: string;
+  } | null>(null);
   const [note, setNote] = useState("");
   const [editing, setEditing] = useState<{
     id: string;
@@ -217,7 +224,20 @@ function RecipeDetail({
         </div>
       </div>
       <section className="detail-hero panel">
-        <Food image={recipe.image} name={recipe.name} />
+        <button
+          className="detail-cover-button"
+          aria-label="放大菜谱封面"
+          onClick={() =>
+            setImageView({
+              image: recipe.image.startsWith("data:")
+                ? recipe.image
+                : `/food/${recipe.image}.svg`,
+              title: recipe.name,
+            })
+          }
+        >
+          <Food image={recipe.image} name={recipe.name} />
+        </button>
         <div>
           <div className="eyebrow">FROM YOUR RECIPE COLLECTION</div>
           <h1>{recipe.name}</h1>
@@ -351,37 +371,42 @@ function RecipeDetail({
           <h2>享受下厨的过程</h2>
           <p className="hint">不必匆忙，一步一步就好。</p>
           <p className="hint">
-            已保存 {recipe.media?.steps.length ?? 0} 张步骤原图
-            {recipe.media?.steps.length ? "，见文字步骤下方。" : "。"}
+            已保存 {recipe.media?.steps.length ?? 0}{" "}
+            张步骤图，配图跟随对应做法，点击可放大。
           </p>
           <RecipeImages recipe={recipe} />
-          {recipe.steps.map((step, i) => (
-            <div className="step" key={step}>
-              <span>{i + 1}</span>
-              <div>
-                {recipe.stepTitles?.[i] && <h3>{recipe.stepTitles[i]}</h3>}
-                <p>{step}</p>
-              </div>
-            </div>
-          ))}
-          {!!recipe.media?.steps.length && (
-            <section className="source-step-images">
-              <h3>步骤原图</h3>
-              <p className="hint">按原菜谱顺序保留，供对照做法。</p>
-              <div className="step-image-grid">
-                {recipe.media.steps.map((item, index) => (
-                  <figure key={index}>
-                    <img
-                      src={item.image}
-                      alt={`原步骤 ${item.sourceStep}`}
-                      loading="lazy"
-                    />
-                    <figcaption>原步骤 {item.sourceStep}</figcaption>
-                  </figure>
-                ))}
-              </div>
-            </section>
+          {recipe.media?.coverCredit && (
+            <p className="hint">
+              封面：{recipe.media.coverCredit.author} ·{" "}
+              {recipe.media.coverCredit.license}
+              <button
+                className="text-button"
+                onClick={() =>
+                  void import("@tauri-apps/api/core").then(({ invoke }) =>
+                    invoke("kitchen_open_image_source", {
+                      url: recipe.media!.coverCredit!.sourceUrl,
+                    }),
+                  )
+                }
+              >
+                查看来源与许可
+              </button>
+            </p>
           )}
+          {recipe.steps.map((step, i) => (
+            <RecipeStep
+              key={i}
+              number={i + 1}
+              title={recipe.stepTitles?.[i]}
+              body={step}
+              image={
+                recipe.media?.steps.find((s) => s.sourceStep === i + 1)?.image
+              }
+              onOpen={(image, number) =>
+                setImageView({ image, title: `步骤 ${number}` })
+              }
+            />
+          ))}
         </section>
         <section className="panel cooking-log">
           <h2>
@@ -506,6 +531,9 @@ function RecipeDetail({
           onClose={() => setPlan(false)}
         />
       )}
+      {imageView && (
+        <ImageViewer {...imageView} onClose={() => setImageView(null)} />
+      )}
       {recipeEditor && (
         <RecipeEditor
           mode="edit"
@@ -572,8 +600,16 @@ export default function Recipes() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("全部菜谱");
   const [sort, setSort] = useState("默认顺序");
-  const [selected, setSelected] = useState<string | null>(null);
-  const libraryScroll = useRef(0);
+  const { route, navigate } = useNavigation();
+  const selected =
+    route.page === "recipes" &&
+    [...state.recipes, ...(state.archivedRecipes ?? [])].some(
+      (r) => r.id === route.recipeId,
+    )
+      ? (route.recipeId ?? null)
+      : null;
+  const setSelected = (id: string | null) =>
+    navigate("recipes", id ?? undefined);
   const filtered = state.recipes
     .filter(
       (r) =>
@@ -655,9 +691,7 @@ export default function Recipes() {
               key={r.id}
               recipe={r}
               onOpen={() => {
-                libraryScroll.current = window.scrollY;
                 setSelected(r.id);
-                window.scrollTo(0, 0);
               }}
             />
           ))}
@@ -676,7 +710,6 @@ export default function Recipes() {
           onClose={() => setEditor(null)}
           onExisting={(id) => {
             setSelected(id);
-            window.scrollTo(0, 0);
           }}
         />
       )}
@@ -689,18 +722,20 @@ export default function Recipes() {
           }}
         />
       )}
-      {selected && state.recipes.some((r) => r.id === selected) && (
-        <RecipeDetail
-          key={selected}
-          recipe={state.recipes.find((r) => r.id === selected)!}
-          onBack={() => {
-            setSelected(null);
-            requestAnimationFrame(() =>
-              window.scrollTo(0, libraryScroll.current),
-            );
-          }}
-        />
-      )}
+      {selected &&
+        [...state.recipes, ...(state.archivedRecipes ?? [])].some(
+          (r) => r.id === selected,
+        ) && (
+          <RecipeDetail
+            key={selected}
+            recipe={[...state.recipes, ...(state.archivedRecipes ?? [])].find(
+              (r) => r.id === selected,
+            )!}
+            onBack={() => {
+              setSelected(null);
+            }}
+          />
+        )}
     </>
   );
 }

@@ -15,6 +15,7 @@ async function setup(page: Page, destructive = false, failure = "") {
       };
       w.isTauri = true;
       w.calls = [];
+      let routeFailed = false;
       let history = {
         messages: [],
         candidates: [],
@@ -68,6 +69,14 @@ async function setup(page: Page, destructive = false, failure = "") {
               action: "copy_shopping",
               copy: { title: "本周清单", text: "鸡蛋 2 个" },
             };
+          if (
+            name === "kitchen_ai_route" &&
+            JSON.stringify(args.messages).includes("模拟一次失败") &&
+            !routeFailed
+          ) {
+            routeFailed = true;
+            throw { message: "服务暂时不可用" };
+          }
           if (name === "kitchen_ai_route")
             return {
               message: "已根据本地菜谱生成待确认提案。",
@@ -210,4 +219,15 @@ test("assistant opens application pages and offers the actual shopping copy text
     page.getByRole("button", { name: "复制清单文本", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".assistant-proposal")).toContainText("鸡蛋 2 个");
+});
+
+test("retrying a retained draft does not duplicate the user message", async ({
+  page,
+}) => {
+  await setup(page);
+  await send(page, "模拟一次失败，帮我安排晚餐");
+  await expect(page.getByRole("alert")).toContainText("暂时不可用");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(page.getByRole("region", { name: "待确认操作" })).toBeVisible();
+  await expect(page.locator(".chat-message.user")).toHaveCount(1);
 });
