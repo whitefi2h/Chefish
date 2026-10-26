@@ -8,10 +8,11 @@ mod inventory;
 mod library;
 mod planner;
 pub mod preferences;
+pub mod replication;
 pub mod seasonings;
 pub mod shopping;
 pub mod sync;
-pub const CURRENT_SCHEMA: i64 = 12;
+pub const CURRENT_SCHEMA: i64 = 13;
 use inventory::InventoryDraft;
 
 #[derive(Debug, Serialize)]
@@ -497,6 +498,18 @@ fn migrate(connection: &mut Connection, path: &Path) -> Result<()> {
         tx.execute_batch(include_str!("../../migrations/0012_sync_outbox.sql"))?;
         tx.execute("INSERT INTO schema_migrations(version) VALUES(12)", [])?;
         tx.pragma_update(None, "user_version", 12)?;
+        tx.commit()?;
+    }
+    if version < 13 {
+        connection.backup(
+            "main",
+            path.with_extension(format!("pre-v13-{}.sqlite3", id())),
+            None,
+        )?;
+        let tx = connection.transaction()?;
+        tx.execute_batch(include_str!("../../migrations/0013_sync_binding.sql"))?;
+        tx.execute("INSERT INTO schema_migrations(version) VALUES(13)", [])?;
+        tx.pragma_update(None, "user_version", 13)?;
         tx.commit()?;
     }
     Ok(())

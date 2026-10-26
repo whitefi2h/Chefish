@@ -40,15 +40,15 @@ pub struct Manifest {
     pub chunks: Vec<ChunkReference>,
 }
 
-struct ScratchDirectory(PathBuf);
+pub(crate) struct ScratchDirectory(pub(crate) PathBuf);
 impl ScratchDirectory {
-    fn new(root: &Path) -> Result<Self> {
+    pub(crate) fn new(root: &Path) -> Result<Self> {
         fs::create_dir_all(root).map_err(|_| fail("无法创建云备份暂存目录"))?;
         let path = root.join(format!("cloud-transfer-{}", Uuid::new_v4()));
         fs::create_dir(&path).map_err(|_| fail("无法创建云备份暂存目录"))?;
         Ok(Self(path))
     }
-    fn chunk_path(&self, index: usize) -> PathBuf {
+    pub(crate) fn chunk_path(&self, index: usize) -> PathBuf {
         self.0.join(format!("chunk-{index}"))
     }
 }

@@ -22,6 +22,7 @@ import {
 } from "./services/cloudClient";
 import type { CloudManifest, RestorePreview } from "./services/cloudRepository";
 import "./cloud.css";
+import SyncPanel from "./SyncPanel";
 
 interface Account {
   uid: string;
@@ -43,12 +44,15 @@ export default function CloudBackup({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const locked = busy || syncBusy;
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [progress, setProgress] = useState("");
   const [backups, setBackups] = useState<CloudManifest[]>([]);
   const [preview, setPreview] = useState<RestorePreview | null>(null);
   const previewRef = useRef<HTMLElement>(null);
+  const accountRef = useRef<string | null>(null);
   useEffect(() => {
     if (preview) previewRef.current?.scrollIntoView({ block: "nearest" });
   }, [preview]);
@@ -62,11 +66,14 @@ export default function CloudBackup({
             ? { uid: user.uid, email: user.email, verified: user.emailVerified }
             : null,
         );
-        setBackups([]);
-        setPreview(null);
-        setPassword("");
+        if (accountRef.current !== user?.uid) {
+          setBackups([]);
+          setPreview(null);
+          setPassword("");
+          void invoke("kitchen_backup_cancel").catch(() => {});
+        }
+        accountRef.current = user?.uid ?? null;
         setLoading(false);
-        void invoke("kitchen_backup_cancel").catch(() => {});
       },
       (e) => {
         setError(cloudError(e));
@@ -114,7 +121,7 @@ export default function CloudBackup({
         {account ? "我的账户" : "连接你的厨房"}
       </div>
       <p className="settings-note">
-        登录后可手动上传备份，在另一台电脑下载并确认恢复。登录和退出都会保留这台电脑的厨房数据。
+        登录后可明确选择连接云端厨房或开启自动同步。登录和退出都会保留这台电脑的厨房数据。
       </p>
       {loading ? (
         <p role="status">正在读取账户…</p>
@@ -141,7 +148,7 @@ export default function CloudBackup({
                 type="email"
                 autoComplete="email"
                 required
-                disabled={busy}
+                disabled={locked}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -153,18 +160,18 @@ export default function CloudBackup({
                 autoComplete={register ? "new-password" : "current-password"}
                 minLength={6}
                 required
-                disabled={busy}
+                disabled={locked}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </label>
             <div className="actions">
-              <button className="primary" disabled={busy} type="submit">
+              <button className="primary" disabled={locked} type="submit">
                 {register ? "创建账户" : "登录"}
               </button>
               <button
                 type="button"
-                disabled={busy}
+                disabled={locked}
                 onClick={() => {
                   setRegister(!register);
                   setPassword("");
@@ -175,7 +182,7 @@ export default function CloudBackup({
               </button>
               <button
                 type="button"
-                disabled={busy || !email.trim()}
+                disabled={locked || !email.trim()}
                 onClick={() =>
                   void run(async () => {
                     await resetPassword(email);
@@ -198,7 +205,7 @@ export default function CloudBackup({
               </p>
             </div>
             <button
-              disabled={busy}
+              disabled={locked}
               onClick={() =>
                 void run(async () => {
                   await logout();
@@ -213,7 +220,7 @@ export default function CloudBackup({
           {!account.verified ? (
             <div className="actions">
               <button
-                disabled={busy}
+                disabled={locked}
                 onClick={() =>
                   void run(async () => {
                     await verifyEmail();
@@ -225,7 +232,7 @@ export default function CloudBackup({
                 重发验证邮件
               </button>
               <button
-                disabled={busy}
+                disabled={locked}
                 onClick={() =>
                   void run(async () => {
                     const user = await refreshAccount();
@@ -247,6 +254,13 @@ export default function CloudBackup({
             </div>
           ) : (
             <>
+              <SyncPanel
+                disabled={busy || !!preview}
+                onBusyChange={(value) => {
+                  setSyncBusy(value);
+                  onBusyChange(value);
+                }}
+              />
               <div className="settings-group-label">厨房云备份</div>
               <div className="settings-row">
                 <div>
@@ -255,7 +269,7 @@ export default function CloudBackup({
                 </div>
                 <button
                   className="primary"
-                  disabled={busy || !!preview}
+                  disabled={locked || !!preview}
                   onClick={() =>
                     void run(async () => {
                       await repository().upload(snapshotBridge, setProgress);
@@ -269,12 +283,12 @@ export default function CloudBackup({
                 </button>
               </div>
               <p className="settings-note">
-                聊天记录、模型密钥及账户凭据不会上传。当前采用手动备份与恢复；多台设备的编辑暂不自动合并。
+                聊天记录、模型密钥及账户凭据不会上传。手动备份可独立保存某个时刻的厨房；恢复后需重新连接自动同步。
               </p>
               <div className="cloud-list-heading">
                 <strong>云端备份</strong>
                 <button
-                  disabled={busy || !!preview}
+                  disabled={locked || !!preview}
                   onClick={() =>
                     void run(async () => {
                       setBackups(await repository().list());
@@ -298,7 +312,7 @@ export default function CloudBackup({
                         <small>{size(backup.sizeBytes)} · 含菜谱图片</small>
                       </div>
                       <button
-                        disabled={busy || !!preview}
+                        disabled={locked || !!preview}
                         onClick={() =>
                           void run(async () => {
                             setPreview(
@@ -323,8 +337,8 @@ export default function CloudBackup({
                 </p>
               )}
               {preview && (
-              <section
-                ref={previewRef}
+                <section
+                  ref={previewRef}
                   className="settings-restore-preview"
                   aria-label="云备份恢复预览"
                 >
@@ -348,7 +362,7 @@ export default function CloudBackup({
                   <div className="actions">
                     <button
                       className="primary"
-                      disabled={busy}
+                      disabled={locked}
                       onClick={() =>
                         void run(async () => {
                           if (
@@ -373,7 +387,7 @@ export default function CloudBackup({
                       确认恢复云备份
                     </button>
                     <button
-                      disabled={busy}
+                      disabled={locked}
                       onClick={() =>
                         void run(async () => {
                           await invoke("kitchen_backup_cancel");

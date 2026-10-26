@@ -79,6 +79,15 @@ export class CloudRepository {
       (row) => ({ ...row.data(), id: row.id }) as CloudManifest,
     );
   }
+  async get(id: string): Promise<CloudManifest> {
+    this.assertSession();
+    const row = await getDocFromServer(
+      doc(this.db, "users", this.uid, "backups", id),
+    );
+    this.assertSession();
+    if (!row.exists()) throw new Error("云端厨房缺少初始备份，请联系维护者。");
+    return { ...row.data(), id: row.id } as CloudManifest;
+  }
   async upload(bridge: SnapshotBridge, progress: (value: string) => void) {
     this.assertSession();
     progress("正在准备厨房快照…");

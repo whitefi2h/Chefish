@@ -2,6 +2,8 @@
   "indexes": [],
   "fieldOverrides": [
     { "collectionGroup": "chunks", "fieldPath": "data", "indexes": [] },
-    { "collectionGroup": "backups", "fieldPath": "chunks", "indexes": [] }
+    { "collectionGroup": "backups", "fieldPath": "chunks", "indexes": [] },
+    { "collectionGroup": "sync_blobs", "fieldPath": "data", "indexes": [] },
+    { "collectionGroup": "sync_operations", "fieldPath": "chunks", "indexes": [] }
   ]
 }

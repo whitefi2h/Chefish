@@ -64,7 +64,7 @@ fn rows<'a>(value: &'a Value, table: &str) -> Vec<&'a Value> {
 fn capture_allowlist_covers_business_tables_but_excludes_local_and_private_tables() {
     let kitchen = Kitchen::new();
     let conn = kitchen.open();
-    let mut actual = conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('sqlite_sequence','schema_migrations','command_receipts','app_settings','local_sync_state','local_sync_outbox') ORDER BY name").unwrap().query_map([],|row| row.get::<_,String>(0)).unwrap().collect::<std::result::Result<Vec<_>,_>>().unwrap();
+    let mut actual = conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('sqlite_sequence','schema_migrations','command_receipts','app_settings','local_sync_state','local_sync_outbox','local_sync_binding','local_sync_applied') ORDER BY name").unwrap().query_map([],|row| row.get::<_,String>(0)).unwrap().collect::<std::result::Result<Vec<_>,_>>().unwrap();
     let mut expected = TABLES
         .iter()
         .map(|name| name.to_string())
@@ -299,7 +299,7 @@ fn version_eleven_migration_backs_up_and_keeps_business_data_without_backfilling
     assert_eq!(
         conn.query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
             .unwrap(),
-        12
+        db::CURRENT_SCHEMA
     );
     assert!(fs::read_dir(&kitchen.root)
         .unwrap()

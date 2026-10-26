@@ -8,7 +8,7 @@
 | [技术结构](ARCHITECTURE.md) | 代码入口、数据与事务约束 |
 | [AI 助手](ASSISTANT.md) | 配置、命令边界、提案与检索 |
 | [厨房设置](SETTINGS.md) | 默认人数、饮食偏好、通用设置与备份 |
-| [账户与云备份](CLOUD_SYNC.md) | 独立 Firebase 项目、备份内容、配置与同步后续 |
+| [账户与多设备同步](CLOUD_SYNC.md) | 首次连接、离线双向同步、冲突、安全备份与 Firebase 配置 |
 | [离线操作记录](SYNC_OUTBOX.md) | 增量同步的本地事务队列、隐私与恢复边界 |
 | [设计约定](DESIGN.md) | 当前页面和交互规则 |
 | [测试与验收](TESTING.md) | 检查命令及证据范围 |

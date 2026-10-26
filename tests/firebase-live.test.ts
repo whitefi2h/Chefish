@@ -21,6 +21,10 @@ import {
   type CloudManifest,
   type SnapshotBridge,
 } from "../src/services/cloudRepository";
+import { NativeReplica } from "./helpers/nativeReplica";
+import { baselineBridge } from "../src/services/syncNative";
+import { SyncRepository } from "../src/services/syncRepository";
+import { SyncEngine } from "../src/services/syncEngine";
 
 // Explicit opt-in: creates only synthetic accounts/data in the named Chefish
 // project, then removes exactly those generated IDs. Never reads a kitchen DB.
@@ -80,7 +84,7 @@ it.skipIf(process.env.CHEFISH_LIVE_CLOUD_TEST !== "1")(
     const manifest: CloudManifest = {
       id: randomUUID(),
       formatVersion: 1,
-      schemaVersion: 12,
+      schemaVersion: 13,
       createdAt: Math.floor(Date.now() / 1000),
       sizeBytes: raw.length,
       sha256: hash(raw),
@@ -161,6 +165,110 @@ it.skipIf(process.env.CHEFISH_LIVE_CLOUD_TEST !== "1")(
       expect((await repo.download(manifest, bridge, () => {})).token).toBe(
         "synthetic-preview",
       );
+      if (process.env.CHEFISH_NATIVE_SYNC_TEST === "1") {
+        const a = new NativeReplica(),
+          b = new NativeReplica();
+        try {
+          await Promise.all([a.ready, b.ready]);
+          await a.execute({
+            type: "receive_lot",
+            draft: {
+              name: "基线测试库存",
+              category: "未分类",
+              quantity: "2",
+              unit: "个",
+              location: "冷藏",
+              received: "2026-10-26",
+              expires: null,
+              precision: "rough",
+            },
+          });
+          await a.execute({
+            type: "create_recipe",
+            draft: {
+              name: "真实云端合成测试",
+              category: "家常菜",
+              minutes: 10,
+              servings: 2,
+              subtitle: "",
+              seasoning: "",
+              ingredients: [],
+              steps: ["测试步骤"],
+              media: {
+                cover: "data:image/png;base64,iVBORw0KGgo=",
+                steps: [
+                  {
+                    image: "data:image/png;base64,iVBORw0KGgo=",
+                    sourceStep: 1,
+                  },
+                ],
+              },
+            },
+          });
+          const an = a.bridge(),
+            bn = b.bridge();
+          const seed = await an.prepareBaseline(first.uid, email, false);
+          documents.push(
+            `users/${first.uid}/backups/${seed.manifest.id}`,
+            ...seed.manifest.chunks.map(
+              (chunk) => `users/${first.uid}/chunks/${chunk.hash}`,
+            ),
+            `users/${first.uid}/sync/head`,
+          );
+          await repo.upload(baselineBridge(an, seed, a.download()), () => {});
+          const sync = new SyncRepository(db, first.uid, () => {
+            if (auth.currentUser?.uid !== first.uid)
+              throw new Error("Session changed");
+          });
+          const head = await sync.create(seed.manifest.id);
+          await an.bindBaseline(first.uid, seed.manifest.id, head.spaceId);
+          const preview = await repo.download(
+            seed.manifest,
+            b.download(),
+            () => {},
+          );
+          await bn.connect(first.uid, email, head.spaceId, preview.token);
+          for (const [replica, name] of [
+            [a, "真实云端测试苹果"],
+            [b, "真实云端测试香蕉"],
+          ] as const) {
+            await replica.execute({
+              type: "receive_lot",
+              draft: {
+                name,
+                category: "未分类",
+                quantity: "2",
+                unit: "个",
+                location: "冷藏",
+                received: "2026-10-26",
+                expires: null,
+                precision: "rough",
+              },
+            });
+            const operation = (await replica.bridge().outgoing(first.uid))!;
+            documents.push(
+              `users/${first.uid}/sync_operations/${operation.id}`,
+              ...operation.chunks.map(
+                (chunk) => `users/${first.uid}/sync_blobs/${chunk.hash}`,
+              ),
+            );
+          }
+          const ae = new SyncEngine(first.uid, sync, an, () => {}),
+            be = new SyncEngine(first.uid, sync, bn, () => {});
+          await ae.pass();
+          await be.pass();
+          await ae.pass();
+          expect((await a.snapshot()).lots).toEqual((await b.snapshot()).lots);
+          expect((await b.snapshot()).recipes).toEqual(
+            (await a.snapshot()).recipes,
+          );
+          expect((await an.state()).queuedOperations).toBe(0);
+          expect((await bn.state()).queuedOperations).toBe(0);
+          expect((await sync.head())?.sequence).toBe(2);
+        } finally {
+          await Promise.all([a.close(), b.close()]);
+        }
+      }
       await signOut(auth);
       const second = (
         await createUserWithEmailAndPassword(

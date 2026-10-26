@@ -13,7 +13,8 @@
     "preview": "vite preview --host 127.0.0.1",
     "tauri": "tauri",
     "test:cloud": "vitest run tests/firebase-cloud.test.ts",
-    "test:cloud:emulator": "firebase emulators:exec --project demo-chefish --only firestore \"npm run test:cloud\""
+    "test:cloud:emulator": "firebase emulators:exec --project demo-chefish --only firestore \"npm run test:cloud\"",
+    "test:sync:emulator": "cargo test --manifest-path src-tauri/Cargo.toml -j 1 --no-run && firebase emulators:exec --project demo-chefish --only firestore \"node scripts/test-sync-emulator.mjs\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -49,7 +49,7 @@ const sections = [
     id: "cloud",
     label: "账户与云端",
     icon: Cloud,
-    description: "把厨房备份带到另一台电脑。",
+    description: "让同一间厨房，在不同电脑上接着用。",
   },
   {
     id: "about",

@@ -25,6 +25,7 @@ import Shopping from "./Shopping";
 import Recipes from "./Recipes";
 import Dashboard from "./Dashboard";
 import Settings, { type SettingsTab } from "./Settings";
+import SyncIndicator from "./SyncIndicator";
 const pages = [
   { id: "home", name: "首页", icon: LayoutDashboard },
   { id: "recipes", name: "我的菜谱", icon: BookOpen },
@@ -237,6 +238,9 @@ function Shell() {
             <strong>{pages.find((p) => p.id === page)?.name}</strong>
           </div>
           <div className="actions">
+            {persistent && (
+              <SyncIndicator onOpen={() => setSettingsTab("cloud")} />
+            )}
             <span className="demo-indicator">
               {persistent
                 ? busy

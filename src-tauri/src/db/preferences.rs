@@ -45,7 +45,7 @@ pub fn load(conn: &Connection) -> Result<Preferences> {
     Ok(value)
 }
 
-fn validate(value: &Preferences) -> Result<()> {
+pub(super) fn validate(value: &Preferences) -> Result<()> {
     if !(1..=12).contains(&value.default_servings)
         || !["home", "recipes", "pantry", "planner", "shopping"]
             .contains(&value.start_page.as_str())

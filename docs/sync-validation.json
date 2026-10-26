@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-26",
+  "feature": "multi-device cloud sync",
+  "schemaVersion": 13,
+  "checks": {
+    "typecheck": "passed",
+    "lint": "passed",
+    "typescript": {
+      "passed": 32
+    },
+    "rust": {
+      "passed": 116,
+      "ignored": 3,
+      "ignoredDetails": [
+        "two public-site checks require explicit opt-in",
+        "native stdin bridge is exercised by integration checks"
+      ]
+    },
+    "firestoreEmulator": {
+      "passed": 12,
+      "nativeSQLiteReplicas": 2
+    },
+    "playwright": {
+      "uniquePassed": 116,
+      "fullRunPassed": 114,
+      "fullRunTimeouts": 2,
+      "targetedRerunPassed": 2,
+      "sourceEditedDuringFullRun": true,
+      "evidenceScope": "browser and IPC/service fixtures"
+    },
+    "realFirebase": {
+      "passed": 1,
+      "projectId": "chefish-kitchen",
+      "schemaVersion": 13,
+      "nativeSQLiteReplicas": 2,
+      "baselineBackupAndRestore": true,
+      "recipeCoverAndStepImages": true,
+      "bidirectionalOperations": true,
+      "verifiedAccountIsolation": true,
+      "temporaryAccountsAndDocumentsCleaned": true,
+      "emailSent": false
+    },
+    "build": {
+      "status": "passed",
+      "platform": "Windows x64",
+      "bundle": "NSIS",
+      "currentFrontendAssetsEmbedded": true,
+      "publicReleaseUpdated": false
+    }
+  },
+  "syncScenarios": [
+    "explicit first binding and baseline watermark",
+    "preserved edits during initial upload",
+    "native restore with before-connect backup",
+    "offline concurrent distinct rows",
+    "device restart with pending operations",
+    "cloud commit with lost acknowledgement",
+    "same-lot conflict rollback and preserved cursor",
+    "explicit cloud choice with local safety backup",
+    "whole purchase/cooking/undo operation groups",
+    "private rows and settings rejected atomically",
+    "device preferences and chat isolated",
+    "session changes and background wake guards"
+  ],
+  "deploymentEvidence": "sync-deployment-validation.json",
+  "productionKitchenDataUploaded": false,
+  "productionKitchenOpenedOrChanged": false,
+  "zenfishModified": false,
+  "notValidated": [
+    "personal email delivery and WebView2 account login",
+    "two physical computers on the user network",
+    "long-running quota/retention behavior",
+    "full 512 MiB transfer"
+  ],
+  "knownLimits": [
+    "same-row conflicts pause even if different fields were edited",
+    "keep-cloud choice discards all pending local operations after a full safety backup",
+    "no cloud garbage collection, occupancy UI, or operation log compaction",
+    "no sync while the app is closed",
+    "no end-to-end client encryption"
+  ],
+  "artifacts": [
+    {
+      "path": "src-tauri/target/release/chefish.exe",
+      "bytes": 18380288,
+      "sha256": "23c3f914442bdb4c05de3861dc0a0f2f6e8ba8eb9bc101e3fe596c55eaeee9eb"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/nsis/Chefish_1.0.0_x64-setup.exe",
+      "bytes": 4933600,
+      "sha256": "9ebd1a0ed171524b062a89485f557cbe4890563863ee151325a644065f0bd106"
+    }
+  ],
+  "sourceBase": "b6bdc7a36ab42d0f45ab4db91c958537dce8b299"
+}

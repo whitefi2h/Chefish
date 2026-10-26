@@ -145,6 +145,44 @@ export function DemoProvider({
     };
   }, [client]);
   useEffect(() => {
+    if (!nativeMode || client !== kitchenClient || !ready) return;
+    let alive = true;
+    let stop: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => {
+      if (!alive) return;
+      if (inFlight.current) {
+        timer = setTimeout(refresh, 100);
+        return;
+      }
+      inFlight.current = true;
+      void client
+        .load()
+        .then((next) => {
+          if (alive) {
+            setHistory([next]);
+            setLoadError("");
+          }
+        })
+        .catch((error) => {
+          if (alive) setLoadError(errorMessage(error));
+        })
+        .finally(() => {
+          inFlight.current = false;
+        });
+    };
+    window.addEventListener("chefish:sync-data", refresh);
+    void import("./services/syncRuntime").then(({ syncRuntime }) => {
+      if (alive) stop = syncRuntime.start();
+    });
+    return () => {
+      alive = false;
+      stop?.();
+      clearTimeout(timer);
+      window.removeEventListener("chefish:sync-data", refresh);
+    };
+  }, [client, ready]);
+  useEffect(() => {
     const check = () => setToday(clock.today());
     const timer = setInterval(check, 30000);
     window.addEventListener("focus", check);
@@ -213,6 +251,7 @@ export function DemoProvider({
           : { key, id: crypto.randomUUID() };
       pending.current = request;
       await client.execute(command, request.id);
+      window.dispatchEvent(new Event("chefish:sync-wake"));
       pending.current = null;
       refreshRequired.current = true;
       if (!(await reload())) {
@@ -253,6 +292,7 @@ export function DemoProvider({
     try {
       if (!client.savePreferences) throw new Error("当前客户端不支持保存设置");
       await client.savePreferences(next);
+      window.dispatchEvent(new Event("chefish:sync-wake"));
       if (!(await reload())) notify("设置已保存，但界面读取失败，请重试加载。");
       return true;
     } catch (error) {

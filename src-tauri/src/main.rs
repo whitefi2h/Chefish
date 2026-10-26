@@ -9,6 +9,8 @@ mod recipe_images;
 mod recipe_import;
 mod site_access;
 mod site_search;
+mod sync_commands;
+mod sync_transfer;
 use std::sync::Mutex;
 use tauri::Manager;
 struct Database(Mutex<Option<rusqlite::Connection>>, String);
@@ -307,12 +309,28 @@ fn main() {
             app.manage(database);
             app.manage(RestorePreview::default());
             app.manage(cloud_commands::Transfers::default());
+            app.manage(sync_commands::Transfers::default());
             app.manage(assistant::Proposals::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             kitchen_bootstrap,
             kitchen_sync_status,
+            sync_commands::sync_state,
+            sync_commands::sync_pause,
+            sync_commands::sync_prepare_baseline,
+            sync_commands::sync_baseline_chunk,
+            sync_commands::sync_baseline_release,
+            sync_commands::sync_bind_baseline,
+            sync_commands::sync_connect,
+            sync_commands::sync_outgoing,
+            sync_commands::sync_outgoing_chunk,
+            sync_commands::sync_begin_incoming,
+            sync_commands::sync_accept_chunk,
+            sync_commands::sync_finish_incoming,
+            sync_commands::sync_release_incoming,
+            sync_commands::sync_acknowledge,
+            sync_commands::sync_resolve_cloud,
             kitchen_preferences_save,
             kitchen_backup_status,
             kitchen_backup_open_folder,

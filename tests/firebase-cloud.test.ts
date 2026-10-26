@@ -133,13 +133,13 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
     });
     it("accepts both old and current schema backups and rejects future schema", async () => {
       const store = db("alice");
-      for (const schemaVersion of [11, 12, 13]) {
+      for (const schemaVersion of [11, 12, 13, 14]) {
         const value = { ...manifest, id: randomUUID(), schemaVersion };
         const write = setDoc(
           doc(store, "users/alice/backups", value.id),
           value,
         );
-        if (schemaVersion <= 12) await assertSucceeds(write);
+        if (schemaVersion <= 13) await assertSucceeds(write);
         else await assertFails(write);
       }
     });

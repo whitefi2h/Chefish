@@ -23,13 +23,18 @@ fn cache(app: &tauri::AppHandle) -> Result<std::path::PathBuf> {
 }
 
 #[tauri::command]
-pub async fn cloud_backup_prepare(app: tauri::AppHandle) -> Result<Manifest> {
+pub async fn cloud_backup_prepare(app: tauri::AppHandle, uid: Option<String>) -> Result<Manifest> {
     tauri::async_runtime::spawn_blocking(move || {
         let database = app.state::<Database>();
         let transfers = app.state::<Transfers>();
         let mut slot = transfers.upload.lock().map_err(|_| fail())?;
         let guard = database.0.lock().map_err(|_| fail())?;
         let conn = guard.as_ref().ok_or_else(fail)?;
+        if let Some(uid) = uid {
+            crate::db::replication::assert_owner(conn, &uid, true)?;
+        } else if crate::db::replication::state(conn)?.binding.is_some() {
+            return Err(fail());
+        }
         let prepared = cloud_snapshot::prepare(conn, &cache(&app)?)?;
         let manifest = prepared.manifest.clone();
         *slot = Some(prepared);

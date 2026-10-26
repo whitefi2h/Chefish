@@ -1,4 +1,4 @@
-//! Local transaction journal for the future incremental sync transport.
+//! Local transaction journal for incremental multi-device sync.
 //! Row results retain generated IDs; replaying command text would create new IDs.
 use super::{error, preferences, Connection, Result};
 use flate2::{Compression, GzBuilder};
@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, io::Write};
 use uuid::Uuid;
 
-const TABLES: &[&str] = &[
+pub(super) const TABLES: &[&str] = &[
     "categories",
     "ingredients",
     "recipes",
@@ -65,6 +65,13 @@ pub fn reset(conn: &mut Connection) -> Result<()> {
 }
 
 pub fn strip_local_metadata(conn: &Connection) -> Result<()> {
+    if conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='local_sync_binding')",
+        [],
+        |r| r.get::<_, bool>(0),
+    )? {
+        conn.execute_batch("DELETE FROM local_sync_binding; DELETE FROM local_sync_applied;")?;
+    }
     if exists(conn)? {
         conn.execute_batch("DELETE FROM local_sync_outbox; DELETE FROM local_sync_state; DELETE FROM sqlite_sequence WHERE name='local_sync_outbox';")?;
     }
@@ -97,7 +104,7 @@ pub fn status(conn: &Connection) -> Result<Status> {
     })
 }
 
-fn settings(conn: &Connection) -> Result<BTreeMap<String, Value>> {
+pub(super) fn settings(conn: &Connection) -> Result<BTreeMap<String, Value>> {
     let mut stmt = conn.prepare("SELECT key,value FROM app_settings WHERE key='shopping_memo' OR key GLOB 'seasoning_hidden:*' OR key GLOB 'inventory_expiry_before:*' ORDER BY key")?;
     let mut values = stmt
         .query_map([], |row| {
@@ -291,6 +298,7 @@ pub fn remove_for_legacy_fixture(conn: &Connection) {
         .unwrap();
     }
     conn.execute_batch("DROP TABLE IF EXISTS temp.sync_capture_rows; DROP TABLE IF EXISTS temp.sync_capture_context; DROP TABLE local_sync_outbox; DROP TABLE local_sync_state; DELETE FROM schema_migrations WHERE version=12;").unwrap();
+    conn.execute_batch("DROP TABLE IF EXISTS local_sync_binding; DROP TABLE IF EXISTS local_sync_applied; DELETE FROM schema_migrations WHERE version=13;").unwrap();
 }
 
 #[cfg(test)]

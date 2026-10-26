@@ -16,16 +16,6 @@ AI 连续任务按用户现有体验不再作为独立新功能安排，只修�
 
 ## Firebase 云备份与多设备同步
 
-已新建 Chefish 独立项目 `chefish-kitchen`，部署香港免费数据库、权限与索引，并启用普通邮箱密码登录。当前首版使用 Authentication 邮箱账户与 Firestore 分块云备份，图片包含在一致快照中，未使用付费 Cloud Storage。支持手动上传、下载检查与确认恢复；账户权限和传输已通过本地模拟器与真实云端合成数据验证，原生完整往返和双机恢复尚待验收。详见 [账户与云备份](CLOUD_SYNC.md)。
+多设备同步首版已完成：账户首次连接、含图片基线、离线操作队列、后台上传拉取、原生事务重放和冲突处理。独立免费项目与真实 Firebase 双原生临时库传输通过检查，没有启用付费 Storage。详见 [账户与多设备同步](CLOUD_SYNC.md)。
 
-SQLite 继续承担本机事务。后续多设备同步增加增量操作层，不能把当前整库恢复当作持续同步或并发合并。
-
-库存、购买和烹饪涉及多对象一致性，不能只依赖文档最后写入覆盖；需要稳定操作 ID、待同步队列、版本检查、删除标记和冲突处理。图片按内容标识去重。密钥默认留在各设备，聊天同步范围后续单独确认。
-
-只配置 Chefish 独立项目，没有改动 Zenfish 项目。需要在目标 Windows WebView2 与用户实际网络下验证登录、断网重连和读写；不能将 Web SDK 可用性视为当前桌面集成已验证。
-
-官方资料（查询于 2026-10-25）：
-
-- [Firestore 离线行为](https://firebase.google.com/docs/firestore/manage-data/enable-offline)：同文档冲突使用最后写入覆盖。
-- [Firestore 事务](https://firebase.google.com/docs/firestore/manage-data/transactions)：事务离线失败，不能替代现有本地事务。
-- [Cloud Storage 配置](https://firebase.google.com/docs/storage/web/start)：目前要求 Blaze 按量计费计划。
+后续维护集中在云端占用统计、保留策略、历史压缩与两台实体设备的长期体验。密钥、聊天与通用设置继续留在各设备。食材名称表、烹饪回顾与全局 UI 调整仍保留原顺序，未在本次扩展。

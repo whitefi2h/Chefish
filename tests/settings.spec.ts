@@ -33,6 +33,13 @@ async function fixture(page: Page) {
         invoke: async (name, args) => {
           target.settingsCalls.push(name);
           if (name === "kitchen_bootstrap") return state;
+          if (name === "sync_state")
+            return {
+              replicaId: "synthetic-replica",
+              queuedOperations: 0,
+              queuedBytes: 0,
+              binding: null,
+            };
           if (name === "kitchen_preferences_save") {
             state.preferences = args.preferences as typeof defaults;
             localStorage.setItem(
@@ -292,7 +299,7 @@ test("cloud settings explain an unconnected project without changing local data"
       body: `export const cloudConfigured = false;
       export const cloudError = () => '';
       const idle = () => {};
-      export { idle as login, idle as logout, idle as refreshAccount, idle as repository, idle as resetPassword, idle as verifyEmail, idle as watchAccount };
+      export { idle as login, idle as logout, idle as refreshAccount, idle as repository, idle as syncRepository, idle as resetPassword, idle as verifyEmail, idle as watchAccount };
       export const snapshotBridge = {};`,
     }),
   );
@@ -327,13 +334,14 @@ test("cloud verification, upload, preview and confirmed restore keep settings us
       body: `
       export const cloudConfigured = true;
       export const cloudError = e => e.message || '测试错误';
-      let listener, user = null;
-      export function watchAccount(next) { listener = next; queueMicrotask(() => next(user)); return () => { listener = null; }; }
-      export async function login(email, password, register) { user = { uid: 'synthetic-user', email, emailVerified: !register }; listener?.(user); }
-      export async function logout() { user = null; listener?.(null); }
+      const listeners = new Set(); let user = null;
+      export function watchAccount(next) { listeners.add(next); queueMicrotask(() => next(user)); return () => { listeners.delete(next); }; }
+      export async function login(email, password, register) { user = { uid: 'synthetic-user', email, emailVerified: !register }; listeners.forEach(next => next(user)); }
+      export async function logout() { user = null; listeners.forEach(next => next(null)); }
       export async function resetPassword() {}
       export async function verifyEmail() {}
-      export async function refreshAccount() { user.emailVerified = true; return user; }
+      export async function refreshAccount() { user.emailVerified = true; listeners.forEach(next => next(user)); return user; }
+      export const syncRepository = () => ({ head: async () => null });
       export const snapshotBridge = {};
       const backup = { id: 'synthetic-backup', createdAt: 1792886400, sizeBytes: 102400, chunks: [] };
       export const repository = () => ({
@@ -388,3 +396,131 @@ test("cloud verification, upload, preview and confirmed restore keep settings us
   await dialog.getByRole("tab", { name: "用餐与偏好", exact: true }).click();
   await expect(dialog.getByLabel("默认用餐人数")).toHaveValue("3");
 });
+
+async function syncUiFixture(page: Page, hasHead = false) {
+  await page.route("**/src/services/cloudClient.ts*", (route) =>
+    route.fulfill({
+      contentType: "application/javascript",
+      body: `
+    export const cloudConfigured = true;
+    export const cloudError = error => error.message || '测试错误';
+    export function watchAccount(next) { queueMicrotask(()=>next({uid:'alice',email:'synthetic@example.invalid',emailVerified:true})); return ()=>{}; }
+    const idle=async()=>{};
+    export {idle as login,idle as logout,idle as refreshAccount,idle as resetPassword,idle as verifyEmail};
+    export const snapshotBridge={};
+    export const syncRepository=()=>({head:async()=>null});
+    export const repository=()=>({list:async()=>[],upload:idle});
+  `,
+    }),
+  );
+  await page.route("**/src/services/syncRuntime.ts*", (route) =>
+    route.fulfill({
+      contentType: "application/javascript",
+      body: `
+    const listeners=new Set();
+    const binding={uid:'alice',email:'synthetic@example.invalid',spaceId:'space',cursor:0,enabled:true,conflict:null};
+    let view={account:{uid:'alice',email:'synthetic@example.invalid',verified:true},local:{replicaId:'test',queuedOperations:0,queuedBytes:0,binding:null},head:${hasHead ? "{spaceId:'space',baselineId:'baseline',sequence:0}" : "null"},phase:'setup',error:'',progress:'',lastSynced:null};
+    window.syncUiCalls=[];
+    const set=(patch)=>{view={...view,...patch};listeners.forEach(next=>next());};
+    window.syncUiConflict=()=>set({phase:'conflict',local:{...view.local,binding:{...binding,conflict:'两台设备修改了同一条库存。'},queuedOperations:1}});
+    export const syncRuntime={
+      subscribe:next=>{listeners.add(next);return()=>listeners.delete(next);},snapshot:()=>view,start:()=>()=>{},inspect:async()=>{},retry:async()=>{},
+      create:async()=>{window.syncUiCalls.push('create');set({phase:'synced',local:{...view.local,binding}});},
+      pause:async enabled=>{window.syncUiCalls.push(enabled?'resume':'pause');set({phase:enabled?'synced':'paused',local:{...view.local,binding:{...binding,enabled}}});},
+      resolveCloud:async()=>{window.syncUiCalls.push('resolveCloud');set({phase:'synced',local:{...view.local,queuedOperations:0,binding}});},
+      prepareJoin:async()=>({head:view.head,preview:{token:'join-preview',recipes:2,inventoryLots:3,plannedMeals:4,cookingSessions:1}}),
+      connect:async()=>{window.syncUiCalls.push('connect');set({phase:'synced',local:{...view.local,binding}});}
+    };
+  `,
+    }),
+  );
+  await fixture(page);
+  const dialog = await openSettings(page);
+  await dialog.getByRole("tab", { name: "账户与云端", exact: true }).click();
+  return dialog;
+}
+
+test("automatic sync requires explicit binding and conflict recovery, and can pause", async ({
+  page,
+}) => {
+  const dialog = await syncUiFixture(page);
+  await expect(dialog).toContainText("尚未连接这间厨房");
+  page.once("dialog", (prompt) => prompt.dismiss());
+  await dialog
+    .getByRole("button", { name: "用本机厨房开启同步", exact: true })
+    .click();
+  expect(await page.evaluate(() => window.syncUiCalls)).toEqual([]);
+  page.once("dialog", (prompt) => prompt.accept());
+  await dialog
+    .getByRole("button", { name: "用本机厨房开启同步", exact: true })
+    .click();
+  await expect(dialog).toContainText("厨房已同步");
+  await dialog
+    .getByRole("button", { name: "暂停自动同步", exact: true })
+    .click();
+  await expect(dialog).toContainText("自动同步已暂停");
+  await dialog
+    .getByRole("button", { name: "继续自动同步", exact: true })
+    .click();
+  await page.evaluate(() => window.syncUiConflict());
+  await expect(dialog).toContainText("两边修改了同一条记录");
+  page.once("dialog", (prompt) => prompt.dismiss());
+  await dialog
+    .getByRole("button", { name: "备份本机并保留云端", exact: true })
+    .click();
+  expect(await page.evaluate(() => window.syncUiCalls)).not.toContain(
+    "resolveCloud",
+  );
+  await page.screenshot({
+    path: "docs/screenshots/settings/sync-conflict-fixture.png",
+  });
+  page.once("dialog", (prompt) => prompt.accept());
+  await dialog
+    .getByRole("button", { name: "备份本机并保留云端", exact: true })
+    .click();
+  await expect(dialog).toContainText("厨房已同步");
+  expect(await page.evaluate(() => window.syncUiCalls)).toEqual([
+    "create",
+    "pause",
+    "resume",
+    "resolveCloud",
+  ]);
+});
+
+test("joining a cloud kitchen keeps manual restore locked until confirmation or cancellation", async ({
+  page,
+}) => {
+  const dialog = await syncUiFixture(page, true);
+  await dialog
+    .getByRole("button", { name: "连接云端厨房", exact: true })
+    .click();
+  const preview = dialog.getByRole("region", { name: "连接云端厨房预览" });
+  await expect(preview).toContainText("2 道菜谱");
+  await expect(
+    dialog.getByRole("button", { name: "上传备份", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    dialog.getByRole("button", { name: "退出登录", exact: true }),
+  ).toBeDisabled();
+  await preview.getByRole("button", { name: "取消连接", exact: true }).click();
+  await expect(preview).toHaveCount(0);
+  await expect(
+    dialog.getByRole("button", { name: "上传备份", exact: true }),
+  ).toBeEnabled();
+  await dialog
+    .getByRole("button", { name: "连接云端厨房", exact: true })
+    .click();
+  page.once("dialog", (prompt) => prompt.accept());
+  await preview
+    .getByRole("button", { name: "确认连接并恢复", exact: true })
+    .click();
+  await expect(dialog).toContainText("厨房已同步");
+  expect(await page.evaluate(() => window.syncUiCalls)).toEqual(["connect"]);
+});
+
+declare global {
+  interface Window {
+    syncUiCalls: string[];
+    syncUiConflict: () => void;
+  }
+}

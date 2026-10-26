@@ -29,7 +29,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['id','formatVersion','schemaVersion','createdAt','sizeBytes','sha256','includesChat','chunks'])
         && request.resource.data.id == id && request.resource.data.formatVersion == 1
         && request.resource.data.schemaVersion is int
-        && request.resource.data.schemaVersion >= 1 && request.resource.data.schemaVersion <= 12
+        && request.resource.data.schemaVersion >= 1 && request.resource.data.schemaVersion <= 13
         && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
         && request.resource.data.createdAt <= request.time.toMillis() / 1000 + 300
         && request.resource.data.sizeBytes is int
@@ -38,6 +38,65 @@ service cloud.firestore {
         && request.resource.data.includesChat == false
         && request.resource.data.chunks is list
         && request.resource.data.chunks.size() == int((request.resource.data.sizeBytes + 262143) / 262144);
+      allow update: if owner(uid) && request.resource.data == resource.data;
+    }
+    function uuid(value) {
+      return value is string && value.matches('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$');
+    }
+    function hash(value) {
+      return value is string && value.matches('^[0-9a-f]{64}$');
+    }
+    match /users/{uid}/sync_blobs/{id} {
+      allow read: if owner(uid);
+      allow create: if owner(uid) && hash(id)
+        && request.resource.data.keys().hasAll(['hash','bytes','data'])
+        && request.resource.data.keys().hasOnly(['hash','bytes','data'])
+        && request.resource.data.hash == id
+        && request.resource.data.bytes is int
+        && request.resource.data.bytes > 0 && request.resource.data.bytes <= 262144
+        && request.resource.data.data is string
+        && request.resource.data.data.size() == int((request.resource.data.bytes + 2) / 3) * 4;
+      allow update: if owner(uid) && request.resource.data == resource.data;
+    }
+    match /users/{uid}/sync/{id} {
+      function validHead() {
+        let value = request.resource.data;
+        return id == 'head'
+          && value.keys().hasAll(['formatVersion','spaceId','baselineId','sequence','lastOperationId'])
+          && value.keys().hasOnly(['formatVersion','spaceId','baselineId','sequence','lastOperationId'])
+          && value.formatVersion == 1 && uuid(value.spaceId) && uuid(value.baselineId)
+          && value.sequence is int && value.sequence >= 0;
+      }
+      allow read: if owner(uid);
+      allow create: if owner(uid) && validHead()
+        && request.resource.data.sequence == 0 && request.resource.data.lastOperationId == ''
+        && exists(/databases/$(database)/documents/users/$(uid)/backups/$(request.resource.data.baselineId));
+      allow update: if owner(uid) && validHead()
+        && request.resource.data.spaceId == resource.data.spaceId
+        && request.resource.data.baselineId == resource.data.baselineId
+        && request.resource.data.sequence == resource.data.sequence + 1
+        && uuid(request.resource.data.lastOperationId)
+        && getAfter(/databases/$(database)/documents/users/$(uid)/sync_operations/$(request.resource.data.lastOperationId)).data.sequence == request.resource.data.sequence
+        && getAfter(/databases/$(database)/documents/users/$(uid)/sync_operations/$(request.resource.data.lastOperationId)).data.spaceId == resource.data.spaceId;
+    }
+    match /users/{uid}/sync_operations/{id} {
+      allow read: if owner(uid);
+      allow create: if owner(uid) && uuid(id)
+        && request.resource.data.keys().hasAll(['id','replicaId','spaceId','sequence','formatVersion','schemaVersion','sha256','bytes','chunks'])
+        && request.resource.data.keys().hasOnly(['id','replicaId','spaceId','sequence','formatVersion','schemaVersion','sha256','bytes','chunks'])
+        && request.resource.data.id == id && uuid(request.resource.data.replicaId) && uuid(request.resource.data.spaceId)
+        && request.resource.data.formatVersion == 1
+        && request.resource.data.schemaVersion is int
+        && request.resource.data.schemaVersion >= 12 && request.resource.data.schemaVersion <= 13
+        && request.resource.data.sequence is int && request.resource.data.sequence > 0
+        && hash(request.resource.data.sha256)
+        && request.resource.data.bytes is int && request.resource.data.bytes > 0 && request.resource.data.bytes <= 536870912
+        && request.resource.data.chunks is list
+        && request.resource.data.chunks.size() == int((request.resource.data.bytes + 262143) / 262144)
+        && get(/databases/$(database)/documents/users/$(uid)/sync/head).data.sequence + 1 == request.resource.data.sequence
+        && get(/databases/$(database)/documents/users/$(uid)/sync/head).data.spaceId == request.resource.data.spaceId
+        && getAfter(/databases/$(database)/documents/users/$(uid)/sync/head).data.sequence == request.resource.data.sequence
+        && getAfter(/databases/$(database)/documents/users/$(uid)/sync/head).data.lastOperationId == id;
       allow update: if owner(uid) && request.resource.data == resource.data;
     }
   }

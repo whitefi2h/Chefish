@@ -14,11 +14,13 @@ Tauri 2 承载 React / TypeScript 界面，Rust 管理 SQLite、业务事务、�
 | `src/Planner.tsx`、`src/Shopping.tsx`、`src/Cooking.tsx` | 菜单、采购、烹饪 |
 | `src/KitchenAssistant.tsx`、`src/AISettings.tsx` | 对话、提案与配置 |
 | `src/Settings.tsx`、`src/Backup.tsx` | 统一设置弹窗、用餐偏好与本地备份恢复 |
-| `src/CloudBackup.tsx`、`src/services/cloudClient.ts`、`cloudRepository.ts` | 可选邮箱账户、Firestore 不可变分块与备份清单；按需加载 |
+| `src/CloudBackup.tsx`、`src/services/cloudClient.ts`、`cloudRepository.ts` | 可选邮箱账户、Firestore 不可变分块与备份清单 |
 | `src-tauri/src/cloud_snapshot.rs`、`cloud_commands.rs` | 去除聊天和本机配置、分块校验与恢复暂存；复用本地备份流程 |
+| `src/services/syncRuntime.ts`、`syncEngine.ts`、`syncRepository.ts` | 账户会话、后台调度、云端有序操作与传输 |
+| `src-tauri/src/db/replication.rs`、`sync_transfer.rs`、`sync_commands.rs` | schema 13 账户绑定、原生事务重放、冲突与安全恢复 |
 | `src-tauri/src/main.rs` | IPC 注册与原生协调 |
 | `src-tauri/src/db/`、`src-tauri/migrations/` | 业务事务与结构升级 |
-| `src-tauri/src/db/sync.rs`、`0012_sync_outbox.sql` | 本地原子操作队列、副本标识与恢复重置；网络同步尚未接通 |
+| `src-tauri/src/db/sync.rs`、`0012_sync_outbox.sql` | 本地原子操作队列、副本标识与恢复重置 |
 | `src-tauri/src/assistant.rs`、`assistant_prompt.txt` | 上下文、提案和提示词 |
 | `src-tauri/src/ai.rs` | 模型服务、设置与凭据 |
 | `src-tauri/src/recipe_import.rs`、`recipe_images.rs`、`site_search.rs`、`site_access.rs` | 解析、图片与站点访问 |
@@ -36,6 +38,8 @@ Tauri 2 承载 React / TypeScript 界面，Rust 管理 SQLite、业务事务、�
 - AI 在数据库副本试运行命令，确认后同事务提交。过时、重复或失败提案不能部分写入。
 - 用餐与通用设置以 `preferences_v1` 保存在 `app_settings`；独立 IPC 保存，AI 操作命令不能修改。仅用餐人数与饮食描述进入模型上下文，修改默认值不重写配方或已有菜单。
 - 业务事务同步记录实际行变化与允许的设置变化；操作组与业务一起提交或回滚，副本标识和队列不进入手动云备份。详见 [离线操作记录](SYNC_OUTBOX.md)。
+
+远端操作必须匹配账户与空间，按全局序号应用；本机未确认操作在同一事务中回退并重放。业务原值、主键、允许的字段与外键检查不通过时整体回滚，保留队列与游标。详见 [同步说明](CLOUD_SYNC.md)。
 
 ## 发布边界
 

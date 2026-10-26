@@ -30,3 +30,5 @@ v1.0.0 检查见 [验收记录](release-v1.0.0.json)。此前逐阶段材料已�
 2026-10-25 云备份首版的测试范围与本地构建校验值见 [验证记录](cloud-backup-validation.json)。后续独立 Firebase 项目部署与真实云端合成数据测试见 [部署记录](cloud-deployment-validation.json)；WebView2 真实账户、原生完整往返、双机和安装升级验收仍待完成。
 
 本地同步队列和 schema 12 的验证见 [队列验证记录](sync-outbox-validation.json)，包括事务失败回滚、隐私、恢复和升级。该记录不代表远端重放、冲突合并或双机同步已实现。
+
+2026-10-26 完整同步检查见 [同步验证](sync-validation.json) 与 [部署核验](sync-deployment-validation.json)。`npm run test:sync:emulator` 会先构建原生测试程序，再启动模拟器，让两份临时 SQLite 经实际传输和原生恢复重放；无需个人数据库。真实云检查显式开启 `CHEFISH_LIVE_CLOUD_TEST=1` 和 `CHEFISH_NATIVE_SYNC_TEST=1`，同样使用两份临时原生库与合成身份，完成后清理。该证据涵盖原生存储与真实云服务，仍不能替代两台实体电脑、真实邮箱与 Windows WebView2 个人登录验收。

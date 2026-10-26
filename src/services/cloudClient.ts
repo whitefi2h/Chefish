@@ -3,7 +3,7 @@ import {
   browserLocalPersistence,
   createUserWithEmailAndPassword,
   getAuth,
-  onAuthStateChanged,
+  onIdTokenChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
   setPersistence,
@@ -14,6 +14,7 @@ import {
 import { initializeFirestore } from "firebase/firestore";
 import { invoke } from "@tauri-apps/api/core";
 import { CloudRepository, type SnapshotBridge } from "./cloudRepository";
+import { SyncRepository } from "./syncRepository";
 
 const env = import.meta.env;
 const config = {
@@ -48,7 +49,7 @@ export function watchAccount(
   let stop = () => {};
   void ready
     .then(() => {
-      if (active) stop = onAuthStateChanged(auth, listener, error);
+      if (active) stop = onIdTokenChanged(auth, listener, error);
     })
     .catch((e) => {
       if (active) error(e);
@@ -97,8 +98,18 @@ export function repository() {
       throw new Error("账户已变化，请重新打开云备份。");
   });
 }
+export function syncRepository(uid: string) {
+  const { auth, db } = getServices();
+  return new SyncRepository(db, uid, () => {
+    if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified)
+      throw new Error("账户已变化，同步已停止。");
+  });
+}
 export const snapshotBridge: SnapshotBridge = {
-  prepare: () => invoke("cloud_backup_prepare"),
+  prepare: () =>
+    invoke("cloud_backup_prepare", {
+      uid: getServices().auth.currentUser?.uid,
+    }),
   read: (token, index) => invoke("cloud_backup_read_chunk", { token, index }),
   begin: (manifest) => invoke("cloud_backup_begin_download", { manifest }),
   accept: (token, index, data) =>

@@ -72,3 +72,20 @@
 .cloud-settings .error {
   overflow-wrap: anywhere;
 }
+.sync-panel {
+  margin: 26px 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+.sync-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 16px 0;
+}
+.sync-status > svg { flex: none; color: var(--sage); margin-top: 2px; }
+.sync-status p, .sync-conflict p { color: var(--muted); line-height: 1.7; margin: 7px 0; }
+.sync-conflict { border-left: 3px solid var(--sage); padding: 4px 0 8px 14px; margin-bottom: 16px; }
+.sync-panel .settings-restore-preview { margin-top: 20px; }

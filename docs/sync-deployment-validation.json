@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-26",
+  "projectId": "chefish-kitchen",
+  "rules": {
+    "matchesLocal": true,
+    "ruleset": "projects/chefish-kitchen/rulesets/4ef1e51a-0547-4ad2-8703-4184f98c9f49",
+    "sha256": "c80d927e6d23cc06f019d02d4eebf746579ae8506fb0bd16d7edebfe0893d733"
+  },
+  "billing": {
+    "enabled": false,
+    "linked": false
+  },
+  "database": {
+    "location": "asia-east2",
+    "edition": "STANDARD",
+    "freeTier": true,
+    "deleteProtection": "DELETE_PROTECTION_ENABLED"
+  },
+  "indexExemptions": [
+    {
+      "collectionGroup": "chunks",
+      "field": "data",
+      "indexCount": 0
+    },
+    {
+      "collectionGroup": "backups",
+      "field": "chunks",
+      "indexCount": 0
+    },
+    {
+      "collectionGroup": "sync_blobs",
+      "field": "data",
+      "indexCount": 0
+    },
+    {
+      "collectionGroup": "sync_operations",
+      "field": "chunks",
+      "indexCount": 0
+    }
+  ]
+}
