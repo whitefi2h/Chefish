@@ -131,6 +131,7 @@ async function shoppingIPC(
               return { ...f, weekStart: args.weekStart, items };
             }
             if (name === "kitchen_bootstrap") return state;
+            if (name !== "kitchen_execute") return null;
             const c = args.command!;
             (
               window as unknown as { shoppingCommands: unknown[] }

@@ -29,7 +29,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['id','formatVersion','schemaVersion','createdAt','sizeBytes','sha256','includesChat','chunks'])
         && request.resource.data.id == id && request.resource.data.formatVersion == 1
         && request.resource.data.schemaVersion is int
-        && request.resource.data.schemaVersion >= 1 && request.resource.data.schemaVersion <= 14
+        && request.resource.data.schemaVersion >= 1 && request.resource.data.schemaVersion <= 15
         && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
         && request.resource.data.createdAt <= request.time.toMillis() / 1000 + 300
         && request.resource.data.sizeBytes is int
@@ -87,7 +87,7 @@ service cloud.firestore {
         && request.resource.data.id == id && uuid(request.resource.data.replicaId) && uuid(request.resource.data.spaceId)
         && request.resource.data.formatVersion == 1
         && request.resource.data.schemaVersion is int
-        && request.resource.data.schemaVersion >= 12 && request.resource.data.schemaVersion <= 14
+        && request.resource.data.schemaVersion >= 12 && request.resource.data.schemaVersion <= 15
         && request.resource.data.sequence is int && request.resource.data.sequence > 0
         && hash(request.resource.data.sha256)
         && request.resource.data.bytes is int && request.resource.data.bytes > 0 && request.resource.data.bytes <= 536870912

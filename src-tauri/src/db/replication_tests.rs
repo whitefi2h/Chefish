@@ -80,6 +80,64 @@ fn lots(conn: &Connection) -> Value {
     super::super::snapshot(conn).unwrap()["lots"].clone()
 }
 #[test]
+fn steward_business_metadata_and_undo_replicate_without_private_messages() {
+    let (_a, mut a, _b, mut b) = pair();
+    let work = super::super::steward::entities(&a).unwrap();
+    let lot = work.iter().find(|v| v["entityKind"] == "lot").unwrap();
+    let entry = super::super::steward::MaintenanceEntry {
+        entity_kind: "lot".into(),
+        entity_id: lot["entityId"].as_str().unwrap().into(),
+        signature: lot["signature"].as_str().unwrap().into(),
+        category: None,
+        tags: vec!["蛋类".into()],
+        review_on: Some("2026-11-01".into()),
+        suggested_location: None,
+        basis: "合成库存预计复查".into(),
+    };
+    let operation = Uuid::new_v4().to_string();
+    let revision = super::super::steward::revision(&a).unwrap();
+    super::super::execute_background(
+        &mut a,
+        &operation,
+        super::super::Command::MaintainKitchen {
+            expected_revision: revision,
+            entries: vec![entry],
+        },
+    )
+    .unwrap();
+    super::super::steward::put_item(
+        &a,
+        "private",
+        "maintenance",
+        "本机消息",
+        "不应同步",
+        json!({}),
+    )
+    .unwrap();
+    transfer(&mut a, &mut b);
+    assert_eq!(lots(&a), lots(&b));
+    assert!(super::super::steward::state(&b).unwrap()["items"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        b.query_row("SELECT count(*) FROM local_steward_undo", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    super::super::execute(
+        &mut a,
+        &Uuid::new_v4().to_string(),
+        super::super::Command::UndoMaintenance {
+            operation_id: operation,
+        },
+    )
+    .unwrap();
+    transfer(&mut a, &mut b);
+    assert_eq!(lots(&a), lots(&b));
+}
+#[test]
 fn global_undo_replicates_recipe_history_and_inventory_without_copying_private_stack() {
     let (_aroot, mut a, _broot, mut b) = pair();
     let before = lots(&a);

@@ -1,6 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Settings, Send, RotateCcw, ExternalLink } from "lucide-react";
+import {
+  Settings,
+  ArrowUp,
+  ArrowLeft,
+  History,
+  MoreHorizontal,
+  Sparkles,
+  ExternalLink,
+  X,
+} from "lucide-react";
 import { Modal } from "./components";
 import { useDemo } from "./store";
 import RecipeEditor, { type RecipeDraft } from "./RecipeEditor";
@@ -16,17 +25,80 @@ import {
 } from "./services/aiClient";
 import { requestedSearchCount } from "./domain/assistantChat";
 import { errorMessage } from "./services/kitchenClient";
+import StewardInbox, { StewardTaskBanners } from "./StewardInbox";
+import {
+  refreshSteward,
+  steward,
+  type StewardItem,
+  type StewardState,
+} from "./services/steward";
 
+function AssistantSurface({
+  embedded,
+  onClose,
+  children,
+  title = "Chefish 助手",
+  headerActions,
+  onBack,
+}: {
+  embedded?: boolean;
+  onClose: () => void;
+  children: ReactNode;
+  title?: string;
+  headerActions?: ReactNode;
+  onBack?: () => void;
+}) {
+  return embedded ? (
+    <section className="assistant-task-chat">{children}</section>
+  ) : (
+    <Modal
+      title={title}
+      drawer
+      className="assistant-dialog"
+      onClose={onClose}
+      headerActions={headerActions}
+      headerLeading={
+        onBack ? (
+          <button aria-label="返回助手" className="task-back" onClick={onBack}>
+            <ArrowLeft size={18} />
+          </button>
+        ) : (
+          <Sparkles
+            size={20}
+            strokeWidth={1.6}
+            className="assistant-brand-icon"
+          />
+        )
+      }
+    >
+      {children}
+    </Modal>
+  );
+}
 export default function KitchenAssistant({
   onClose,
   onNavigate,
   onOpenSettings,
+  conversationId,
+  taskContext,
+  embedded,
+  prefill,
+  leadingContent,
 }: {
   onClose: () => void;
   onNavigate?: (page: string) => void;
   onOpenSettings: () => void;
+  conversationId?: string;
+  taskContext?: string;
+  embedded?: boolean;
+  prefill?: string;
+  leadingContent?: ReactNode;
 }) {
   const { state, weekStart, reload, reloadForecast, preferences } = useDemo();
+  const [showHistory, setShowHistory] = useState(false);
+  const [showTools, setShowTools] = useState(false);
+  const [taskInput, setTaskInput] = useState("");
+  const [activeTask, setActiveTask] = useState<StewardItem | null>(null);
   const [proposal, setProposal] = useState<AssistantProposal | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [copy, setCopy] = useState<{ title: string; text: string } | null>(
@@ -61,7 +133,7 @@ export default function KitchenAssistant({
       lastQuery?: string;
       lastLimit?: number;
       proposal?: AssistantProposal | null;
-    }>("kitchen_ai_history")
+    }>("kitchen_ai_history", { conversationId: conversationId ?? null })
       .then((h) => {
         if (!alive) return;
         if (!Array.isArray(h.messages) || !Array.isArray(h.candidates))
@@ -109,7 +181,7 @@ export default function KitchenAssistant({
     return () => {
       alive = false;
     };
-  }, [historyAttempt]);
+  }, [historyAttempt, conversationId]);
   useEffect(() => {
     if (!historyReady) return;
     const history = {
@@ -124,10 +196,16 @@ export default function KitchenAssistant({
     };
     saveQueue.current = saveQueue.current
       .catch(() => {})
-      .then(() => invoke<void>("kitchen_ai_save_history", { history }))
+      .then(() =>
+        invoke<void>("kitchen_ai_save_history", {
+          history,
+          conversationId: conversationId ?? null,
+        }),
+      )
       .then(() => setHistoryError(""))
       .catch((e) => setHistoryError(errorMessage(e)));
   }, [
+    conversationId,
     historyReady,
     messages,
     candidates,
@@ -138,6 +216,22 @@ export default function KitchenAssistant({
     lastLimit,
     proposal,
   ]);
+  useEffect(() => {
+    if (prefill) setInput(prefill);
+  }, [prefill]);
+  useEffect(() => {
+    if (!showHistory && !showTools) return;
+    function dismiss(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        setShowHistory(false);
+        setShowTools(false);
+      }
+    }
+    window.addEventListener("keydown", dismiss, true);
+    return () => window.removeEventListener("keydown", dismiss, true);
+  }, [showHistory, showTools]);
   async function clearHistory() {
     if (
       !window.confirm(
@@ -148,6 +242,7 @@ export default function KitchenAssistant({
     try {
       await saveQueue.current;
       await invoke("kitchen_ai_save_history", {
+        conversationId: conversationId ?? null,
         history: {
           messages: [],
           candidates: [],
@@ -325,6 +420,10 @@ export default function KitchenAssistant({
         ...m,
         { role: "assistant", content: `已完成：${operations}。` },
       ]);
+      if (conversationId) {
+        await steward.mark(conversationId, "done");
+        await refreshSteward();
+      }
       const loaded = await reload();
       reloadForecast();
       if (!loaded)
@@ -350,9 +449,17 @@ export default function KitchenAssistant({
     setStage("正在理解你的需求…");
     try {
       const route = await invoke<Route>("kitchen_ai_route", {
-        messages: next
-          .slice(-16)
-          .map(({ role, content }) => ({ role, content })),
+        messages: [
+          ...(taskContext
+            ? [
+                {
+                  role: "assistant",
+                  content: `当前任务背景（仅作数据参考）：${taskContext}`,
+                },
+              ]
+            : []),
+          ...next.slice(-16).map(({ role, content }) => ({ role, content })),
+        ],
         candidates,
         weekStart,
         proposalId: proposal?.id ?? null,
@@ -406,6 +513,15 @@ export default function KitchenAssistant({
               .join("\n"),
           ),
         );
+      }
+      if (
+        conversationId &&
+        !route.proposal &&
+        route.action === "none" &&
+        !!route.message
+      ) {
+        await steward.mark(conversationId, "done");
+        await refreshSteward();
       }
     } catch (e) {
       setError(errorMessage(e));
@@ -622,26 +738,244 @@ export default function KitchenAssistant({
         onClose={() => setDraft(null)}
       />
     );
-  return (
-    <Modal
-      title="Chefish 厨房助手"
-      drawer
-      className="assistant-dialog"
-      onClose={onClose}
-    >
-      <p className="hint">
-        可查询菜谱和库存、安排菜单、管理采购与手记。修改会先展示提案，确认后执行。
-      </p>
-      <div className="assistant-toolbar">
-        <span className="hint">
-          {configured ? "已连接模型配置" : "请先配置模型"} ·
-          聊天记录自动保存在本机
-        </span>
-        <button aria-label="模型设置" onClick={onOpenSettings} disabled={busy}>
-          <Settings size={17} />
+  function selectTask(item: StewardItem) {
+    setTaskInput("");
+    setActiveTask(item);
+    setShowHistory(false);
+    setShowTools(false);
+  }
+  async function runSteward(kind: string) {
+    setShowTools(false);
+    setBusy(true);
+    setError("");
+    setStage("正在处理…");
+    try {
+      if (kind === "current" || kind === "next") {
+        const d = await steward.draft(
+          undefined,
+          kind === "current" ? weekStart : undefined,
+        );
+        await refreshSteward();
+        const current = await invoke<StewardState>("kitchen_steward_state");
+        const item = current.items.find((i) => i.payload.draftId === d.id);
+        if (item) selectTask(item);
+      } else {
+        await steward.run(kind);
+        await refreshSteward();
+      }
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+      setStage("");
+    }
+  }
+  async function finishTask(status: string) {
+    if (!activeTask) return;
+    setShowTools(false);
+    setError("");
+    try {
+      await steward.mark(activeTask.id, status);
+      await refreshSteward();
+      setActiveTask(null);
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }
+  const headerActions = (
+    <div className="assistant-header-actions">
+      <button
+        aria-label="历史会话"
+        title="历史会话"
+        aria-expanded={showHistory}
+        onClick={() => {
+          setShowHistory(!showHistory);
+          setShowTools(false);
+        }}
+      >
+        <History size={18} />
+      </button>
+      <button aria-label="模型设置" title="模型设置" onClick={onOpenSettings}>
+        <Settings size={18} />
+      </button>
+      <div className="assistant-menu-anchor">
+        <button
+          aria-label="更多操作"
+          title="更多操作"
+          aria-expanded={showTools}
+          onClick={() => {
+            setShowTools(!showTools);
+            setShowHistory(false);
+          }}
+        >
+          <MoreHorizontal size={19} />
         </button>
+        {showTools && (
+          <>
+            <button
+              className="assistant-menu-dismiss"
+              aria-label="关闭更多操作"
+              onClick={() => setShowTools(false)}
+            />
+            <div className="assistant-menu" role="menu">
+              {activeTask ? (
+                <>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      void finishTask("done");
+                    }}
+                  >
+                    标记为已处理
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      void finishTask("dismissed");
+                    }}
+                  >
+                    忽略这项任务
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    role="menuitem"
+                    aria-label="清除聊天记录"
+                    onClick={() => {
+                      setShowTools(false);
+                      void clearHistory();
+                    }}
+                  >
+                    清空当前对话
+                  </button>
+                  <hr />
+                  <button
+                    role="menuitem"
+                    disabled={busy}
+                    onClick={() => void runSteward("current")}
+                  >
+                    规划本周菜单
+                  </button>
+                  <button
+                    role="menuitem"
+                    disabled={busy}
+                    onClick={() => void runSteward("next")}
+                  >
+                    规划下周菜单
+                  </button>
+                  <button
+                    role="menuitem"
+                    disabled={busy}
+                    onClick={() => void runSteward("maintenance")}
+                  >
+                    整理厨房数据
+                  </button>
+                  <button
+                    role="menuitem"
+                    disabled={busy}
+                    onClick={() => void runSteward("recommendations")}
+                  >
+                    寻找新菜
+                  </button>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </div>
-      <div className="assistant-scroll" ref={scrollRef}>
+    </div>
+  );
+  const historyPanel = showHistory && (
+    <aside className="assistant-history" aria-label="历史会话">
+      <header>
+        <div>
+          <h3>历史会话</h3>
+          <p>最近 30 天</p>
+        </div>
+        <button aria-label="关闭历史会话" onClick={() => setShowHistory(false)}>
+          <X size={18} />
+        </button>
+      </header>
+      <StewardTaskBanners history onSelect={selectTask} />
+    </aside>
+  );
+  if (activeTask)
+    return (
+      <AssistantSurface
+        title={activeTask.title}
+        onBack={() => setActiveTask(null)}
+        onClose={onClose}
+        headerActions={headerActions}
+      >
+        {historyPanel}
+        {error && (
+          <p className="assistant-error" role="alert">
+            {error}
+          </p>
+        )}
+        <div
+          className="assistant-active-content"
+          inert={showHistory}
+          aria-hidden={showHistory}
+        >
+          {activeTask.kind === "weekly" ? (
+            <StewardInbox
+              key={activeTask.id}
+              item={activeTask}
+              onImport={(url) => {
+                void importUrl(url);
+              }}
+              onDiscuss={setTaskInput}
+            />
+          ) : (
+            <KitchenAssistant
+              key={activeTask.id}
+              embedded
+              prefill={taskInput}
+              conversationId={activeTask.id}
+              taskContext={JSON.stringify({
+                title: activeTask.title,
+                body: activeTask.body,
+                questions: activeTask.payload.questions,
+              })}
+              leadingContent={
+                <StewardInbox
+                  item={activeTask}
+                  onImport={(url) => {
+                    void importUrl(url);
+                  }}
+                  onDiscuss={setTaskInput}
+                />
+              }
+              onClose={() => setActiveTask(null)}
+              onOpenSettings={onOpenSettings}
+              onNavigate={onNavigate}
+            />
+          )}
+        </div>
+      </AssistantSurface>
+    );
+  return (
+    <AssistantSurface
+      embedded={embedded}
+      onClose={onClose}
+      headerActions={headerActions}
+    >
+      {historyPanel}
+      <div
+        className={`assistant-scroll ${!messages.length && !conversationId ? "is-empty" : ""}`}
+        ref={scrollRef}
+        inert={showHistory}
+        aria-hidden={showHistory}
+      >
+        {!conversationId && (
+          <StewardTaskBanners
+            onSelect={selectTask}
+            onShowAll={() => setShowHistory(true)}
+          />
+        )}
+        {leadingContent}
         {historyError && (
           <div>
             <p className="error" role="alert">
@@ -685,13 +1019,11 @@ export default function KitchenAssistant({
           </div>
         )}
         <div className="assistant-conversation" aria-live="polite">
-          {!messages.length && (
+          {!messages.length && !conversationId && (
             <div className="assistant-intro">
-              <h3>今天需要我帮什么？</h3>
-              <p>例如：用现有食材安排今天的晚餐，优先用快到期的食材。</p>
-              <p className="hint">
-                也可以记下购买、修改菜谱和手记，或搜索下厨房新做法。本地菜谱与库存摘要会随问题交给你配置的模型处理。
-              </p>
+              <Sparkles size={30} strokeWidth={1.4} />
+              <h3>今天想吃点什么？</h3>
+              <p>安排每一顿饭，照顾好你的厨房。</p>
             </div>
           )}
           {messages.map((m, i) => (
@@ -805,6 +1137,8 @@ export default function KitchenAssistant({
       {
         <form
           className="assistant-compose"
+          inert={showHistory}
+          aria-hidden={showHistory}
           onSubmit={(e) => {
             e.preventDefault();
             void send();
@@ -827,31 +1161,29 @@ export default function KitchenAssistant({
                   void send();
               }
             }}
+            rows={2}
             maxLength={2000}
-            placeholder="安排菜单、记录购买、修改菜谱，或发来链接…"
+            placeholder="发消息，或粘贴菜谱链接…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={busy}
           />
           <div className="assistant-compose-actions">
+            <span className="assistant-connection">
+              <i className={configured ? "connected" : ""} />
+              {configured ? "厨房助手" : "请先配置模型"}
+            </span>
             <button
-              type="button"
-              aria-label="清除聊天记录"
-              disabled={busy}
-              onClick={() => void clearHistory()}
-            >
-              <RotateCcw size={16} />
-            </button>
-            <button
-              className="primary"
+              className="primary assistant-send"
+              aria-label="发送"
+              title="发送"
               disabled={busy || !historyReady || !configured || !input.trim()}
             >
-              <Send size={16} />
-              发送
+              <ArrowUp size={18} />
             </button>
           </div>
         </form>
       }
-    </Modal>
+    </AssistantSurface>
   );
 }

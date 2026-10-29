@@ -6,6 +6,8 @@ Chefish 是一款 Windows 厨房管理应用。把喜欢的菜谱收进自己的
 
 **目前主要面向中文用户，应用界面和 AI 助手以中文为主。**
 
+V2.0.0 已加入主动式厨房管家：周末询问菜单、协作保存草稿、每日整理厨房信息并推荐新菜。先在「我的厨房 → 厨房管家」启用；免打扰会暂停所有主动任务。功能和运行方式见[厨房管家说明](docs/STEWARD.md)。现有下载链接仍指向已公开的 v1.0.0，V2 安装包由当前构建交付。
+
 [下载 v1.0.0](https://github.com/whitefi2h/Chefish/releases/tag/v1.0.0) · [English](#english) · [开发文档](docs/README.md)
 
 ![Chefish 每周菜单与厨房助手](docs/images/assistant-proposal.png)

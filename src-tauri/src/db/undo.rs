@@ -41,6 +41,13 @@ pub fn record(conn: &Connection, id: &str, kind: &str, payload: &[u8]) -> Result
     if matches!(kind, "undo" | "background_image") {
         return Ok(());
     }
+    if kind == "maintenance" {
+        conn.execute(
+            "INSERT INTO local_steward_undo(operation_id,payload) VALUES(?1,?2)",
+            params![id, payload],
+        )?;
+        return Ok(());
+    }
     conn.execute(
         "INSERT INTO local_undo_history(operation_id,command_type,payload) VALUES(?1,?2,?3)",
         params![id, kind, payload],

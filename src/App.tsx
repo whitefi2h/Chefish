@@ -26,6 +26,7 @@ import Recipes from "./Recipes";
 import Dashboard from "./Dashboard";
 import Settings, { type SettingsTab } from "./Settings";
 import SyncIndicator from "./SyncIndicator";
+import { useSteward } from "./services/steward";
 import { NavigationProvider, useNavigation } from "./navigation";
 const pages = [
   { id: "home", name: "首页", icon: LayoutDashboard },
@@ -117,6 +118,7 @@ function Assistant({
   );
 }
 function Shell() {
+  const stewardState = useSteward();
   const {
     state,
     undo,
@@ -313,6 +315,20 @@ function Shell() {
             >
               <Sparkles size={16} />
               厨房助手
+              {stewardState &&
+                stewardState.items.some(
+                  (i) => i.unread && i.status === "open",
+                ) && (
+                  <small aria-label="管家未读消息">
+                    {" "}
+                    ·{" "}
+                    {
+                      stewardState.items.filter(
+                        (i) => i.unread && i.status === "open",
+                      ).length
+                    }
+                  </small>
+                )}
             </button>
           </div>
         </header>

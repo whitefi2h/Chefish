@@ -1,0 +1,140 @@
+{
+  "version": "2.0.0",
+  "schemaVersion": 15,
+  "date": "2026-10-29",
+  "delivery": "Windows x64 executable and NSIS installer; GitHub v2.0.0 release",
+  "checks": {
+    "rust": {
+      "passed": 150,
+      "ignored": 10
+    },
+    "frontendUnit": {
+      "passed": 35,
+      "optionalSkipped": 13
+    },
+    "browserInteraction": {
+      "passed": 6,
+      "scope": "cooking form and written consumption records"
+    },
+    "firestoreEmulator": {
+      "passed": 12,
+      "schema15Accepted": true,
+      "schema16Rejected": true,
+      "nativeReplicas": 2
+    },
+    "typecheck": true,
+    "lint": true,
+    "frontendBuild": true,
+    "releaseBuild": true,
+    "nsisBuild": true
+  },
+  "nativeInstalledQa": {
+    "identifier": "com.chefish.qa",
+    "syntheticDataOnly": true,
+    "personalKitchenWrites": false,
+    "scheduledWeeklyInquiry": true,
+    "closeToTray": true,
+    "restartAndUpgradePreservedDraft": true,
+    "stalePreviewRejected": true,
+    "confirmedPlanRows": 2,
+    "maintenance": {
+      "completed": true
+    },
+    "recommendations": {
+      "completed": true
+    },
+    "recommendationCount": 3,
+    "manualJobsDuringDoNotDisturb": true,
+    "qaProgramUninstalled": true,
+    "appliesTo": "initial V2 build; task conversation follow-up validated with browser interactions and native backend tests"
+  },
+  "artifacts": {
+    "exe": "src-tauri/target/release/chefish.exe",
+    "installer": "src-tauri/target/release/bundle/nsis/Chefish_2.0.0_x64-setup.exe",
+    "exeBytes": 22034432,
+    "installerBytes": 5787526
+  },
+  "cloudDeployment": {
+    "projectId": "chefish-kitchen",
+    "rulesChanged": "schema ceilings 14 to 15 only",
+    "status": "pending_reauthentication",
+    "attempted": true,
+    "deployedThisRun": false,
+    "reason": "Firebase CLI authentication expired; user reauthentication required"
+  },
+  "notValidated": [
+    "Windows notification banner actually displayed",
+    "long-duration sleep/resume behavior",
+    "two physical computers running for an extended period"
+  ],
+  "uiScope": "functional additions to existing layout; visual redesign deferred",
+  "functionalFollowup": {
+    "taskCards": true,
+    "isolatedTaskConversations": true,
+    "historyRetentionDays": 30,
+    "pendingMenuDraftsPreserved": true,
+    "singleSettingsSaveButton": true,
+    "recommendationDishTitleDeduplication": true,
+    "routineMaintenanceQuestionsSuppressed": true,
+    "liveSyntheticMaintenance": true,
+    "personalKitchenUsedForTests": false
+  },
+  "chatRedesign": {
+    "taskBanners": true,
+    "noEmptyTaskPanel": true,
+    "headerHistoryAndTools": true,
+    "fixedComposer": true,
+    "weeklyChatLayout": true,
+    "browserWidths": [
+      1000,
+      1280,
+      1440,
+      1920
+    ],
+    "nativeReleaseVisuallyChecked": true,
+    "nativeReadOnlyScope": [
+      "assistant empty state",
+      "open and close history"
+    ],
+    "syntheticTaskScreenshots": "docs/screenshots/assistant-redesign/",
+    "builtAndRelaunched": true
+  },
+  "taskLifecycleFix": {
+    "pendingMaintenanceReportsMerged": true,
+    "legacyRepliedTasksArchived": true,
+    "completionAfterReplyOrApply": true,
+    "completedQuestionsNotReposted": true,
+    "historyPreserved": true,
+    "rootScrollbarGutterPausedDuringModal": false
+  },
+  "modalGeometryFix": {
+    "backgroundGutterPreserved": true,
+    "drawerExtendsToViewportEdge": true,
+    "viewportWidths": [
+      1000,
+      1440,
+      1920
+    ],
+    "openCloseCyclesPerWidth": 2,
+    "backgroundGeometryUnchanged": true
+  },
+  "trayAutostart": {
+    "nativeDoubleClickHandler": [
+      "left",
+      "right"
+    ],
+    "restoreMinimizedWindow": true,
+    "rightClickAutostartCheckbox": true,
+    "settingsUseOsRegistrationState": true,
+    "autostartIndependentOfProactiveJobs": true,
+    "systemLogonTested": false,
+    "userStartupPreferenceChangedForTests": false
+  },
+  "cookingRecordPriority": {
+    "userDescriptionOverridesRecipeEstimate": true,
+    "allUsageQuantityValidated": true,
+    "liveSyntheticChecks": 5,
+    "exactReportedPhraseRepetitions": 3,
+    "stockMutationsInPersonalKitchen": false
+  }
+}

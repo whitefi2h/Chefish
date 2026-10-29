@@ -505,6 +505,15 @@ pub fn recipe_cover(name: &str, preference: &str, previous: Option<&str>) -> Res
     Err(fail("暂未找到合适的菜肴封面，原图已保留"))
 }
 pub fn run(app: &tauri::AppHandle, id: Option<String>, instruction: String) -> Result<Value> {
+    let automatic = id.is_none();
+    run_mode(app, id, instruction, automatic)
+}
+pub fn run_mode(
+    app: &tauri::AppHandle,
+    id: Option<String>,
+    instruction: String,
+    automatic: bool,
+) -> Result<Value> {
     let status = ai::status()?;
     if !status["configured"].as_array().is_some_and(|items| {
         items
@@ -524,6 +533,9 @@ pub fn run(app: &tauri::AppHandle, id: Option<String>, instruction: String) -> R
     }
     let guard = database.0.lock().map_err(|_| fail("数据库暂不可用"))?;
     let conn = guard.as_ref().ok_or_else(|| fail("数据库暂不可用"))?;
+    if automatic && !db::steward::allowed(conn, "images")? {
+        return Ok(json!({"updated":0,"remaining":0}));
+    }
     let lineage = identity(conn)?;
     // Loading photos must not read every recipe cover and step image.
     let mut statement = conn.prepare("SELECT DISTINCT i.id,i.name FROM ingredients i JOIN inventory_lots l ON l.ingredient_id=i.id WHERE NOT EXISTS(SELECT 1 FROM app_settings WHERE key='inventory_deleted:'||l.id) ORDER BY i.rowid")?;
@@ -595,6 +607,9 @@ pub fn run(app: &tauri::AppHandle, id: Option<String>, instruction: String) -> R
         let conn = guard.as_mut().ok_or_else(|| fail("数据库暂不可用"))?;
         if identity(conn)? != lineage {
             return Err(fail("厨房已变化，本次图片未写入"));
+        }
+        if automatic && !db::steward::allowed(conn, "images")? {
+            return Ok(json!({"updated":updated,"remaining":0}));
         }
         let execute = if id.is_some() {
             db::execute

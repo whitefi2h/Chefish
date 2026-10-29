@@ -76,9 +76,6 @@ fn event(
     tx.execute("INSERT INTO inventory_events(id,lot_id,kind,before_amount,after_amount,before_location,after_location,after_version,reason,reversed_event_id) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)", params![id(),lot_id,kind,before.amount.normalize().to_string(),after.normalize().to_string(),before.location,target,before.version+1,reason.trim(),reversed])?;
     Ok(())
 }
-pub fn receive(tx: &Transaction, draft: InventoryDraft) -> Result<()> {
-    receive_batch(tx, draft, "手动购买").map(|_| ())
-}
 pub fn receive_batch(tx: &Transaction, draft: InventoryDraft, reason: &str) -> Result<String> {
     text(&draft.name, 120)?;
     let quantity = decimal(&draft.quantity)?;
@@ -406,6 +403,10 @@ pub(super) fn reverse_inner(tx: &Transaction, event_id: &str, reason: &str) -> R
 pub fn lots(conn: &Connection) -> Result<Vec<Value>> {
     let mut stmt=conn.prepare("SELECT l.id,l.ingredient_id,l.amount_decimal,l.unit,s.name,l.received_on,l.expires_on,l.precision,l.version FROM inventory_lots l JOIN storage_locations s ON s.id=l.location_id WHERE NOT EXISTS(SELECT 1 FROM app_settings WHERE key='inventory_deleted:'||l.id) ORDER BY (l.amount_decimal='0'),l.expires_on IS NULL,l.expires_on,l.received_on,l.id")?;
     let rows=stmt.query_map([],|r|Ok(json!({"id":r.get::<_,String>(0)?,"ingredientId":r.get::<_,String>(1)?,"quantity":r.get::<_,String>(2)?,"unit":r.get::<_,String>(3)?,"location":r.get::<_,String>(4)?,"received":r.get::<_,String>(5)?,"expires":r.get::<_,Option<String>>(6)?,"precision":r.get::<_,String>(7)?,"version":r.get::<_,i64>(8)?})))?.collect::<std::result::Result<Vec<_>,_>>()?;
+    let mut rows = rows;
+    for row in &mut rows {
+        row["steward"] = super::steward::metadata(conn, "lot", row["id"].as_str().unwrap())?;
+    }
     Ok(rows)
 }
 pub fn update_snapshot(conn: &Connection, base_revision: &str) -> Result<Value> {

@@ -428,6 +428,8 @@ fn patch_setting(conn: &Connection, change: &SettingChange, inverse: bool) -> Re
         && !change.key.starts_with("seasoning_image:")
         && !change.key.starts_with("cooking_record:")
         && !change.key.starts_with("ingredient_resolution:")
+        && !change.key.starts_with("steward_meta:")
+        && !change.key.starts_with("ingredient_rule:")
     {
         return Err(error("SYNC_INVALID", "同步操作包含本机私有设置"));
     }

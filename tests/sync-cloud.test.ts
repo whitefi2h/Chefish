@@ -32,7 +32,7 @@ const fixture = () => {
     spaceId: randomUUID(),
     sequence: 1,
     formatVersion: 1,
-    schemaVersion: 13,
+    schemaVersion: 15,
     sha256: sha(data),
     bytes: data.length,
     chunks: [{ hash: sha(data), bytes: data.length }],
@@ -41,7 +41,7 @@ const fixture = () => {
 const baseline = () => ({
   id: randomUUID(),
   formatVersion: 1,
-  schemaVersion: 13,
+  schemaVersion: 15,
   createdAt: Math.floor(Date.now() / 1000),
   sizeBytes: 1,
   sha256: "a".repeat(64),

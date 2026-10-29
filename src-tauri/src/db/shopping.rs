@@ -356,6 +356,9 @@ struct Stock {
     remaining: Decimal,
     expires: Option<String>,
     received: String,
+    source_name: String,
+    source_unit: String,
+    estimated: bool,
 }
 #[derive(Default)]
 struct Demand {
@@ -363,6 +366,8 @@ struct Demand {
     covered: Decimal,
     carried_purchase: Decimal,
     review: bool,
+    estimated: bool,
+    estimates: Vec<String>,
     sources: Vec<String>,
 }
 pub fn forecast(conn: &Connection, scope: &str) -> Result<Value> {
@@ -374,7 +379,7 @@ pub fn forecast(conn: &Connection, scope: &str) -> Result<Value> {
     Ok(result)
 }
 fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> {
-    let mut stmt=conn.prepare("SELECT ingredient_id,unit,amount_decimal,expires_on,received_on FROM inventory_lots l WHERE NOT EXISTS(SELECT 1 FROM app_settings WHERE key='inventory_deleted:'||l.id) ORDER BY expires_on IS NULL,expires_on,received_on,rowid")?;
+    let mut stmt=conn.prepare("SELECT ingredient_id,unit,amount_decimal,expires_on,received_on,COALESCE(json_extract((SELECT value FROM app_settings WHERE key='steward_meta:lot:'||l.id),'$.sourceName'),(SELECT name FROM ingredients WHERE id=l.ingredient_id)),COALESCE(json_extract((SELECT value FROM app_settings WHERE key='steward_meta:lot:'||l.id),'$.sourceUnit'),unit),precision='rough' FROM inventory_lots l WHERE NOT EXISTS(SELECT 1 FROM app_settings WHERE key='inventory_deleted:'||l.id) ORDER BY expires_on IS NULL,expires_on,received_on,rowid")?;
     let lots = stmt
         .query_map([], |r| {
             Ok((
@@ -383,20 +388,28 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
                 r.get::<_, String>(2)?,
                 r.get::<_, Option<String>>(3)?,
                 r.get::<_, String>(4)?,
+                r.get::<_, String>(5)?,
+                r.get::<_, String>(6)?,
+                r.get::<_, bool>(7)?,
             ))
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
     let mut stock = lots
         .into_iter()
-        .map(|(ingredient, unit, n, expires, received)| {
-            Ok(Stock {
-                ingredient,
-                unit,
-                remaining: number(&n)?,
-                expires,
-                received,
-            })
-        })
+        .map(
+            |(ingredient, unit, n, expires, received, source_name, source_unit, estimated)| {
+                Ok(Stock {
+                    ingredient,
+                    unit,
+                    remaining: number(&n)?,
+                    expires,
+                    received,
+                    source_name,
+                    source_unit,
+                    estimated,
+                })
+            },
+        )
         .collect::<Result<Vec<_>>>()?;
     let mut stmt=conn.prepare("SELECT p.day,p.meal,p.servings,v.servings,v.id,v.name,p.custom_title FROM planned_meals p LEFT JOIN recipe_revisions v ON v.id=p.recipe_revision_id WHERE p.removed=0 AND p.cooking_session_id IS NULL AND p.day>=?1 ORDER BY p.day,CASE p.meal WHEN '早餐' THEN 0 WHEN '午餐' THEN 1 ELSE 2 END,p.sort_order,p.rowid")?;
     let plans = stmt
@@ -472,7 +485,39 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
                 [&ingredient],
                 |r| r.get(0),
             )?;
-            let (_, n, u, _) = ingredient_standard::base(&raw_name, &n, &u)?;
+            let source = super::steward::metadata(conn, "revision", &rev)?;
+            let original = source["ingredients"].as_array().and_then(|rows| {
+                rows.iter().find(|r| {
+                    r["sourceName"].as_str().is_some_and(|n| {
+                        ingredient_standard::name_in(conn, n).is_ok_and(|v| v == raw_name)
+                    })
+                })
+            });
+            let source_name = original
+                .and_then(|r| r["sourceName"].as_str())
+                .unwrap_or(&raw_name);
+            let (_, n, u, mut standard_estimate) =
+                ingredient_standard::base_in(conn, source_name, &n, &u)?;
+            if original.is_some_and(|v| v["estimated"] == true) {
+                standard_estimate = true;
+            }
+            let cached: Option<String> = conn
+                .query_row(
+                    "SELECT value FROM app_settings WHERE key=?1",
+                    [format!("ingredient_resolution:{rev}")],
+                    |r| r.get(0),
+                )
+                .optional()?;
+            let estimates: Vec<String> = cached
+                .and_then(|v| serde_json::from_str::<Vec<ingredient_resolution::Entry>>(&v).ok())
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|e| {
+                    ingredient_standard::name(&e.name) == ingredient_standard::name(&raw_name)
+                        && e.basis != "保留菜谱明确用量"
+                })
+                .map(|e| format!("{}：{} {}（{}）", e.name, e.quantity, e.unit, e.basis))
+                .collect();
             let ingredient = ingredient_standard::canonical_id(conn, &ingredient)?;
             let ingredient_name: String = conn.query_row(
                 "SELECT name FROM ingredients WHERE id=?1",
@@ -487,6 +532,7 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
             .round_dp_with_strategy(6, RoundingStrategy::ToPositiveInfinity);
             let mut remaining = required;
             let mut review = false;
+            let mut stock_estimate = false;
             for lot in &mut stock {
                 if !ingredient_standard::matches(conn, &lot.ingredient, &ingredient)?
                     || lot.remaining <= Decimal::ZERO
@@ -495,12 +541,20 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
                 {
                     continue;
                 }
-                let Some(factor) = ingredient_standard::factor(&ingredient_name, &lot.unit, &u)
+                if u == "盒" && lot.unit == "盒" && lot.source_unit != "盒" {
+                    review = true;
+                    continue;
+                }
+                let Some(factor) =
+                    ingredient_standard::factor_in(conn, &lot.source_name, &lot.unit, &u)
                 else {
                     review = true;
                     continue;
                 };
                 let take = remaining.min(lot.remaining * factor);
+                if take > Decimal::ZERO && lot.estimated {
+                    stock_estimate = true;
+                }
                 remaining -= take;
                 lot.remaining -= take / factor;
             }
@@ -509,6 +563,37 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
                 row.required += required;
                 row.covered += required - remaining;
                 row.review |= review;
+                row.estimated |= standard_estimate || stock_estimate || !estimates.is_empty();
+                for note in estimates {
+                    if !row.estimates.contains(&note) {
+                        row.estimates.push(note);
+                    }
+                }
+                if standard_estimate {
+                    let note = format!("{}含常见规格换算，请按实际包装或大小修改", raw_name);
+                    if !row.estimates.contains(&note) {
+                        row.estimates.push(note);
+                    }
+                }
+                if stock_estimate {
+                    let note = format!("{}的库存抵扣包含粗略数量", raw_name);
+                    if !row.estimates.contains(&note) {
+                        row.estimates.push(note);
+                    }
+                }
+                if let Some(original) = original {
+                    if original["estimated"] == true {
+                        let note = format!(
+                            "原始用量：{} {} {}",
+                            original["sourceName"].as_str().unwrap_or(""),
+                            original["quantity"].as_str().unwrap_or(""),
+                            original["unit"].as_str().unwrap_or("")
+                        );
+                        if !row.estimates.contains(&note) {
+                            row.estimates.push(note);
+                        }
+                    }
+                }
                 let source = format!("{} {} · {}", day, meal, name.as_deref().unwrap_or_default());
                 if !row.sources.contains(&source) {
                     row.sources.push(source);
@@ -538,7 +623,7 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
                 |r| r.get(0),
             )?;
             let canonical = ingredient_standard::canonical_id(conn, ingredient)?;
-            let (_, factor, base_unit, _) = ingredient_standard::base(&raw, "1", u)?;
+            let (_, factor, base_unit, _) = ingredient_standard::base_in(conn, &raw, "1", u)?;
             let factor = number(&factor)?;
             let mut d = demand
                 .remove(&(canonical.clone(), base_unit.clone()))
@@ -555,7 +640,7 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
                         continue;
                     }
                     let (_, other_factor, other_base, _) =
-                        ingredient_standard::base(&raw, "1", other_unit)?;
+                        ingredient_standard::base_in(conn, &raw, "1", other_unit)?;
                     if other_base == base_unit {
                         let (bought, received) = totals(conn, other)?;
                         d.carried_purchase += (bought - received) * number(&other_factor)? / factor;
@@ -628,7 +713,7 @@ fn item(
         history=stmt.query_map([key],|r|Ok(json!({"kind":r.get::<_,String>(0)?,"id":r.get::<_,String>(1)?,"quantity":r.get::<_,String>(2)?,"at":r.get::<_,String>(3)?,"lotId":r.get::<_,Option<String>>(4)?})))?.collect::<std::result::Result<Vec<_>,_>>()?;
     }
     Ok(
-        json!({"id":key,"version":version,"ingredientId":ingredient,"name":ingredient_standard::name(&name),"category":category,"unit":u,"source":source,"weekStart":if source=="plan"{Some(scope)}else{None},"required":show(d.required),"covered":show(d.covered),"shortage":show(shortage),"purchased":show(purchased),"received":show(received),"unreceived":show(outstanding),"remaining":show(remaining),"review":d.review,"hidden":hidden,"surplus":source=="plan" && outstanding>shortage,"sources":d.sources,"history":history}),
+        json!({"id":key,"version":version,"ingredientId":ingredient,"name":ingredient_standard::name_in(conn,&name)?,"category":category,"unit":u,"source":source,"weekStart":if source=="plan"{Some(scope)}else{None},"required":show(d.required),"covered":show(d.covered),"shortage":show(shortage),"purchased":show(purchased),"received":show(received),"unreceived":show(outstanding),"remaining":show(remaining),"review":d.review,"estimated":d.estimated,"estimates":d.estimates,"hidden":hidden,"surplus":source=="plan" && outstanding>shortage,"sources":d.sources,"history":history}),
     )
 }
 

@@ -64,7 +64,7 @@ fn rows<'a>(value: &'a Value, table: &str) -> Vec<&'a Value> {
 fn capture_allowlist_covers_business_tables_but_excludes_local_and_private_tables() {
     let kitchen = Kitchen::new();
     let conn = kitchen.open();
-    let mut actual = conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('sqlite_sequence','schema_migrations','command_receipts','app_settings','local_sync_state','local_sync_outbox','local_sync_binding','local_sync_applied','local_undo_history') ORDER BY name").unwrap().query_map([],|row| row.get::<_,String>(0)).unwrap().collect::<std::result::Result<Vec<_>,_>>().unwrap();
+    let mut actual = conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('sqlite_sequence','schema_migrations','command_receipts','app_settings','local_sync_state','local_sync_outbox','local_sync_binding','local_sync_applied','local_undo_history','local_steward_runs','local_steward_items','local_steward_drafts','local_steward_checked','local_steward_undo') ORDER BY name").unwrap().query_map([],|row| row.get::<_,String>(0)).unwrap().collect::<std::result::Result<Vec<_>,_>>().unwrap();
     let mut expected = TABLES
         .iter()
         .map(|name| name.to_string())

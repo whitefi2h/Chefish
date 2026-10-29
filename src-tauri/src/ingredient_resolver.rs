@@ -39,6 +39,9 @@ fn resolve(work: &Value) -> Result<Vec<db::ingredient_resolution::Entry>> {
 }
 #[tauri::command]
 pub async fn kitchen_resolve_ingredients(app: tauri::AppHandle) -> Result<Value> {
+    resolve_once(app, true).await
+}
+pub async fn resolve_once(app: tauri::AppHandle, automatic: bool) -> Result<Value> {
     tauri::async_runtime::spawn_blocking(move || {
         if !configured()? {
             return Ok(json!({"updated":0,"remaining":0}));
@@ -51,6 +54,9 @@ pub async fn kitchen_resolve_ingredients(app: tauri::AppHandle) -> Result<Value>
         let (work, lineage) = {
             let guard = database.0.lock().map_err(|_| fail())?;
             let c = guard.as_ref().ok_or_else(fail)?;
+            if automatic && !db::steward::allowed(c, "ingredients")? {
+                return Ok(json!({"updated":0,"remaining":0}));
+            }
             (
                 db::ingredient_resolution::pending(c)?,
                 db::sync::status(c)?.replica_id,
@@ -62,6 +68,9 @@ pub async fn kitchen_resolve_ingredients(app: tauri::AppHandle) -> Result<Value>
         let entries = resolve(&work)?;
         let mut guard = database.0.lock().map_err(|_| fail())?;
         let c = guard.as_mut().ok_or_else(fail)?;
+        if automatic && !db::steward::allowed(c, "ingredients")? {
+            return Ok(json!({"updated":0,"remaining":0}));
+        }
         if db::sync::status(c)?.replica_id != lineage {
             return Ok(json!({"updated":0,"remaining":0}));
         }

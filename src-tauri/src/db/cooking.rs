@@ -111,9 +111,12 @@ pub fn preview(conn: &Connection, key: &str, servings: i64, date: &str) -> Resul
             {
                 continue;
             }
-            let Some(factor) =
-                ingredient_standard::factor(&name, lot["unit"].as_str().unwrap(), &unit)
-            else {
+            let Some(factor) = ingredient_standard::factor_in(
+                conn,
+                lot["steward"]["sourceName"].as_str().unwrap_or(&name),
+                lot["unit"].as_str().unwrap(),
+                &unit,
+            ) else {
                 continue;
             };
             let expires = lot["expires"].as_str();

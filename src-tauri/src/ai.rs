@@ -841,8 +841,12 @@ pub fn history(conn: &rusqlite::Connection) -> Result<Value> {
     }
 }
 pub fn save_history(conn: &rusqlite::Connection, value: &Value) -> Result<()> {
-    let encoded = value.to_string();
-    if encoded.len() > 2_000_000
+    validate_history(value)?;
+    conn.execute("INSERT INTO app_settings(key,value) VALUES('assistant_history_v1',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[value.to_string()])?;
+    Ok(())
+}
+fn validate_history(value: &Value) -> Result<()> {
+    if value.to_string().len() > 2_000_000
         || !value["messages"].is_array()
         || !value["candidates"].is_array()
         || value["messages"].as_array().unwrap().len() > 1000
@@ -850,6 +854,43 @@ pub fn save_history(conn: &rusqlite::Connection, value: &Value) -> Result<()> {
     {
         return Err(fail("HISTORY_ERROR", "聊天记录过长，请清除后开始新对话"));
     }
-    conn.execute("INSERT INTO app_settings(key,value) VALUES('assistant_history_v1',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[encoded])?;
+    Ok(())
+}
+
+// Task conversations are private local history, independent of the main chat and durable menu drafts.
+pub fn task_history(conn: &rusqlite::Connection, task: &str) -> Result<Value> {
+    use rusqlite::OptionalExtension;
+    expire_task_history(conn)?;
+    let raw: Option<String> = conn
+        .query_row(
+            "SELECT value FROM app_settings WHERE key=?1",
+            [format!("assistant_session:{task}")],
+            |r| r.get(0),
+        )
+        .optional()?;
+    match raw {
+        Some(raw) => Ok(serde_json::from_str::<Value>(&raw)
+            .map_err(|_| fail("HISTORY_ERROR", "无法读取任务会话"))?["history"]
+            .clone()),
+        None => Ok(json!({"messages":[],"candidates":[],"input":"","pendingUrl":"","pasted":""})),
+    }
+}
+pub fn save_task_history(conn: &rusqlite::Connection, task: &str, value: &Value) -> Result<()> {
+    let exists: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM local_steward_items WHERE id=?1)",
+        [task],
+        |r| r.get(0),
+    )?;
+    if !exists {
+        return Err(fail("HISTORY_ERROR", "任务不存在"));
+    }
+    validate_history(value)?;
+    conn.execute("INSERT INTO app_settings(key,value) VALUES(?1,json_object('updatedAt',unixepoch(),'history',json(?2))) ON CONFLICT(key) DO UPDATE SET value=excluded.value", rusqlite::params![format!("assistant_session:{task}"), value.to_string()])?;
+    Ok(())
+}
+
+pub fn expire_task_history(conn: &rusqlite::Connection) -> Result<()> {
+    conn.execute("UPDATE local_steward_drafts SET messages='[]' WHERE status!='draft' AND messages!='[]' AND id IN (SELECT json_extract(payload,'$.draftId') FROM local_steward_items WHERE status!='open' AND created_at < datetime('now','-30 days'))", [])?;
+    conn.execute("DELETE FROM app_settings WHERE key GLOB 'assistant_session:*' AND CAST(json_extract(value,'$.updatedAt') AS INTEGER) < unixepoch()-30*86400", [])?;
     Ok(())
 }

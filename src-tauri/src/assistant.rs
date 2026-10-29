@@ -236,6 +236,11 @@ fn destructive(c: &Command) -> bool {
 }
 fn label(c: &Command) -> &'static str {
     match c {
+        Command::SetReviewDate { .. } => "修正预计复查日期",
+        Command::SetStewardTags { .. } => "修改标签",
+        Command::MaintainKitchen { .. } => "整理厨房信息",
+        Command::UndoMaintenance { .. } => "撤销厨房整理",
+        Command::SaveIngredientRule { .. } => "保存食材对应关系",
         Command::RemoveSeasoning { .. } => "移除常备调料",
         Command::RecordPurchase { .. } => "标记已购买",
         Command::SetSeasoning { .. } => "更新调料余缺",
@@ -439,7 +444,7 @@ fn display(v: &Value, snapshot: &Value, section: &str) -> String {
             .unwrap_or_else(|| v.to_string()),
     }
 }
-fn changes(before: &Value, after: &Value) -> Vec<Value> {
+pub fn changes(before: &Value, after: &Value) -> Vec<Value> {
     let mut result = Vec::new();
     for (key, title) in [
         ("recipes", "菜谱"),

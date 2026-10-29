@@ -13,6 +13,7 @@ import {
 import { Modal } from "./components";
 import { useDemo } from "./store";
 import AISettings from "./AISettings";
+import StewardSettings from "./StewardSettings";
 import Backup from "./Backup";
 import { nativeMode } from "./services/kitchenClient";
 import { type AppPreferences } from "./domain/preferences";
@@ -20,6 +21,12 @@ import { version } from "../package.json";
 const CloudBackup = lazy(() => import("./CloudBackup"));
 
 const sections = [
+  {
+    id: "steward",
+    label: "厨房管家",
+    icon: Sparkles,
+    description: "安排菜单、照看库存，找一点新的烹饪灵感。",
+  },
   {
     id: "preferences",
     label: "用餐与偏好",
@@ -72,6 +79,9 @@ export default function Settings({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [backupBusy, setBackupBusy] = useState(false);
+  const [stewardDirty, setStewardDirty] = useState(false);
+  const [stewardSaveTarget, setStewardSaveTarget] =
+    useState<HTMLDivElement | null>(null);
   const saved = JSON.stringify(preferences);
   useEffect(() => {
     setDraft(JSON.parse(saved) as AppPreferences);
@@ -88,7 +98,11 @@ export default function Settings({
   }
   function close() {
     if (busy || backupBusy) return;
-    if (dirty && !window.confirm("设置还未保存，放弃这些修改并关闭？")) return;
+    if (
+      (dirty || stewardDirty) &&
+      !window.confirm("设置还未保存，放弃这些修改并关闭？")
+    )
+      return;
     onClose();
   }
   async function save() {
@@ -141,6 +155,12 @@ export default function Settings({
                         (e.key === "ArrowDown" ? 1 : -1) +
                         sections.length) %
                       sections.length;
+              if (
+                stewardDirty &&
+                tab === "steward" &&
+                !window.confirm("管家设置还未保存，放弃修改并切换？")
+              )
+                return;
               setTab(sections[next].id);
               document
                 .getElementById(`settings-tab-${sections[next].id}`)
@@ -158,6 +178,13 @@ export default function Settings({
                 aria-controls="settings-content"
                 className={tab === section.id ? "selected" : ""}
                 onClick={() => {
+                  if (
+                    stewardDirty &&
+                    tab === "steward" &&
+                    section.id !== tab &&
+                    !window.confirm("管家设置还未保存，放弃修改并切换？")
+                  )
+                    return;
                   setTab(section.id);
                   setMessage("");
                 }}
@@ -182,6 +209,12 @@ export default function Settings({
               <h2>{current.label}</h2>
               <p>{current.description}</p>
             </header>
+            {tab === "steward" && (
+              <StewardSettings
+                onDirtyChange={setStewardDirty}
+                saveTarget={stewardSaveTarget}
+              />
+            )}
             {tab === "preferences" && (
               <fieldset disabled={busy} className="settings-fields">
                 <div className="settings-serving-row">
@@ -444,7 +477,7 @@ export default function Settings({
                 </span>
               ) : (
                 <span>
-                  {dirty
+                  {dirty || stewardDirty
                     ? "有未保存的修改"
                     : persistent
                       ? "设置保存在本机"
@@ -452,13 +485,17 @@ export default function Settings({
                 </span>
               )}
             </div>
-            <button
-              className="primary"
-              disabled={!dirty || busy || backupBusy}
-              onClick={() => void save()}
-            >
-              {busy ? "正在保存…" : "保存设置"}
-            </button>
+            {tab === "steward" ? (
+              <div ref={setStewardSaveTarget} />
+            ) : (
+              <button
+                className="primary"
+                disabled={!dirty || busy || backupBusy}
+                onClick={() => void save()}
+              >
+                {busy ? "正在保存…" : "保存设置"}
+              </button>
+            )}
           </footer>
         </div>
       </div>

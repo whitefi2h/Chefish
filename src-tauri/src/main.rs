@@ -13,11 +13,21 @@ mod recipe_images;
 mod recipe_import;
 mod site_access;
 mod site_search;
+mod steward;
 mod sync_commands;
 mod sync_transfer;
 use std::sync::Mutex;
 use tauri::Manager;
 struct Database(Mutex<Option<rusqlite::Connection>>, String);
+struct AutostartMenu(tauri::menu::CheckMenuItem<tauri::Wry>);
+fn show_main_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
 #[derive(Default)]
 struct RestorePreview(Mutex<Option<backup::StagedRestore>>);
 #[tauri::command]
@@ -305,6 +315,31 @@ fn kitchen_backup_cancel(restore: tauri::State<RestorePreview>) -> db::Result<()
 }
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            show_main_window(app);
+        }))
+        .plugin(tauri_plugin_notification::init())
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .args(["--background"])
+                .build(),
+        )
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let background = window
+                    .app_handle()
+                    .state::<Database>()
+                    .0
+                    .lock()
+                    .ok()
+                    .and_then(|g| g.as_ref().and_then(|c| db::steward::settings(c).ok()))
+                    .is_some_and(|s| s.enabled || s.autostart);
+                if background {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         .setup(|app| {
             let result = (|| -> std::result::Result<_, String> {
                 let dir = app
@@ -330,9 +365,90 @@ fn main() {
             app.manage(assistant::Proposals::default());
             app.manage(ingredient_images::Jobs::default());
             app.manage(ingredient_resolver::Jobs::default());
+            app.manage(steward::Jobs::default());
+            use tauri::menu::{CheckMenuItem, Menu, MenuItem};
+            use tauri_plugin_autostart::ManagerExt;
+            let autostart = CheckMenuItem::with_id(
+                app,
+                "autostart",
+                "开机自启动",
+                true,
+                app.autolaunch().is_enabled()?,
+                None::<&str>,
+            )?;
+            app.manage(AutostartMenu(autostart.clone()));
+            let open = MenuItem::with_id(app, "open", "打开 Chefish", true, None::<&str>)?;
+            let quiet = MenuItem::with_id(app, "quiet", "切换免打扰", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "退出 Chefish", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&open, &autostart, &quiet, &quit])?;
+            tauri::tray::TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .tooltip("Chefish 厨房管家")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_tray_icon_event(|tray, event| {
+                    if matches!(
+                        event,
+                        tauri::tray::TrayIconEvent::DoubleClick {
+                            button: tauri::tray::MouseButton::Left
+                                | tauri::tray::MouseButton::Right,
+                            ..
+                        }
+                    ) {
+                        show_main_window(tray.app_handle());
+                    }
+                })
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "quit" => app.exit(0),
+                    "open" => show_main_window(app),
+                    "autostart" => {
+                        if let Err(error) = steward::toggle_autostart(app.clone()) {
+                            use tauri_plugin_notification::NotificationExt;
+                            let _ = app
+                                .notification()
+                                .builder()
+                                .title("开机自启动设置失败")
+                                .body(&error.message)
+                                .show();
+                        }
+                    }
+                    "quiet" => {
+                        let database = app.state::<Database>();
+                        if let Ok(g) = database.0.lock() {
+                            if let Some(c) = g.as_ref() {
+                                if let Ok(mut s) = db::steward::settings(c) {
+                                    s.do_not_disturb = !s.do_not_disturb;
+                                    let _ = db::steward::save_settings(c, s);
+                                }
+                            }
+                        }
+                        steward::changed(app);
+                    }
+                    _ => (),
+                })
+                .build(app)?;
+            if std::env::args().any(|a| a == "--background") {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.hide();
+                }
+            }
+            steward::start(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            steward::kitchen_steward_state,
+            steward::kitchen_steward_settings,
+            steward::kitchen_steward_mark,
+            steward::kitchen_steward_run,
+            steward::kitchen_steward_draft,
+            steward::kitchen_steward_reply,
+            steward::kitchen_steward_preview,
+            steward::kitchen_steward_confirm,
+            steward::kitchen_steward_rebase,
+            steward::kitchen_steward_undo,
+            steward::kitchen_steward_rule,
+            steward::kitchen_steward_tags,
+            steward::kitchen_steward_review_date,
             ingredient_images::kitchen_ingredient_images,
             ingredient_images::kitchen_open_image_source,
             kitchen_bootstrap,
@@ -447,11 +563,19 @@ async fn kitchen_ai_settings() -> db::Result<serde_json::Value> {
 }
 #[tauri::command]
 async fn kitchen_ai_save_settings(
+    app: tauri::AppHandle,
     settings: ai::Settings,
     key: Option<String>,
     remove: bool,
 ) -> db::Result<serde_json::Value> {
-    ai_block(move || ai::save(settings, key, remove)).await
+    let value = ai_block(move || ai::save(settings, key, remove)).await?;
+    if let Ok(guard) = app.state::<Database>().0.lock() {
+        if let Some(c) = guard.as_ref() {
+            let _=c.execute("UPDATE local_steward_runs SET status='retry',attempts=0,next_attempt=0 WHERE status='blocked'",[]);
+        }
+    }
+    steward::changed(&app);
+    Ok(value)
 }
 #[tauri::command]
 async fn kitchen_ai_test() -> db::Result<()> {
@@ -694,7 +818,10 @@ async fn kitchen_ai_organize(
 }
 
 #[tauri::command]
-fn kitchen_ai_history(database: tauri::State<Database>) -> db::Result<serde_json::Value> {
+fn kitchen_ai_history(
+    database: tauri::State<Database>,
+    conversation_id: Option<String>,
+) -> db::Result<serde_json::Value> {
     let guard = database.0.lock().map_err(|_| db::ApiError {
         code: "DATABASE_ERROR".into(),
         message: "无法读取聊天记录".into(),
@@ -703,12 +830,16 @@ fn kitchen_ai_history(database: tauri::State<Database>) -> db::Result<serde_json
         code: "DATABASE_ERROR".into(),
         message: "数据库不可用".into(),
     })?;
-    ai::history(conn)
+    match conversation_id {
+        Some(id) => ai::task_history(conn, &id),
+        None => ai::history(conn),
+    }
 }
 #[tauri::command]
 fn kitchen_ai_save_history(
     database: tauri::State<Database>,
     history: serde_json::Value,
+    conversation_id: Option<String>,
 ) -> db::Result<()> {
     let guard = database.0.lock().map_err(|_| db::ApiError {
         code: "DATABASE_ERROR".into(),
@@ -718,7 +849,10 @@ fn kitchen_ai_save_history(
         code: "DATABASE_ERROR".into(),
         message: "数据库不可用".into(),
     })?;
-    ai::save_history(conn, &history)
+    match conversation_id {
+        Some(id) => ai::save_task_history(conn, &id, &history),
+        None => ai::save_history(conn, &history),
+    }
 }
 #[tauri::command]
 async fn kitchen_ai_verify(url: String) -> db::Result<serde_json::Value> {

@@ -33,7 +33,7 @@ export function weekLabel(start: string) {
 }
 export type MealTime = (typeof MEALS)[number];
 export type Category = string;
-export type Location = "冷藏" | "冷冻" | "常温";
+export type Location = "冷藏" | "冷冻" | "常温" | "未指定";
 export interface Ingredient {
   id: string;
   name: string;
@@ -59,6 +59,7 @@ export interface RecipeMedia {
   steps: { image: string; sourceStep: number }[];
 }
 export interface Recipe {
+  steward?: import("./services/steward").StewardMetadata;
   ingredientKinds?: Record<string, boolean>;
   media?: RecipeMedia;
   textIngredients?: { name: string; amountText: string }[];
@@ -79,6 +80,7 @@ export interface Recipe {
   steps: string[];
 }
 export interface InventoryLot extends Requirement {
+  steward?: import("./services/steward").StewardMetadata;
   quantityText?: string;
   version?: number;
   id: string;
@@ -101,7 +103,7 @@ export interface InventoryEvent {
   occurredAt: string;
 }
 export interface CookingResult {
-  record?:string;
+  record?: string;
   consumptions?: { name: string; quantity: string; unit: string }[];
   id: string;
   date: string;

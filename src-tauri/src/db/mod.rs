@@ -16,9 +16,10 @@ pub mod preferences;
 pub mod replication;
 pub mod seasonings;
 pub mod shopping;
+pub mod steward;
 pub mod sync;
 pub mod undo;
-pub const CURRENT_SCHEMA: i64 = 14;
+pub const CURRENT_SCHEMA: i64 = 15;
 use inventory::InventoryDraft;
 
 #[derive(Debug, Serialize)]
@@ -113,6 +114,26 @@ pub struct RecipeDraft {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
+    SetReviewDate {
+        lot_id: String,
+        date: Option<String>,
+    },
+    SetStewardTags {
+        kind: String,
+        entity_id: String,
+        tags: Vec<String>,
+    },
+    MaintainKitchen {
+        expected_revision: String,
+        entries: Vec<steward::MaintenanceEntry>,
+    },
+    UndoMaintenance {
+        operation_id: String,
+    },
+    SaveIngredientRule {
+        expected_revision: String,
+        rule: steward::IngredientRule,
+    },
     ResolveIngredients {
         revision_id: String,
         entries: Vec<ingredient_resolution::Entry>,
@@ -554,6 +575,21 @@ fn migrate(connection: &mut Connection, path: &Path) -> Result<()> {
         tx.pragma_update(None, "user_version", 14)?;
         tx.commit()?;
     }
+    if version < 15 {
+        connection.backup(
+            "main",
+            path.with_extension(format!("pre-v15-{}.sqlite3", id())),
+            None,
+        )?;
+        let tx = connection.transaction()?;
+        tx.execute_batch(include_str!("../../migrations/0015_steward.sql"))?;
+        tx.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version) VALUES(15)",
+            [],
+        )?;
+        tx.pragma_update(None, "user_version", 15)?;
+        tx.commit()?;
+    }
     Ok(())
 }
 fn category(conn: &Connection, kind: &str, name: &str) -> Result<String> {
@@ -644,7 +680,11 @@ pub(crate) fn validate(draft: &RecipeDraft) -> Result<()> {
     }
     Ok(())
 }
-fn save_recipe(tx: &Transaction, recipe: Option<(&str, &str)>, draft: &RecipeDraft) -> Result<()> {
+fn save_recipe(
+    tx: &Transaction,
+    recipe: Option<(&str, &str)>,
+    draft: &RecipeDraft,
+) -> Result<String> {
     validate(draft)?;
     if let Some(source) = &draft.source {
         crate::recipe_import::canonical_url(&source.url)?;
@@ -802,7 +842,7 @@ fn save_recipe(tx: &Transaction, recipe: Option<(&str, &str)>, draft: &RecipeDra
         "UPDATE recipes SET current_revision_id=?1,category_id=?2 WHERE id=?3",
         params![revision, category, recipe_id],
     )?;
-    Ok(())
+    Ok(recipe_id)
 }
 pub fn execute(connection: &mut Connection, request_id: &str, command: Command) -> Result<()> {
     execute_named(connection, request_id, command, false)
@@ -846,6 +886,8 @@ fn execute_named(
         serde_json::from_str(&payload).map_err(|_| error("INVALID_INPUT", "操作类型无法解析"))?;
     let capture = sync::Capture::begin(&tx)?;
     let cosmetic = matches!(&command, Command::SetIngredientImage { .. });
+    let maintenance = matches!(&command, Command::MaintainKitchen { .. });
+    let maintenance_undo = matches!(&command, Command::UndoMaintenance { .. });
     apply(&tx, command)?;
     tx.execute(
         "INSERT INTO command_receipts(request_id,payload) VALUES(?1,?2)",
@@ -860,7 +902,11 @@ fn execute_named(
     if let Some(capture) = capture {
         capture.finish(
             request_id,
-            if background {
+            if maintenance_undo {
+                "undo"
+            } else if maintenance {
+                "maintenance"
+            } else if background {
                 "background_image"
             } else {
                 &command_type.kind
@@ -882,7 +928,62 @@ fn execute_named(
     Ok(())
 }
 fn apply(tx: &Transaction, command: Command) -> Result<()> {
+    let reset_estimates = match &command {
+        Command::ChangeLot {
+            lot_id, operation, ..
+        } if operation == "move" => Some((lot_id.clone(), true)),
+        Command::SetLotExpiry { lot_id, .. } => Some((lot_id.clone(), false)),
+        Command::EditLot { lot_id, draft, .. } => {
+            let before: (String,String,Option<String>)=tx.query_row("SELECT s.name,l.received_on,l.expires_on FROM inventory_lots l JOIN storage_locations s ON s.id=l.location_id WHERE l.id=?1",[lot_id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?;
+            if before.0 != draft.location || before.1 != draft.received || before.2 != draft.expires
+            {
+                Some((lot_id.clone(), before.0 != draft.location))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    };
+    let original_lot = if let Command::ReceiveLot { draft } = &command {
+        Some(draft.clone())
+    } else {
+        None
+    };
+    let original_recipe = match &command {
+        Command::CreateRecipe { draft } | Command::ReviseRecipe { draft, .. } => {
+            Some(draft.clone())
+        }
+        _ => None,
+    };
     match ingredient_standard::command(command)? {
+        Command::SetReviewDate { lot_id, date } => {
+            tx.query_row(
+                "SELECT id FROM inventory_lots WHERE id=?1",
+                [&lot_id],
+                |r| r.get::<_, String>(0),
+            )?;
+            if date.as_ref().is_some_and(|d| !valid_date(d)) {
+                return Err(error("INVALID_INPUT", "预计复查日期无效"));
+            }
+            let mut meta = steward::metadata(tx, "lot", &lot_id)?;
+            meta["reviewOn"] = json!(date);
+            meta["reviewOrigin"] = json!("user");
+            tx.execute("INSERT INTO app_settings(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![format!("steward_meta:lot:{lot_id}"),meta.to_string()])?;
+        }
+        Command::SetStewardTags {
+            kind,
+            entity_id,
+            tags,
+        } => steward::save_tags(tx, &kind, &entity_id, tags)?,
+        Command::MaintainKitchen {
+            expected_revision,
+            entries,
+        } => steward::maintain(tx, &expected_revision, entries)?,
+        Command::UndoMaintenance { operation_id } => steward::undo(tx, &operation_id)?,
+        Command::SaveIngredientRule {
+            expected_revision,
+            rule,
+        } => steward::save_rule(tx, &expected_revision, rule)?,
         Command::ResolveIngredients {
             revision_id,
             entries,
@@ -929,9 +1030,15 @@ fn apply(tx: &Transaction, command: Command) -> Result<()> {
             }
             if commands.is_empty()
                 || commands.len() > 50
-                || commands
-                    .iter()
-                    .any(|c| matches!(c, Command::Batch { .. } | Command::Undo { .. }))
+                || commands.iter().any(|c| {
+                    matches!(
+                        c,
+                        Command::Batch { .. }
+                            | Command::Undo { .. }
+                            | Command::UndoMaintenance { .. }
+                            | Command::MaintainKitchen { .. }
+                    )
+                })
             {
                 return Err(error("INVALID_INPUT", "操作数量须为1–50项，不能嵌套"));
             }
@@ -1090,7 +1197,13 @@ fn apply(tx: &Transaction, command: Command) -> Result<()> {
                 params![rows[index].1, adjacent.0],
             )?;
         }
-        Command::ReceiveLot { draft } => inventory::receive(&tx, draft)?,
+        Command::ReceiveLot { draft } => {
+            let key = inventory::receive_batch(tx, draft, "手动购买")?;
+            if let Some(raw) = original_lot {
+                let estimated = ingredient_standard::amount(&raw.name, &raw.quantity, &raw.unit)?.3;
+                tx.execute("INSERT INTO app_settings(key,value) VALUES(?1,?2)",params![format!("steward_meta:lot:{key}"),json!({"sourceName":raw.name,"sourceQuantity":raw.quantity,"sourceUnit":raw.unit,"quantityOrigin":if estimated{"estimate"}else{"user"},"quantityBasis":if estimated{"按常见包装规格估算，可按实际净重修正"}else{"用户录入"}}).to_string()])?;
+            }
+        }
         Command::EditLot {
             lot_id,
             expected_version,
@@ -1135,12 +1248,22 @@ fn apply(tx: &Transaction, command: Command) -> Result<()> {
         Command::ReverseInventoryEvent { event_id, reason } => {
             inventory::reverse(&tx, &event_id, &reason)?
         }
-        Command::CreateRecipe { draft } => save_recipe(&tx, None, &draft)?,
+        Command::CreateRecipe { draft } => {
+            let key = save_recipe(&tx, None, &draft)?;
+            if let Some(raw) = original_recipe {
+                steward::recipe_source(tx, &key, &raw)?;
+            }
+        }
         Command::ReviseRecipe {
             recipe_id,
             expected_revision_id,
             draft,
-        } => save_recipe(&tx, Some((&recipe_id, &expected_revision_id)), &draft)?,
+        } => {
+            let key = save_recipe(&tx, Some((&recipe_id, &expected_revision_id)), &draft)?;
+            if let Some(raw) = original_recipe {
+                steward::recipe_source(tx, &key, &raw)?;
+            }
+        }
         Command::ArchiveRecipe { recipe_id } | Command::DeleteRecipe { recipe_id } => {
             current(&tx, &recipe_id)?;
             tx.execute("UPDATE recipes SET archived=1 WHERE id=?1", [recipe_id])?;
@@ -1261,6 +1384,26 @@ fn apply(tx: &Transaction, command: Command) -> Result<()> {
             {
                 return Err(error("NOT_FOUND", "要归类的内容不存在"));
             }
+            let mut meta = steward::metadata(tx, &kind, &entity_id)?;
+            meta["categoryOrigin"] = json!("user");
+            tx.execute("INSERT INTO app_settings(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![format!("steward_meta:{kind}:{entity_id}"),meta.to_string()])?;
+        }
+    }
+    if let Some((lot, location_changed)) = reset_estimates {
+        let mut meta = steward::metadata(tx, "lot", &lot)?;
+        if let Some(fields) = meta.as_object_mut() {
+            if fields.get("reviewOrigin") != Some(&json!("user")) {
+                fields.remove("reviewOn");
+            }
+            if location_changed {
+                fields.remove("suggestedLocation");
+            }
+        }
+        if meta != json!({}) {
+            tx.execute(
+                "UPDATE app_settings SET value=?1 WHERE key=?2",
+                params![meta.to_string(), format!("steward_meta:lot:{lot}")],
+            )?;
         }
     }
     Ok(())
@@ -1328,6 +1471,13 @@ fn snapshot_inner(conn: &Connection) -> Result<Value> {
     result["archivedRecipes"] = json!(archived);
     result["seasonings"] = seasonings::supplies(conn)?;
     result["preferences"] = json!(preferences::load(conn)?);
+    for (kind, key) in [("ingredient", "ingredients")] {
+        if let Some(rows) = result[key].as_array_mut() {
+            for row in rows {
+                row["steward"] = steward::metadata(conn, kind, row["id"].as_str().unwrap())?;
+            }
+        }
+    }
     Ok(result)
 }
 
@@ -1425,6 +1575,7 @@ fn recipe_snapshot(conn: &Connection, rev: &str) -> Result<Value> {
     recipe["ingredientKinds"] = json!(kinds);
     recipe["steps"] = json!(bodies);
     recipe["stepTitles"] = json!(titles);
+    recipe["steward"] = steward::metadata(conn, "recipe", recipe["id"].as_str().unwrap())?;
     Ok(recipe)
 }
 

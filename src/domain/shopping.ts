@@ -15,6 +15,8 @@ export interface ShoppingLine {
   unreceived: string;
   remaining: string;
   review: boolean;
+  estimated?: boolean;
+  estimates?: string[];
   hidden: boolean;
   surplus: boolean;
   sources: string[];

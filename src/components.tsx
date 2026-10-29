@@ -46,6 +46,8 @@ export function Modal({
   drawer = false,
   className = "",
   dismissOnEscape = false,
+  headerActions,
+  headerLeading,
 }: {
   title: string;
   children: ReactNode;
@@ -53,6 +55,8 @@ export function Modal({
   drawer?: boolean;
   className?: string;
   dismissOnEscape?: boolean;
+  headerActions?: ReactNode;
+  headerLeading?: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -63,12 +67,18 @@ export function Modal({
     const overflow = root.style.overflow;
     root.style.overflow = "hidden";
     el.showModal();
+    if (drawer) {
+      // Keep the page's stable gutter; extend only the overlay to the viewport edge.
+      const gap = window.innerWidth - el.getBoundingClientRect().right;
+      el.style.right = `${-gap}px`;
+    }
     return () => {
       el.close();
       root.style.overflow = overflow;
+      el.style.right = "";
       previous?.focus({ preventScroll: true });
     };
-  }, []);
+  }, [drawer]);
   return (
     <dialog
       ref={ref}
@@ -105,7 +115,9 @@ export function Modal({
       }}
     >
       <header className="dialog-head">
+        {headerLeading}
         <h2 id={titleId}>{title}</h2>
+        {headerActions}
         <button type="button" aria-label="关闭面板" onClick={onClose}>
           <X size={19} />
         </button>

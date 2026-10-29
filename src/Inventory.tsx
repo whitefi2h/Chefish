@@ -217,7 +217,7 @@ export function ItemForm({
                   value={location}
                   onChange={(e) => setLocation(e.target.value as Location)}
                 >
-                  {["冷藏", "冷冻", "常温"].map((l) => (
+                  {["冷藏", "冷冻", "常温", "未指定"].map((l) => (
                     <option key={l}>{l}</option>
                   ))}
                 </select>
@@ -395,7 +395,7 @@ function LotEditor({
               value={location}
               onChange={(e) => setLocation(e.target.value as Location)}
             >
-              {["冷藏", "冷冻", "常温"].map((l) => (
+              {["冷藏", "冷冻", "常温", "未指定"].map((l) => (
                 <option key={l}>{l}</option>
               ))}
             </select>
@@ -772,7 +772,7 @@ function LotLocation({ lot, name }: { lot: InventoryLot; name: string }) {
         );
       }}
     >
-      {["冷藏", "冷冻", "常温"].map((location) => (
+      {["冷藏", "冷冻", "常温", "未指定"].map((location) => (
         <option key={location}>{location}</option>
       ))}
     </select>
@@ -1029,7 +1029,7 @@ export default function Inventory({
             <div className="inventory-filter-tags">
               <FilterTags
                 label="位置"
-                options={["冷藏", "冷冻", "常温"]}
+                options={["冷藏", "冷冻", "常温", "未指定"]}
                 selected={locations}
                 onChange={setLocations}
               />
@@ -1104,7 +1104,15 @@ export default function Inventory({
                           }
                         />
                       </td>
-                      <td className="inventory-expiry">{l.expires ?? "—"}</td>
+                      <td className="inventory-expiry" title={l.steward?.basis}>
+                        {l.expires ??
+                          (l.steward?.reviewOn
+                            ? `预计复查 ${l.steward.reviewOn}`
+                            : "—")}
+                        {l.steward?.suggestedLocation === l.location && (
+                          <small> · 库位为推测</small>
+                        )}
+                      </td>
                       <td>
                         {l.quantity === 0 ? (
                           <Badge>已用完</Badge>

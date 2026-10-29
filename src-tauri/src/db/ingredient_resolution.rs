@@ -88,7 +88,7 @@ pub fn save(tx: &Transaction, rev: &str, entries: Vec<Entry>) -> Result<()> {
         let mut mismatch = false;
         for lot in inventory::lots(tx)? {
             if ingredient_standard::matches(tx, lot["ingredientId"].as_str().unwrap(), &ingredient)?
-                && ingredient_standard::factor(&name, lot["unit"].as_str().unwrap(), &unit)
+                && ingredient_standard::factor_in(tx, &name, lot["unit"].as_str().unwrap(), &unit)
                     .is_none()
             {
                 mismatch = true;
@@ -147,7 +147,8 @@ pub fn pending(conn: &Connection) -> Result<Option<Value>> {
             stock.iter().any(|l| {
                 ingredient_standard::name(l["name"].as_str().unwrap())
                     == ingredient_standard::name(r["name"].as_str().unwrap())
-                    && ingredient_standard::factor(
+                    && ingredient_standard::factor_in(
+                        conn,
                         r["name"].as_str().unwrap(),
                         l["unit"].as_str().unwrap(),
                         r["unit"].as_str().unwrap(),

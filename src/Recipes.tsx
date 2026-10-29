@@ -105,6 +105,11 @@ export function RecipeCard({
               {recipe.name}
             </button>
             <p>{recipe.subtitle}</p>
+            {!!recipe.steward?.tags?.length && (
+              <small title={recipe.steward.basis}>
+                {recipe.steward.tags.join(" · ")}
+              </small>
+            )}
           </div>
           <InspirationButton recipe={recipe} />
         </div>

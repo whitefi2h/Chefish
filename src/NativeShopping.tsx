@@ -408,6 +408,12 @@ export default function NativeShopping() {
                       <strong title={i.name}>{i.name}</strong>
 
                       {i.hidden && <Badge>已忽略</Badge>}
+                      {i.estimated && (
+                        <span title={i.estimates?.join("；")}>
+                          <Badge>含估算</Badge>
+                        </span>
+                      )}
+                      {i.review && <Badge>待核对</Badge>}
                     </div>
                     <small>
                       {i.source === "plan"

@@ -108,7 +108,7 @@ pub fn canonical_id(conn: &Connection, id: &str) -> Result<String> {
     Ok(find(conn, &raw)?.unwrap_or_else(|| id.into()))
 }
 pub fn find(conn: &Connection, raw: &str) -> Result<Option<String>> {
-    let canonical = name(raw);
+    let canonical = name_in(conn, raw)?;
     let mut rows=conn.prepare("SELECT i.id,i.name FROM ingredients i ORDER BY EXISTS(SELECT 1 FROM inventory_lots l WHERE l.ingredient_id=i.id) DESC,i.name=?1 DESC,i.rowid")?;
     let entries = rows
         .query_map([&canonical], |r| {
@@ -117,7 +117,7 @@ pub fn find(conn: &Connection, raw: &str) -> Result<Option<String>> {
         .collect::<std::result::Result<Vec<_>, _>>()?;
     Ok(entries
         .into_iter()
-        .find(|(_, n)| name(n) == canonical)
+        .find(|(_, n)| name_in(conn, n).is_ok_and(|n| n == canonical))
         .map(|(id, _)| id))
 }
 pub fn matches(conn: &Connection, left: &str, right: &str) -> Result<bool> {
@@ -129,7 +129,83 @@ pub fn matches(conn: &Connection, left: &str, right: &str) -> Result<bool> {
             r.get::<_, String>(0)
         })
     };
-    Ok(name(&get(left)?) == name(&get(right)?))
+    Ok(name_in(conn, &get(left)?)? == name_in(conn, &get(right)?)?)
+}
+pub fn name_in(conn: &Connection, raw: &str) -> Result<String> {
+    let canonical = name(raw);
+    let rule: Option<String> = conn
+        .query_row(
+            "SELECT value FROM app_settings WHERE key=?1",
+            [format!("ingredient_rule:{}:name", raw.trim())],
+            |r| r.get(0),
+        )
+        .optional()?;
+    Ok(rule
+        .and_then(|s| serde_json::from_str::<super::steward::IngredientRule>(&s).ok())
+        .map(|r| name(&r.canonical))
+        .unwrap_or(canonical))
+}
+pub fn base_in(
+    conn: &Connection,
+    raw: &str,
+    quantity: &str,
+    unit: &str,
+) -> Result<(String, String, String, bool)> {
+    let canonical = name_in(conn, raw)?;
+    let rule: Option<String> = conn
+        .query_row(
+            "SELECT value FROM app_settings WHERE key=?1",
+            [format!("ingredient_rule:{}:{}", raw.trim(), unit)],
+            |r| r.get(0),
+        )
+        .optional()?;
+    if let Some(rule) =
+        rule.and_then(|v| serde_json::from_str::<super::steward::IngredientRule>(&v).ok())
+    {
+        if let (Some(to), Some(f)) = (
+            rule.to_unit,
+            rule.factor.and_then(|s| Decimal::from_str(&s).ok()),
+        ) {
+            let n = Decimal::from_str(quantity)
+                .map_err(|_| error("INVALID_QUANTITY", "数量格式无效"))?;
+            let (_, n, u, _) = base(&canonical, &(n * f).normalize().to_string(), &to)?;
+            return Ok((canonical, n, u, false));
+        }
+    }
+    let (_, n, u, estimated) = base(raw, quantity, unit)?;
+    Ok((canonical, n, u, estimated))
+}
+pub fn factor_in(conn: &Connection, raw: &str, from: &str, to: &str) -> Option<Decimal> {
+    if from == to {
+        return Some(Decimal::ONE);
+    }
+    let canonical = name_in(conn, raw).ok()?;
+    let rules = conn
+        .prepare("SELECT value FROM app_settings WHERE key GLOB 'ingredient_rule:*'")
+        .ok()?
+        .query_map([], |r| r.get::<_, String>(0))
+        .ok()?
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .ok()?;
+    for encoded in rules {
+        let Ok(rule) = serde_json::from_str::<super::steward::IngredientRule>(&encoded) else {
+            continue;
+        };
+        // Package conversions apply to the named product, never a whole ingredient family.
+        if rule.alias != raw.trim() {
+            continue;
+        }
+        let Some(f) = rule.factor.and_then(|s| Decimal::from_str(&s).ok()) else {
+            continue;
+        };
+        if rule.from_unit.as_deref() == Some(from) && rule.to_unit.as_deref() == Some(to) {
+            return Some(f);
+        }
+        if rule.from_unit.as_deref() == Some(to) && rule.to_unit.as_deref() == Some(from) {
+            return Some(Decimal::ONE / f);
+        }
+    }
+    factor(&canonical, from, to)
 }
 pub fn recipe(mut d: RecipeDraft) -> Result<RecipeDraft> {
     for item in &mut d.ingredients {

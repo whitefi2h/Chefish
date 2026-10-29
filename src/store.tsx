@@ -148,8 +148,7 @@ export function DemoProvider({
     if (!nativeMode || client !== kitchenClient || !ready) return;
     let alive = true;
     let stop: (() => void) | undefined;
-    let stopImages: (() => void) | undefined;
-    let stopResolver: (() => void) | undefined;
+    let stopSteward: (() => void) | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const refresh = () => {
       if (!alive) return;
@@ -174,24 +173,20 @@ export function DemoProvider({
         });
     };
     window.addEventListener("chefish:sync-data", refresh);
+    void import("./services/steward")
+      .then(({ startStewardEvents }) => startStewardEvents())
+      .then((unlisten) => {
+        if (alive) stopSteward = unlisten;
+        else unlisten();
+      })
+      .catch(() => {});
     void import("./services/syncRuntime").then(({ syncRuntime }) => {
       if (alive) stop = syncRuntime.start();
     });
-    void import("./services/ingredientImages").then(
-      ({ startIngredientImages }) => {
-        if (alive) stopImages = startIngredientImages();
-      },
-    );
-    void import("./services/ingredientResolver").then(
-      ({ startIngredientResolver }) => {
-        if (alive) stopResolver = startIngredientResolver();
-      },
-    );
     return () => {
       alive = false;
       stop?.();
-      stopImages?.();
-      stopResolver?.();
+      stopSteward?.();
       clearTimeout(timer);
       window.removeEventListener("chefish:sync-data", refresh);
     };
