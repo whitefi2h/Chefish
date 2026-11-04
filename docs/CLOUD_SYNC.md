@@ -4,7 +4,11 @@
 
 ## V2 兼容性
 
-v2.2.0 数据库为 schema 18，同步设备应使用兼容的同版本客户端。源码中的云端规则已支持 schema 18；此前本地模拟器检查与生产部署分别记录，生产规则仍待更新。v2.0.0 发布时曾因 Firebase CLI 凭据过期未完成生产规则部署，本次 GitHub 发布也不包含 Firebase 部署，不能把本地模拟器通过视为生产云同步已就绪。
+v2.2.0 数据库为 schema 18，同步设备应使用兼容的同版本客户端。生产规则已于 2026-11-04 从 schema 14 上限更新至 18；回读确认与仓库规则一致，只改变备份与同步操作的结构版本上限，账户归属、邮箱验证及不可变记录限制保持原样。
+
+随后使用临时账户、两份隔离原生 SQLite 数据库和合成图片，通过真实 Auth/Firestore 完成备份恢复、双向同步、未验证邮箱拒绝、跨账户与退出后访问拒绝检查。临时账户和文档均已清理，没有读取或修改个人厨房。证据见 [schema 18 部署记录](cloud-schema18-deployment-validation.json)。这不等于两台实体电脑长期运行、真实邮箱收信或个人账户桌面登录已经验收。
+
+此前 CLI 报认证失败，实际原因是未继承 Windows 系统代理，访问 Google OAuth 超时。本次只为部署与测试进程设置代理后，现有凭据正常使用，无需重新登录。未更改系统代理、计费、索引或客户端安装包；已经安装 v2.2.0 的用户无需重新下载。
 
 ## 使用
 
@@ -70,6 +74,8 @@ SQLite schema 13 新增账户连接和已应用操作回执，升级前保存 `p
 npm run tauri build -- --bundles nsis
 ```
 
+Windows 使用系统代理时，Firebase CLI 可能不会自动继承代理。可在当前 PowerShell 为单次任务设置 `HTTPS_PROXY`、`HTTP_PROXY` 后再部署；本次只发布规则，命令为 `deploy --only firestore:rules --project chefish-kitchen --non-interactive`。不要仅凭 OAuth 超时后的“重新登录”提示判断凭据过期。
+
 认证使用普通 Email/Password 与邮箱验证；无需升级 Identity Platform。CSP 只允许必要的 Google API 主机。
 
 ## 验证
@@ -84,6 +90,8 @@ npm run test:ui
 `test:sync:emulator` 先构建原生测试程序，再启动 demo 项目模拟器。测试桥只创建自己的临时 SQLite，不能接收任意数据库路径，不包含在发行程序中。双库联测覆盖含图片初始备份、原生恢复、并发离线操作、重启、云端提交但确认丢失、同一批次冲突及明确选择云端后的收敛。Rust 测试另覆盖采购、烹饪与撤销完整操作组、私有字段拒绝、偏好隔离和恢复前备份。界面测试使用服务替身，不能替代真实云传输。
 
 真实云端检查需显式设置 `CHEFISH_LIVE_CLOUD_TEST=1` 与 `CHEFISH_NATIVE_SYNC_TEST=1`，运行 `npx vitest run tests/firebase-live.test.ts`。测试只允许 `chefish-kitchen`，使用生成的临时邮箱账户、两份隔离原生数据库和合成图片，经过真实 Auth/Firestore 完成初始备份与双向操作传输，并精确清理生成的账户和文档。无需发送邮件；仅合成身份通过管理 API 标记邮箱已验证。普通测试默认跳过真实云检查。
+
+Node.js 24 的真实云检查可设置 `NODE_USE_ENV_PROXY=1` 让 Auth 的 fetch 使用进程代理，并将 `grpc_proxy` 设为同一地址供 Firestore 的 Node 传输使用。代理地址使用本机实际配置，不写入项目或系统设置。当前测试同时断言快照与同步操作均为 schema 18。
 
 最新证据与边界见 [同步验证记录](sync-validation.json)。真实邮箱收信、Windows WebView2 内个人账户登录、两台实体电脑和长时间运行仍未作为自动测试完成；没有上传用户现有厨房。
 

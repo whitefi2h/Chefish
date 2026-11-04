@@ -36,13 +36,16 @@
   },
   "cloudDeployment": {
     "projectId": "chefish-kitchen",
-    "status": "pending_production_rules_deployment",
-    "deployedThisRun": false,
-    "productionSyncAccepted": false
+    "status": "deployed_and_synthetic_live_verified",
+    "deployedDuringOriginalReleaseRun": false,
+    "followupDeploymentDate": "2026-11-04",
+    "productionTransportVerified": true,
+    "verificationScope": "Synthetic accounts, schema 18 backups and operations, two isolated native SQLite replicas; no personal kitchen access",
+    "evidence": "cloud-schema18-deployment-validation.json"
   },
-  "notValidatedThisReleaseRun": [
+  "remainingValidation": [
     "Installed upgrade and uninstall with user data",
-    "Production cloud synchronization under schema 18",
-    "Live provider, real account registration and long-duration multi-computer operation"
+    "Personal email delivery and personal WebView2 account login",
+    "Live model provider and long-duration physical multi-computer operation"
   ]
 }

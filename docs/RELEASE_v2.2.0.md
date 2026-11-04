@@ -18,6 +18,6 @@
 
 升级前可在「我的厨房 → 数据与备份」保存一份本地备份。本版数据库结构升级至 schema 18。
 
-**云端状态**：源码中的兼容规则已更新并通过本地模拟器检查，但生产 Firebase 规则尚待部署。本版云同步暂不能视为已就绪，本地功能可独立使用。
+**云端状态（2026-11-04 补充）**：生产 Firebase 的 schema 18 兼容规则已部署，并通过临时账户与两份原生数据库的真实备份恢复、双向同步及账户隔离检查。测试数据已清理，个人厨房未改动。已经安装 v2.2.0 的用户无需重新下载；同步设备应使用兼容的同版本客户端。详见[部署与验证记录](https://github.com/whitefi2h/Chefish/blob/main/docs/cloud-schema18-deployment-validation.json)。
 
-本次已完成 TypeScript、ESLint、前端与 Rust 测试、浏览器交互回归及 Windows EXE／NSIS 构建。具体范围见仓库中的 `docs/release-v2.2.0.json`；本次未做生产云端部署或覆盖安装验收。
+本次已完成 TypeScript、ESLint、前端与 Rust 测试、浏览器交互回归及 Windows EXE／NSIS 构建。具体范围见[发布检查](https://github.com/whitefi2h/Chefish/blob/main/docs/release-v2.2.0.json)。覆盖安装、个人账户桌面登录及两台实体电脑长期使用仍需专项检查。

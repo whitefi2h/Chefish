@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-04T07:15:02.458Z",
+  "projectId": "chefish-kitchen",
+  "schemaVersion": 18,
+  "previousRuleset": "projects/chefish-kitchen/rulesets/2e8faf05-735b-45a9-82a1-036dfe39b146",
+  "previousSchemaCeiling": 14,
+  "rules": {
+    "release": "projects/chefish-kitchen/releases/cloud.firestore",
+    "ruleset": "projects/chefish-kitchen/rulesets/5ce09d6a-8e21-4cbb-855c-a95f9d1fe25c",
+    "updateTime": "2026-11-04T07:11:41.268811Z",
+    "matchesLocal": true,
+    "schemaCeilings": [
+      18,
+      18
+    ],
+    "changedScope": "Backup and sync operation schema ceilings only: 14 to 18; owner and verified-email checks unchanged"
+  },
+  "liveFirebase": {
+    "passed": 1,
+    "nativeSQLiteReplicas": 2,
+    "schema18BackupAndOperations": true,
+    "baselineBackupAndRestore": true,
+    "recipeCoverAndStepImages": true,
+    "bidirectionalOperations": true,
+    "verifiedEmailRequired": true,
+    "crossAccountAndSignedOutAccessDenied": true,
+    "temporaryAccountsAndDocumentsCleaned": true,
+    "emailSent": false
+  },
+  "connection": {
+    "cause": "Firebase CLI did not inherit the Windows system proxy; existing credentials worked with process-only proxy configuration",
+    "systemSettingsChanged": false,
+    "reauthenticationRequired": false
+  },
+  "productionKitchenDataReadOrWritten": false,
+  "deploymentScope": "firestore:rules only; no index, billing, Auth policy or client binary changes",
+  "notValidated": [
+    "Personal email delivery and WebView2 account login",
+    "Two physical computers and long-duration operation",
+    "Full 512 MiB transfer"
+  ]
+}

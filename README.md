@@ -82,7 +82,7 @@ v2.2.0 更新了整体界面，加入可跳过的个性化初始化、四类菜�
 
 手动管理菜谱、库存和菜单不需要配置 AI。使用厨房助手时，相关对话和厨房信息会发送到你选择的模型服务；API 密钥保存在 Windows 凭据管理器。菜谱、库存和聊天记录保存在本机。
 
-应用提供可选账户、云备份与多设备同步。菜谱、图片、库存和正式菜单可以同步，聊天、管家任务与未确认草稿留在本机。**v2.2.0 使用 schema 18，生产云端兼容规则尚待部署，暂不能把本版云同步视为已就绪。** 云端状态、首次连接和冲突处理见[同步说明](docs/CLOUD_SYNC.md)。本地功能可独立使用。
+应用提供可选账户、云备份与多设备同步。菜谱、图片、库存和正式菜单可以同步，聊天、管家任务与未确认草稿留在本机。v2.2.0 使用 schema 18，生产云端兼容规则已于 2026-11-04 部署，并通过隔离账户与两份原生数据库的真实云传输检查。云端状态、首次连接和冲突处理见[同步说明](docs/CLOUD_SYNC.md)。本地功能可独立使用。
 
 想了解后续计划，可以看 [路线图](docs/ROADMAP.md)。
 
@@ -158,7 +158,7 @@ Download the [Windows x64 installer](https://github.com/whitefi2h/Chefish/releas
 
 Manual recipe, pantry and planning features work without AI. When using the assistant, relevant conversation and kitchen data are sent to your selected provider. API keys are stored in Windows Credential Manager; kitchen data and chat history stay on your computer.
 
-Optional accounts, cloud backups and multi-device sync are included. Chats, steward tasks and pending drafts stay local. **Version 2.2.0 uses schema 18; the production cloud compatibility rules are still awaiting deployment. Cloud sync should not yet be treated as ready for this release.** See the [sync documentation](docs/CLOUD_SYNC.md) for status and setup. Local features work independently.
+Optional accounts, cloud backups and multi-device sync are included. Chats, steward tasks and pending drafts stay local. Version 2.2.0 uses schema 18. Production compatibility rules were deployed on November 4, 2026, and verified against real Firebase services using isolated accounts and two native databases. See the [sync documentation](docs/CLOUD_SYNC.md) for status and setup. Local features work independently.
 
 ### Build from source
 

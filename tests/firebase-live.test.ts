@@ -84,7 +84,7 @@ it.skipIf(process.env.CHEFISH_LIVE_CLOUD_TEST !== "1")(
     const manifest: CloudManifest = {
       id: randomUUID(),
       formatVersion: 1,
-      schemaVersion: 13,
+      schemaVersion: 18,
       createdAt: Math.floor(Date.now() / 1000),
       sizeBytes: raw.length,
       sha256: hash(raw),
@@ -208,6 +208,7 @@ it.skipIf(process.env.CHEFISH_LIVE_CLOUD_TEST !== "1")(
           const an = a.bridge(),
             bn = b.bridge();
           const seed = await an.prepareBaseline(first.uid, email, false);
+          expect(seed.manifest.schemaVersion).toBe(18);
           documents.push(
             `users/${first.uid}/backups/${seed.manifest.id}`,
             ...seed.manifest.chunks.map(
@@ -246,6 +247,7 @@ it.skipIf(process.env.CHEFISH_LIVE_CLOUD_TEST !== "1")(
               },
             });
             const operation = (await replica.bridge().outgoing(first.uid))!;
+            expect(operation.schemaVersion).toBe(18);
             documents.push(
               `users/${first.uid}/sync_operations/${operation.id}`,
               ...operation.chunks.map(
