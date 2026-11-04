@@ -191,7 +191,15 @@ test("conversation searches, selects second by stable ID and saves only after ed
     ),
   ).toBe(0);
   await page.getByRole("button", { name: "编辑后导入" }).click();
-  await expect(page.getByLabel("菜谱分类")).toHaveValue("家常菜");
+  await page
+    .locator(".tag-picker")
+    .getByRole("button", { name: "修改标签" })
+    .click();
+  await expect(
+    page
+      .locator(".tag-picker")
+      .getByRole("button", { name: "家常菜", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByLabel("食材1用量")).toHaveValue("4 个");
   await expect(page.getByLabel("食材2用量")).toHaveValue("3小勺");
   await expect(page.getByLabel("步骤2做法")).toHaveValue("炒熟装盘。");

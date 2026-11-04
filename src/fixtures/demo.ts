@@ -132,6 +132,7 @@ export function initialState(): DemoState {
     today: DEMO_TODAY,
     recipes: structuredClone(recipes),
     inspiration: recipes.map((r) => r.id),
+    inspirationWeeks: { "2026-10-12": recipes.map((r) => r.id) },
     recipeCategories: ["家常菜", "西式料理", "轻食沙拉", "早餐"],
     ingredientCategories: ["肉禽蛋", "蔬菜菌菇", "主食调味"],
     ingredients: [

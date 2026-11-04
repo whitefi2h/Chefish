@@ -15,6 +15,11 @@ reference/
 review/
 docs/screenshots/
 docs/fixtures/
+# Custom-license artwork is a local development cache, not a redistributable asset pack.
+/resources/ingredient-icons/local/
+/docs/ingredient-icon-review.html
+/public/ingredient-icons/
+/src/generated/ingredientAvatars.json
 src-tauri/gen/
 
 # Personal kitchen data and credentials must never be published
@@ -39,3 +44,4 @@ src-tauri/gen/
 Thumbs.db
 .idea/
 .vscode/
+/docs/ui-round2-font-review.html

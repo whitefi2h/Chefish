@@ -89,7 +89,7 @@ fn steward_business_metadata_and_undo_replicate_without_private_messages() {
         entity_id: lot["entityId"].as_str().unwrap().into(),
         signature: lot["signature"].as_str().unwrap().into(),
         category: None,
-        tags: vec!["蛋类".into()],
+        tag_ids: vec![],
         review_on: Some("2026-11-01".into()),
         suggested_location: None,
         basis: "合成库存预计复查".into(),
@@ -819,4 +819,79 @@ fn ai_amount_resolution_and_cooking_record_replay_without_changing_source_recipe
         "蔬菜用了少许，未记录入库"
     );
     assert_eq!(cooking::session(&b, plan).unwrap()["note"], "味道很好");
+}
+
+#[test]
+fn recipe_tag_definitions_links_merge_and_undo_replicate() {
+    let (_a, mut a, _b, mut b) = pair();
+    let (recipe, _) = super::super::tests::create(&mut a);
+    transfer(&mut a, &mut b);
+    let revision = |c: &Connection| {
+        super::super::snapshot(c).unwrap()["dataRevision"]
+            .as_str()
+            .unwrap()
+            .to_string()
+    };
+    let mut tag = super::super::recipe_tags::definitions(&a)
+        .unwrap()
+        .into_iter()
+        .find(|t| t.id == "cuisine.sichuan")
+        .unwrap();
+    tag.enabled = true;
+    tag.label = "四川风味".into();
+    let rev = revision(&a);
+    execute(
+        &mut a,
+        json!({"type":"save_recipe_tag_definitions","expected_revision":rev,"entries":[tag]}),
+    );
+    transfer(&mut a, &mut b);
+    let rev = revision(&a);
+    execute(
+        &mut a,
+        json!({"type":"set_recipe_tags","expected_revision":rev,"recipe_id":recipe,"tag_ids":["cuisine.sichuan","trait.home"]}),
+    );
+    transfer(&mut a, &mut b);
+    let request = Uuid::new_v4().to_string();
+    let rev = revision(&a);
+    super::super::execute(
+        &mut a,
+        &request,
+        super::super::Command::MergeRecipeTags {
+            expected_revision: rev,
+            source_id: "cuisine.sichuan".into(),
+            target_id: "cuisine.chinese".into(),
+        },
+    )
+    .unwrap();
+    transfer(&mut a, &mut b);
+    assert!(super::super::recipe_tags::assignment(&b, &recipe)
+        .unwrap()
+        .tag_ids
+        .contains(&"cuisine.chinese".into()));
+    super::super::execute(
+        &mut a,
+        &Uuid::new_v4().to_string(),
+        super::super::Command::Undo {
+            operation_id: request,
+        },
+    )
+    .unwrap();
+    transfer(&mut a, &mut b);
+    let a_tags = super::super::recipe_tags::assignment(&a, &recipe).unwrap();
+    let b_tags = super::super::recipe_tags::assignment(&b, &recipe).unwrap();
+    assert_eq!(a_tags.tag_ids, b_tags.tag_ids);
+    assert!(b_tags.tag_ids.contains(&"cuisine.sichuan".into()));
+    assert_eq!(
+        super::super::snapshot(&a).unwrap()["recipeTags"],
+        super::super::snapshot(&b).unwrap()["recipeTags"]
+    );
+    execute(
+        &mut a,
+        json!({"type":"inspiration","recipe_id":recipe,"enabled":true,"week_start":"2026-11-02"}),
+    );
+    transfer(&mut a, &mut b);
+    assert_eq!(
+        super::super::snapshot(&b).unwrap()["inspirationWeeks"]["2026-11-02"],
+        json!([recipe])
+    );
 }

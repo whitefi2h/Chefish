@@ -12,6 +12,9 @@ pub struct Preferences {
     pub start_page: String,
     pub send_shortcut: String,
     pub automatic_backup: bool,
+    pub show_breakfast: bool,
+    pub show_lunch: bool,
+    pub show_dinner: bool,
 }
 
 impl Default for Preferences {
@@ -24,6 +27,9 @@ impl Default for Preferences {
             start_page: "planner".into(),
             send_shortcut: "enter".into(),
             automatic_backup: true,
+            show_breakfast: false,
+            show_lunch: true,
+            show_dinner: true,
         }
     }
 }
@@ -108,6 +114,9 @@ mod tests {
             restrictions: "不吃花生".into(),
             equipment: "只有电磁炉".into(),
             automatic_backup: false,
+            show_breakfast: true,
+            show_lunch: false,
+            show_dinner: false,
             ..Preferences::default()
         };
         save(&mut conn, expected.clone()).unwrap();

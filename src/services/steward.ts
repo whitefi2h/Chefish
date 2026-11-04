@@ -1,3 +1,4 @@
+import type { AssistantProposal } from "./aiClient";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useSyncExternalStore } from "react";
@@ -23,9 +24,10 @@ export interface StewardSettings {
   recommendationInterval: number;
   meals: string[];
   allowEstimates: boolean;
+  allowAutoEnableTags: boolean;
 }
 export interface StewardMetadata {
-  tags?: string[];
+  legacyTags?: string[];
   reviewOn?: string | null;
   suggestedLocation?: string | null;
   origin?: string;
@@ -80,7 +82,12 @@ export interface StewardSlot {
 export interface StewardDraft {
   id: string;
   weekStart: string;
-  messages: { role: string; content: string }[];
+  messages: {
+    role: string;
+    content: string;
+    candidates?: { title: string; url: string; author?: string }[];
+  }[];
+  proposal?: AssistantProposal;
   slots: StewardSlot[];
   version: number;
   status: string;
@@ -121,8 +128,7 @@ export async function startStewardEvents() {
 export const steward = {
   reviewDate: (id: string, date: string | null) =>
     invoke("kitchen_steward_review_date", { id, date }),
-  tags: (kind: string, id: string, tags: string[]) =>
-    invoke("kitchen_steward_tags", { kind, id, tags }),
+
   save: (settings: StewardSettings) =>
     invoke("kitchen_steward_settings", { settings }),
   mark: (id: string, status: string) =>

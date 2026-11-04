@@ -1,0 +1,8 @@
+Color ingredient illustrations by みふねたかし.
+Official terms: https://www.irasutoya.com/p/terms.html
+Reviewed: 2026-10-30. Usage context: noncommercial Chefish.
+
+Official terms allow personal, corporate, commercial and noncommercial use within conditions. Designs using 21 or more illustrations commercially require payment; this threshold does not apply to the present noncommercial use. Redistribution/sale of content or products centered on the illustrations is prohibited. Copyright remains with the author.
+
+Files retain original colors and pixels. This notice is a summary, not a replacement for the official terms.
+The original PNG files are kept only in the git-ignored local/ cache for development review. The generated review HTML is also git-ignored; it is not a downloadable stock icon pack. Do not publish this cache or an embedded asset catalog as reusable illustration materials. App distribution and public source asset distribution require separate consideration.

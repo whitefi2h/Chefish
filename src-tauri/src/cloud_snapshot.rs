@@ -127,12 +127,15 @@ pub fn prepare(conn: &Connection, root: &Path) -> Result<PreparedSnapshot> {
     backup::create(conn, &path)?;
     let mut snapshot = Connection::open(&path)?;
     // Scrub the clone, then VACUUM so deleted chat/token bytes cannot remain in free pages.
-    snapshot.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA secure_delete=ON; DELETE FROM app_settings WHERE key NOT IN ('data_revision','shopping_memo','preferences_v1') AND key NOT GLOB 'seasoning_hidden:*' AND key NOT GLOB 'inventory_expiry_before:*' AND key NOT GLOB 'inventory_deleted:*' AND key NOT GLOB 'inventory_properties_before:*' AND key NOT GLOB 'ingredient_image:*' AND key NOT GLOB 'seasoning_image:*' AND key NOT GLOB 'cooking_record:*' AND key NOT GLOB 'ingredient_resolution:*' AND key NOT GLOB 'steward_meta:*' AND key NOT GLOB 'ingredient_rule:*';")?;
+    snapshot.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA secure_delete=ON; DELETE FROM app_settings WHERE key NOT IN ('data_revision','shopping_memo','preferences_v1') AND key NOT GLOB 'seasoning_hidden:*' AND key NOT GLOB 'inventory_expiry_before:*' AND key NOT GLOB 'inventory_deleted:*' AND key NOT GLOB 'inventory_properties_before:*' AND key NOT GLOB 'ingredient_image:*' AND key NOT GLOB 'seasoning_image:*' AND key NOT GLOB 'cooking_record:*' AND key NOT GLOB 'ingredient_resolution:*' AND key NOT GLOB 'inspiration_week:*' AND key NOT GLOB 'recipe_tag_def:*' AND key NOT GLOB 'recipe_tag_links:*' AND key NOT GLOB 'steward_meta:*' AND key NOT GLOB 'ingredient_rule:*';")?;
     let mut preferences = crate::db::preferences::load(&snapshot)?;
     let defaults = crate::db::preferences::Preferences::default();
     preferences.start_page = defaults.start_page;
     preferences.send_shortcut = defaults.send_shortcut;
     preferences.automatic_backup = defaults.automatic_backup;
+    preferences.show_breakfast = defaults.show_breakfast;
+    preferences.show_lunch = defaults.show_lunch;
+    preferences.show_dinner = defaults.show_dinner;
     crate::db::preferences::save(&mut snapshot, preferences)?;
     crate::db::sync::strip_local_metadata(&snapshot)?;
     snapshot.execute_batch("VACUUM;")?;
@@ -292,6 +295,9 @@ pub fn preserve_local_settings(live: &Connection, path: &Path) -> Result<()> {
     preferences.start_page = device.start_page;
     preferences.send_shortcut = device.send_shortcut;
     preferences.automatic_backup = device.automatic_backup;
+    preferences.show_breakfast = device.show_breakfast;
+    preferences.show_lunch = device.show_lunch;
+    preferences.show_dinner = device.show_dinner;
     crate::db::preferences::save(&mut staged, preferences)?;
     let history: Option<String> = live
         .query_row(
@@ -311,7 +317,7 @@ pub fn preserve_local_settings(live: &Connection, path: &Path) -> Result<()> {
         )?;
     }
     // Even a backup uploaded by an older client cannot import unknown session settings.
-    staged.execute("DELETE FROM app_settings WHERE key NOT IN ('data_revision','shopping_memo','preferences_v1','assistant_history_v1') AND key NOT GLOB 'seasoning_hidden:*' AND key NOT GLOB 'inventory_expiry_before:*' AND key NOT GLOB 'inventory_deleted:*' AND key NOT GLOB 'inventory_properties_before:*' AND key NOT GLOB 'ingredient_image:*' AND key NOT GLOB 'seasoning_image:*' AND key NOT GLOB 'cooking_record:*' AND key NOT GLOB 'ingredient_resolution:*' AND key NOT GLOB 'steward_meta:*' AND key NOT GLOB 'ingredient_rule:*'", [])?;
+    staged.execute("DELETE FROM app_settings WHERE key NOT IN ('data_revision','shopping_memo','preferences_v1','assistant_history_v1') AND key NOT GLOB 'seasoning_hidden:*' AND key NOT GLOB 'inventory_expiry_before:*' AND key NOT GLOB 'inventory_deleted:*' AND key NOT GLOB 'inventory_properties_before:*' AND key NOT GLOB 'ingredient_image:*' AND key NOT GLOB 'seasoning_image:*' AND key NOT GLOB 'cooking_record:*' AND key NOT GLOB 'ingredient_resolution:*' AND key NOT GLOB 'inspiration_week:*' AND key NOT GLOB 'recipe_tag_def:*' AND key NOT GLOB 'recipe_tag_links:*' AND key NOT GLOB 'steward_meta:*' AND key NOT GLOB 'ingredient_rule:*'", [])?;
     Ok(())
 }
 
@@ -380,6 +386,11 @@ mod tests {
         let staged = incoming.finish(&root.join("staged")).unwrap();
         let restored = crate::db::open(&staged.path).unwrap();
         let after = crate::db::snapshot(&restored).unwrap();
+        assert_eq!(after["recipeTags"], before["recipeTags"]);
+        assert_eq!(
+            after["recipes"][0]["tagIds"],
+            before["recipes"][0]["tagIds"]
+        );
         assert_eq!(after["recipes"][0]["media"]["cover"], image);
         assert_eq!(after["recipes"][0]["media"]["steps"][0]["image"], image);
         assert_eq!(crate::db::snapshot(&live).unwrap(), before);

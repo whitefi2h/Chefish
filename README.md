@@ -6,9 +6,9 @@ Chefish 是一款 Windows 厨房管理应用。把喜欢的做法收进菜谱库
 
 **目前主要面向中文用户，应用界面和 AI 助手以中文为主。**
 
-v2.0.0 加入了主动式厨房管家：周末和你商量下周吃什么，平时整理厨房信息，再找几道值得试的新菜。你决定安排，它承担重复的整理工作。
+v2.2.0 更新了整体界面，加入可跳过的个性化初始化、四类菜谱标签和本地彩色食材图标。厨房管家会结合你的偏好规划菜单、整理库存，再找几道值得试的新菜。
 
-[下载 v2.0.0](https://github.com/whitefi2h/Chefish/releases/tag/v2.0.0) · [English](#english) · [开发文档](docs/README.md) · [版本记录](CHANGELOG.md)
+[下载 v2.2.0](https://github.com/whitefi2h/Chefish/releases/tag/v2.2.0) · [English](#english) · [开发文档](docs/README.md) · [版本记录](CHANGELOG.md)
 
 ![Chefish 每周菜单与厨房助手](docs/images/assistant-proposal.png)
 
@@ -18,11 +18,15 @@ v2.0.0 加入了主动式厨房管家：周末和你商量下周吃什么，平�
 
 看到下厨房里喜欢的做法，贴入链接就能整理成菜谱，连同封面、步骤图和原作者信息一起保存。也可以自己写菜谱，或导入 JSON、网页 HTML。
 
-菜谱可以分类、收藏，加入周灵感。人数一改，配料用量跟着调整。做过之后写几句手记，记下这次的火候、口味和下次想改的地方。配方修改会留下版本，旧做法随时能翻出来看。
+菜谱可以收藏、加入周灵感，并用「菜系、菜品特性、烹饪方法、自定义」四类标签整理。标签支持层级筛选、批量开关和自行增删，助手也从同一目录选取标签。周灵感每周独立保存。
+
+人数一改，配料用量跟着调整。做过之后写几句手记，记下这次的火候、口味和下次想改的地方。配方修改会留下版本，旧做法随时能翻出来看。
 
 ## 记住冰箱里有什么
 
 同一种食材可以按不同购买批次记录，各自保留数量、存放位置和到期日期。冷藏、冷冻、常温分开查看，快到期的食材会出现在首页提醒中。
+
+食材默认显示本地彩色图标，找不到合适图形时显示名称首字，也可以自行选择图片。库存单位可手动调整，常见食材有默认单位，采购数量最多显示一位小数。
 
 盐、糖、生抽这些常备调料单独放在侧栏。缺了就点亮感叹号，补齐后再点一下；缺货调料会一起出现在采购提醒里。
 
@@ -30,7 +34,9 @@ v2.0.0 加入了主动式厨房管家：周末和你商量下周吃什么，平�
 
 把菜谱拖进周历，一餐可以安排多道菜，也能调整人数、移动到别的日子。周末想做得丰盛一点，工作日想省些时间，都可以提前排好。
 
-采购清单会根据菜单用量和现有库存算出还缺什么。买菜时可以补记临时想买的东西，确认购买后直接入库。
+早餐默认隐藏，午餐和晚餐默认显示；三个餐次都可以在设置中开关。
+
+采购清单会根据菜单用量和现有库存算出还缺什么。买菜时可以补记临时想买的东西，确认购买后直接入库。已购项目默认收起，需要时勾选显示；采购备忘随输入自动保存。
 
 做好一餐，直接写下“韭菜和鸡蛋全部用完”或“鸡肉用了 200 克，蘑菇用了一半”。AI 按库存单位整理实际用量，优先采用你的明确描述；“少许”等模糊用量才参考菜谱和人数估计。确认完成后扣减库存，也可以展开手动调整。
 
@@ -68,15 +74,15 @@ v2.0.0 加入了主动式厨房管家：周末和你商量下周吃什么，平�
 
 ## 下载与使用
 
-1. 下载 [v2.0.0 Windows x64 安装包](https://github.com/whitefi2h/Chefish/releases/download/v2.0.0/Chefish_2.0.0_x64-setup.exe)，运行并按提示安装。系统需要 WebView2 运行环境。
-2. 首次打开时菜谱库为空。先录入一道菜，或记下家里现有的食材，就可以开始安排菜单。
-3. 想用 AI 时，在「我的厨房 → AI 助手」配置模型；想让管家主动服务，再到「厨房管家」中开启。
+1. 下载 [v2.2.0 Windows x64 安装包](https://github.com/whitefi2h/Chefish/releases/download/v2.2.0/Chefish_2.2.0_x64-setup.exe)，运行并按提示安装。系统需要 WebView2 运行环境。
+2. 首次使用可以跟随初始化配置模型、饮食偏好、常吃菜系、厨房管家与云账户，每步都可跳过，也能从通用设置重新开启。饮食习惯可以自由描述，让 AI 整理后再核对。
+3. 录入一道菜或记下家里现有的食材，开始安排菜单。后续仍可在「我的厨房」中调整全部设置。
 
-[Release 页面](https://github.com/whitefi2h/Chefish/releases/tag/v2.0.0)也提供独立 EXE。升级前可在「我的厨房 → 数据与备份」保存一份本地备份。
+[Release 页面](https://github.com/whitefi2h/Chefish/releases/tag/v2.2.0)也提供独立 EXE。升级前可在「我的厨房 → 数据与备份」保存一份本地备份。
 
 手动管理菜谱、库存和菜单不需要配置 AI。使用厨房助手时，相关对话和厨房信息会发送到你选择的模型服务；API 密钥保存在 Windows 凭据管理器。菜谱、库存和聊天记录保存在本机。
 
-应用提供可选账户、云备份与多设备同步。菜谱、图片、库存和正式菜单可以同步，聊天、管家任务与未确认草稿留在本机。**v2.0.0 的云端兼容规则尚待部署，暂不能把本版云同步视为已就绪。** 云端状态、首次连接和冲突处理见[同步说明](docs/CLOUD_SYNC.md)。本地功能可独立使用。
+应用提供可选账户、云备份与多设备同步。菜谱、图片、库存和正式菜单可以同步，聊天、管家任务与未确认草稿留在本机。**v2.2.0 使用 schema 18，生产云端兼容规则尚待部署，暂不能把本版云同步视为已就绪。** 云端状态、首次连接和冲突处理见[同步说明](docs/CLOUD_SYNC.md)。本地功能可独立使用。
 
 想了解后续计划，可以看 [路线图](docs/ROADMAP.md)。
 
@@ -86,6 +92,7 @@ v2.0.0 加入了主动式厨房管家：周末和你商量下周吃什么，平�
 
 ```powershell
 npm ci
+node tools/ingredient-icons/build.mjs fetch
 npm run tauri dev
 ```
 
@@ -109,11 +116,13 @@ Chefish is a Windows app for keeping recipes, tracking groceries and planning me
 
 **The app interface and AI assistant are Chinese-first.**
 
-[Download v2.0.0](https://github.com/whitefi2h/Chefish/releases/tag/v2.0.0)
+[Download v2.2.0](https://github.com/whitefi2h/Chefish/releases/tag/v2.2.0)
+
+Version 2.2.0 refreshes the interface and adds skippable setup, four groups of recipe tags, and local ingredient icons. Set up your model and food preferences at your own pace; every step can be revisited in settings.
 
 ### Keep your recipes
 
-Import a Xiachufang link with its cover, step images and author details, write your own recipe, or import JSON and HTML. Organize recipes into categories, save favorites and adjust ingredient amounts by serving size.
+Import a Xiachufang link with its cover, step images and author details, write your own recipe, or import JSON and HTML. Organize recipes by cuisine, dish traits, cooking methods and custom tags. Save favorites, keep separate inspiration lists for each week and adjust ingredient amounts by serving size.
 
 Cooking notes give you a place to record what worked and what you would change next time. Recipe edits keep their history, so you can return to an earlier version.
 
@@ -145,11 +154,11 @@ Chats are saved locally so you can pick up where you left off. DeepSeek, OpenAI 
 
 ### Get started
 
-Download the [Windows x64 installer](https://github.com/whitefi2h/Chefish/releases/download/v2.0.0/Chefish_2.0.0_x64-setup.exe) and follow the setup steps. WebView2 is required. Start by adding a recipe or recording pantry stock, then configure AI in the kitchen settings if you want to use it. The Release page also includes a standalone EXE.
+Download the [Windows x64 installer](https://github.com/whitefi2h/Chefish/releases/download/v2.2.0/Chefish_2.2.0_x64-setup.exe) and follow the setup steps. WebView2 is required. The optional setup flow guides you through model settings, food preferences, cuisines, steward services and your cloud account. Add a recipe or record pantry stock to start planning. The Release page also includes a standalone EXE.
 
 Manual recipe, pantry and planning features work without AI. When using the assistant, relevant conversation and kitchen data are sent to your selected provider. API keys are stored in Windows Credential Manager; kitchen data and chat history stay on your computer.
 
-Optional accounts, cloud backups and multi-device sync are included. Chats, steward tasks and pending drafts stay local. **The cloud compatibility rules for v2.0.0 are still awaiting deployment; cloud sync should not yet be treated as ready for this release.** See the [sync documentation](docs/CLOUD_SYNC.md) for status and setup. Local features work independently.
+Optional accounts, cloud backups and multi-device sync are included. Chats, steward tasks and pending drafts stay local. **Version 2.2.0 uses schema 18; the production cloud compatibility rules are still awaiting deployment. Cloud sync should not yet be treated as ready for this release.** See the [sync documentation](docs/CLOUD_SYNC.md) for status and setup. Local features work independently.
 
 ### Build from source
 
@@ -157,6 +166,7 @@ On Windows, install Node.js / npm, Rust MSVC, Visual Studio C++ Build Tools and 
 
 ```powershell
 npm ci
+node tools/ingredient-icons/build.mjs fetch
 npm run tauri dev
 ```
 

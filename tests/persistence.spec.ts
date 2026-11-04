@@ -8,6 +8,15 @@ async function nativeStub(
   failure: "load" | "save" | "refresh" | "none",
 ) {
   await page.addInitScript((mode) => {
+    // These IPC failure tests start after setup; onboarding has its own suite.
+    localStorage.setItem(
+      "chefish:onboarding:v1",
+      JSON.stringify({
+        step: 6,
+        status: "finished",
+        done: [0, 1, 2, 3, 4, 5],
+      }),
+    );
     const target = window as unknown as {
       isTauri: boolean;
       commandCount: number;

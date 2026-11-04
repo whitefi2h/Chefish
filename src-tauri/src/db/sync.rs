@@ -125,7 +125,7 @@ pub fn status(conn: &Connection) -> Result<Status> {
 }
 
 pub(super) fn settings(conn: &Connection) -> Result<BTreeMap<String, Value>> {
-    let mut stmt = conn.prepare("SELECT key,value FROM app_settings WHERE key='shopping_memo' OR key GLOB 'seasoning_hidden:*' OR key GLOB 'inventory_expiry_before:*' OR key GLOB 'inventory_deleted:*' OR key GLOB 'inventory_properties_before:*' OR key GLOB 'ingredient_image:*' OR key GLOB 'seasoning_image:*' OR key GLOB 'cooking_record:*' OR key GLOB 'ingredient_resolution:*' OR key GLOB 'steward_meta:*' OR key GLOB 'ingredient_rule:*' ORDER BY key")?;
+    let mut stmt = conn.prepare("SELECT key,value FROM app_settings WHERE key='shopping_memo' OR key GLOB 'seasoning_hidden:*' OR key GLOB 'inventory_expiry_before:*' OR key GLOB 'inventory_deleted:*' OR key GLOB 'inventory_properties_before:*' OR key GLOB 'inventory_units:*' OR key GLOB 'inspiration_week:*' OR key GLOB 'recipe_tag_def:*' OR key GLOB 'recipe_tag_links:*' OR key GLOB 'ingredient_image:*' OR key GLOB 'seasoning_image:*' OR key GLOB 'cooking_record:*' OR key GLOB 'ingredient_resolution:*' OR key GLOB 'steward_meta:*' OR key GLOB 'ingredient_rule:*' ORDER BY key")?;
     let mut values = stmt
         .query_map([], |row| {
             Ok((row.get::<_, String>(0)?, Value::String(row.get(1)?)))

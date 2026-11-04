@@ -13,13 +13,15 @@ pub use inventory::update_snapshot as inventory_update;
 mod library;
 mod planner;
 pub mod preferences;
+pub mod recipe_tags;
 pub mod replication;
 pub mod seasonings;
 pub mod shopping;
 pub mod steward;
 pub mod sync;
 pub mod undo;
-pub const CURRENT_SCHEMA: i64 = 15;
+pub mod weekly_inspiration;
+pub const CURRENT_SCHEMA: i64 = 18;
 use inventory::InventoryDraft;
 
 #[derive(Debug, Serialize)]
@@ -91,6 +93,8 @@ pub struct TextIngredient {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RecipeDraft {
     #[serde(default)]
+    pub tag_ids: Option<Vec<String>>,
+    #[serde(default)]
     pub ingredient_kinds: std::collections::BTreeMap<String, bool>,
     #[serde(default)]
     pub media: Option<crate::recipe_images::Media>,
@@ -118,10 +122,27 @@ pub enum Command {
         lot_id: String,
         date: Option<String>,
     },
-    SetStewardTags {
-        kind: String,
-        entity_id: String,
-        tags: Vec<String>,
+    SaveRecipeTagDefinitions {
+        expected_revision: String,
+        entries: Vec<recipe_tags::Definition>,
+    },
+    SetRecipeTags {
+        expected_revision: String,
+        recipe_id: String,
+        tag_ids: Vec<String>,
+    },
+    ResetRecipeTagVisibility {
+        expected_revision: String,
+    },
+    MergeRecipeTags {
+        expected_revision: String,
+        source_id: String,
+        target_id: String,
+    },
+    ResolveLegacyRecipeTag {
+        expected_revision: String,
+        name: String,
+        target_id: Option<String>,
     },
     MaintainKitchen {
         expected_revision: String,
@@ -299,6 +320,8 @@ pub enum Command {
     Inspiration {
         recipe_id: String,
         enabled: bool,
+        #[serde(default)]
+        week_start: Option<String>,
     },
     SaveCategories {
         kind: String,
@@ -590,6 +613,51 @@ fn migrate(connection: &mut Connection, path: &Path) -> Result<()> {
         tx.pragma_update(None, "user_version", 15)?;
         tx.commit()?;
     }
+    if version < 16 {
+        connection.backup(
+            "main",
+            path.with_extension(format!("pre-v16-{}.sqlite3", id())),
+            None,
+        )?;
+        let tx = connection.transaction()?;
+        recipe_tags::migrate(&tx)?;
+        tx.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version) VALUES(16)",
+            [],
+        )?;
+        tx.pragma_update(None, "user_version", 16)?;
+        tx.commit()?;
+    }
+    if version < 17 {
+        connection.backup(
+            "main",
+            path.with_extension(format!("pre-v17-{}.sqlite3", id())),
+            None,
+        )?;
+        let tx = connection.transaction()?;
+        recipe_tags::remove_old_ai_tags(&tx)?;
+        tx.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version) VALUES(17)",
+            [],
+        )?;
+        tx.pragma_update(None, "user_version", 17)?;
+        tx.commit()?;
+    }
+    if version < 18 {
+        connection.backup(
+            "main",
+            path.with_extension(format!("pre-v18-{}.sqlite3", id())),
+            None,
+        )?;
+        let tx = connection.transaction()?;
+        recipe_tags::refine_catalog(&tx)?;
+        tx.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version) VALUES(18)",
+            [],
+        )?;
+        tx.pragma_update(None, "user_version", 18)?;
+        tx.commit()?;
+    }
     Ok(())
 }
 fn category(conn: &Connection, kind: &str, name: &str) -> Result<String> {
@@ -842,6 +910,13 @@ fn save_recipe(
         "UPDATE recipes SET current_revision_id=?1,category_id=?2 WHERE id=?3",
         params![revision, category, recipe_id],
     )?;
+    recipe_tags::from_draft(
+        tx,
+        &recipe_id,
+        &draft.tag_ids,
+        &draft.category,
+        recipe.is_none(),
+    )?;
     Ok(recipe_id)
 }
 pub fn execute(connection: &mut Connection, request_id: &str, command: Command) -> Result<()> {
@@ -970,11 +1045,28 @@ fn apply(tx: &Transaction, command: Command) -> Result<()> {
             meta["reviewOrigin"] = json!("user");
             tx.execute("INSERT INTO app_settings(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![format!("steward_meta:lot:{lot_id}"),meta.to_string()])?;
         }
-        Command::SetStewardTags {
-            kind,
-            entity_id,
-            tags,
-        } => steward::save_tags(tx, &kind, &entity_id, tags)?,
+        Command::SaveRecipeTagDefinitions {
+            expected_revision,
+            entries,
+        } => recipe_tags::save_definitions(tx, &expected_revision, entries)?,
+        Command::SetRecipeTags {
+            expected_revision,
+            recipe_id,
+            tag_ids,
+        } => recipe_tags::save_assignment(tx, &expected_revision, &recipe_id, tag_ids)?,
+        Command::ResetRecipeTagVisibility { expected_revision } => {
+            recipe_tags::reset_visibility(tx, &expected_revision)?
+        }
+        Command::MergeRecipeTags {
+            expected_revision,
+            source_id,
+            target_id,
+        } => recipe_tags::merge(tx, &expected_revision, &source_id, &target_id)?,
+        Command::ResolveLegacyRecipeTag {
+            expected_revision,
+            name,
+            target_id,
+        } => recipe_tags::resolve_legacy(tx, &expected_revision, &name, target_id)?,
         Command::MaintainKitchen {
             expected_revision,
             entries,
@@ -1280,9 +1372,11 @@ fn apply(tx: &Transaction, command: Command) -> Result<()> {
         Command::Favorite { recipe_id, enabled } => {
             toggle(&tx, "favorite_recipes", &recipe_id, enabled)?
         }
-        Command::Inspiration { recipe_id, enabled } => {
-            toggle(&tx, "inspiration_recipes", &recipe_id, enabled)?
-        }
+        Command::Inspiration {
+            recipe_id,
+            enabled,
+            week_start,
+        } => weekly_inspiration::set(tx, &recipe_id, enabled, week_start)?,
         Command::SaveCategories {
             kind,
             expected_revision,
@@ -1467,7 +1561,9 @@ fn snapshot_inner(conn: &Connection) -> Result<Value> {
         [],
         |r| r.get(0),
     )?;
-    let mut result = json!({"recipes":recipes,"recipeCategories":strings(conn,"SELECT name FROM categories WHERE kind='recipe' ORDER BY sort_order,rowid")?,"ingredientCategories":strings(conn,"SELECT name FROM categories WHERE kind='ingredient' ORDER BY sort_order,rowid")?,"ingredients":ingredients,"favorites":strings(conn,"SELECT f.recipe_id FROM favorite_recipes f JOIN recipes r ON r.id=f.recipe_id WHERE r.archived=0")?,"inspiration":strings(conn,"SELECT f.recipe_id FROM inspiration_recipes f JOIN recipes r ON r.id=f.recipe_id WHERE r.archived=0")?,"logs":logs,"lots":inventory::lots(conn)?,"inventoryEvents":inventory::events(conn)?,"plans":planner::plans(conn)?,"shopping":[],"memo":conn.query_row("SELECT value FROM app_settings WHERE key='shopping_memo'",[],|r|r.get::<_,String>(0))?,"hiddenNeeds":[],"dataRevision":revision});
+    let mut result = json!({"recipes":recipes,"recipeCategories":strings(conn,"SELECT name FROM categories WHERE kind='recipe' ORDER BY sort_order,rowid")?,"ingredientCategories":strings(conn,"SELECT name FROM categories WHERE kind='ingredient' ORDER BY sort_order,rowid")?,"ingredients":ingredients,"favorites":strings(conn,"SELECT f.recipe_id FROM favorite_recipes f JOIN recipes r ON r.id=f.recipe_id WHERE r.archived=0")?,"inspiration":weekly_inspiration::current(conn)?,"logs":logs,"lots":inventory::lots(conn)?,"inventoryEvents":inventory::events(conn)?,"plans":planner::plans(conn)?,"shopping":[],"memo":conn.query_row("SELECT value FROM app_settings WHERE key='shopping_memo'",[],|r|r.get::<_,String>(0))?,"hiddenNeeds":[],"dataRevision":revision});
+    result["inspirationWeeks"] = weekly_inspiration::weeks(conn)?;
+    result["recipeTags"] = json!(recipe_tags::definitions(conn)?);
     result["archivedRecipes"] = json!(archived);
     result["seasonings"] = seasonings::supplies(conn)?;
     result["preferences"] = json!(preferences::load(conn)?);
@@ -1575,6 +1671,10 @@ fn recipe_snapshot(conn: &Connection, rev: &str) -> Result<Value> {
     recipe["ingredientKinds"] = json!(kinds);
     recipe["steps"] = json!(bodies);
     recipe["stepTitles"] = json!(titles);
+    let tags = recipe_tags::assignment(conn, recipe["id"].as_str().unwrap())?;
+    recipe["tagIds"] = json!(tags.tag_ids);
+    recipe["legacyTags"] = json!(tags.legacy);
+    recipe["tagOrigin"] = json!(tags.origin);
     recipe["steward"] = steward::metadata(conn, "recipe", recipe["id"].as_str().unwrap())?;
     Ok(recipe)
 }
@@ -1631,6 +1731,7 @@ mod tests {
     }
     pub(super) fn draft() -> RecipeDraft {
         RecipeDraft {
+            tag_ids: None,
             ingredient_kinds: Default::default(),
             media: None,
             text_ingredients: vec![],
@@ -1887,6 +1988,7 @@ mod tests {
             Command::Inspiration {
                 recipe_id: recipe.clone(),
                 enabled: true,
+                week_start: None,
             },
         )
         .unwrap();

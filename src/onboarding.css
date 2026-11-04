@@ -1,0 +1,731 @@
+/* Onboarding has its own compact frame; the full settings layout stays unchanged. */
+.dialog.onboarding-dialog:not(.drawer) {
+  width: 600px;
+  max-width: calc(100vw - 40px);
+  height: min(552px, calc(100dvh - 40px));
+  max-height: calc(100dvh - 40px);
+  border-radius: 18px;
+  background: var(--card);
+}
+.onboarding-dialog .dialog-head {
+  padding: 10px 24px;
+  min-height: 48px;
+  background: var(--card);
+  gap: 10px;
+}
+.onboarding-dialog .dialog-head h2 {
+  font-size: 13px;
+  font-weight: 500;
+}
+.onboarding-brand {
+  width: 25px;
+  height: 25px;
+}
+.onboarding-dialog .dialog-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.onboarding-progress {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 30px 0;
+  color: var(--muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.onboarding-progress > span {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.onboarding-progress small {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.onboarding-progress > div {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+}
+.onboarding-progress > div span {
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--border);
+}
+.onboarding-progress > div span::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--sage);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 560ms cubic-bezier(0.22, 0.68, 0, 1);
+}
+.onboarding-progress > div .active::after {
+  transform: scaleX(1);
+}
+.onboarding-content {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 30px 24px;
+  scrollbar-width: thin;
+  scrollbar-color: #dce2d9 transparent;
+}
+.onboarding-content::-webkit-scrollbar {
+  width: 5px;
+}
+.onboarding-content::-webkit-scrollbar-thumb {
+  background: #dce2d9;
+  border-radius: 5px;
+}
+.onboarding-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+.onboarding-content > header {
+  margin-bottom: 20px;
+}
+.onboarding-content > header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.3px;
+  outline: none;
+}
+/* The heading receives focus for screen-reader context, not as a control. */
+.onboarding-content > header h2:focus-visible {
+  outline: none;
+}
+.onboarding-content > header p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.onboarding-welcome {
+  display: grid;
+  gap: 13px;
+}
+.onboarding-welcome > div {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+}
+.onboarding-welcome > div > span {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--sage-soft);
+  color: var(--sage);
+  flex-shrink: 0;
+}
+.onboarding-welcome > div:first-child > span {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.onboarding-welcome strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.onboarding-welcome p {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+  line-height: 1.5;
+  margin: 2px 0 0;
+}
+.onboarding-welcome > small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  margin-top: 1px;
+}
+.onboarding-dialog .form-stack {
+  gap: 14px;
+}
+.onboarding-dialog .form-stack label {
+  font-size: 12px;
+  font-weight: 500;
+  gap: 6px;
+}
+.onboarding-dialog
+  .form-stack
+  :is(input:not([type="checkbox"]), select, textarea) {
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  border-radius: 8px;
+}
+.onboarding-dialog .form-stack textarea {
+  width: 100%;
+  min-height: 58px;
+  resize: vertical;
+}
+.onboarding-dialog .ai-settings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.onboarding-dialog .ai-settings > h3,
+.onboarding-dialog .ai-settings > .actions:empty {
+  display: none;
+}
+.onboarding-dialog .ai-settings > :not(label),
+.onboarding-dialog .ai-settings > label:nth-of-type(3) {
+  grid-column: 1 / -1;
+}
+.onboarding-dialog .ai-settings > .hint {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  font-weight: 400;
+}
+.onboarding-model-more summary {
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  width: fit-content;
+}
+.onboarding-model-more[open] summary {
+  margin-bottom: 12px;
+}
+.onboarding-natural {
+  display: grid;
+  gap: 12px;
+}
+.onboarding-natural label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--sage);
+}
+.onboarding-natural textarea {
+  width: 100%;
+  min-height: 140px;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.65;
+  resize: vertical;
+}
+.onboarding-natural small {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.onboarding-dialog .onboarding-preferences {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 18px;
+}
+.onboarding-preferences > label:first-child input {
+  max-width: 104px;
+}
+.onboarding-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.onboarding-field-equipment {
+  grid-column: 1 / -1;
+}
+.onboarding-meals {
+  align-self: start;
+  font-size: 12px;
+}
+.onboarding-meals strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.onboarding-meals > div {
+  display: flex;
+  gap: 14px;
+  margin-top: 12px;
+}
+.onboarding-dialog .onboarding-meals label {
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+}
+.onboarding-dialog .onboarding-meals input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+.onboarding-suggestion {
+  padding: 12px;
+  border: 1px solid var(--sage-border);
+  border-radius: 10px;
+  background: var(--sage-soft);
+  margin-bottom: 14px;
+  font-size: 12px;
+}
+.onboarding-suggestion dl {
+  margin: 9px 0;
+}
+.onboarding-suggestion dl > div {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 8px;
+  margin: 4px 0;
+}
+.onboarding-suggestion dt {
+  color: var(--muted);
+}
+.onboarding-suggestion dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.onboarding-cuisines > section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.onboarding-cuisines > section:first-child {
+  padding-top: 0;
+}
+.onboarding-cuisines button {
+  font-size: 13px;
+  min-height: 32px;
+  padding: 4px 11px;
+}
+.onboarding-cuisines button[aria-pressed="true"] {
+  background: var(--tag-cuisine-bg);
+  border-color: var(--tag-cuisine-border);
+  color: var(--tag-cuisine-ink);
+}
+.onboarding-cuisines details {
+  display: inline-block;
+  margin-left: 14px;
+}
+.onboarding-cuisines details[open] {
+  display: block;
+  margin: 8px 0 0;
+}
+.onboarding-cuisines summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 5px 0;
+  list-style: none;
+}
+.onboarding-cuisines details[open] summary svg {
+  transform: rotate(180deg);
+}
+.onboarding-cuisines details > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 7px;
+}
+.onboarding-hint {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.55;
+  margin: 14px 0 0;
+}
+.onboarding-steward {
+  display: grid;
+  gap: 14px;
+}
+.onboarding-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.onboarding-toggle-main {
+  background: var(--canvas);
+}
+.onboarding-toggle > span {
+  flex: 1;
+  min-width: 0;
+}
+.onboarding-toggle strong {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.onboarding-toggle small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 5px;
+  line-height: 1.5;
+}
+.onboarding-toggle input {
+  position: absolute;
+  right: 14px;
+  width: 36px;
+  height: 22px;
+  opacity: 0;
+  margin: 0;
+}
+.onboarding-toggle i {
+  width: 36px;
+  height: 22px;
+  background: var(--border);
+  border-radius: 20px;
+  flex-shrink: 0;
+  pointer-events: none;
+  transition: background 160ms;
+}
+.onboarding-toggle i::before {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 3px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px #26302918;
+  transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.onboarding-toggle input:checked + i {
+  background: var(--sage);
+}
+.onboarding-toggle input:checked + i::before {
+  transform: translateX(14px);
+}
+.onboarding-toggle input:focus-visible + i {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.onboarding-toggle:has(input:disabled) {
+  opacity: 0.6;
+  cursor: default;
+}
+.onboarding-tasks {
+  border: 0;
+  padding: 0 2px;
+  margin: 0;
+  min-width: 0;
+}
+.onboarding-tasks legend {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+  padding: 0;
+  margin-bottom: 8px;
+}
+.onboarding-tasks > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.onboarding-tasks label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  position: relative;
+  padding: 12px 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.onboarding-tasks input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  inset: 0;
+  cursor: pointer;
+}
+.onboarding-tasks label:has(input:checked) {
+  color: var(--sage);
+  border-color: var(--sage-border);
+  background: var(--sage-soft);
+}
+.onboarding-tasks label:has(input:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.onboarding-steward > .onboarding-hint {
+  margin-top: 0;
+}
+.onboarding-cloud-empty {
+  padding: 22px;
+  text-align: center;
+  background: var(--canvas);
+  border-radius: 12px;
+  color: var(--sage);
+}
+.onboarding-cloud-empty h3 {
+  font-size: 17px;
+  margin: 10px 0;
+}
+.onboarding-cloud-empty p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.onboarding-account {
+  max-width: 100%;
+}
+.onboarding-account-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--canvas);
+  border-radius: 9px;
+}
+.onboarding-account-tabs button {
+  flex: 1;
+  font-size: 12px;
+  min-height: 30px;
+  border: 0;
+  background: transparent;
+}
+.onboarding-account-tabs button[aria-pressed="true"] {
+  background: var(--card);
+  color: var(--primary);
+  box-shadow: 0 1px 4px #2630290a;
+}
+.onboarding-account .form-stack > button {
+  min-height: 34px;
+  font-size: 13px;
+}
+.onboarding-account-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--sage-soft);
+  border-radius: 12px;
+  color: var(--sage);
+}
+.onboarding-account-status strong {
+  font-size: 14px;
+}
+.onboarding-account-status p {
+  font-size: 12px;
+  margin-top: 4px;
+}
+.onboarding-success {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 12px;
+}
+.onboarding-success svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.onboarding-success circle {
+  fill: var(--sage-soft);
+  stroke: var(--sage-border);
+  stroke-width: 1;
+}
+.onboarding-success path {
+  fill: none;
+  stroke: var(--sage);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.onboarding-step-6 .onboarding-content > header h2 {
+  display: block;
+  text-align: center;
+}
+.onboarding-step-6 .onboarding-content > header {
+  text-align: center;
+  margin-bottom: 18px;
+}
+.onboarding-finish > div {
+  display: grid;
+  grid-template-columns: 18px 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.onboarding-finish svg {
+  color: var(--sage);
+}
+.onboarding-finish strong {
+  font-weight: 500;
+}
+.onboarding-finish span {
+  font-weight: 400;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.onboarding-finish > p {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 14px;
+  text-align: center;
+}
+.onboarding-motion .onboarding-success circle {
+  animation: onboarding-ring 850ms cubic-bezier(0.22, 0.68, 0, 1) both;
+  transform-origin: center;
+}
+.onboarding-motion .onboarding-success path {
+  stroke-dasharray: 1;
+  animation: onboarding-check 650ms 220ms cubic-bezier(0.22, 0.68, 0, 1) both;
+}
+.onboarding-motion .onboarding-finish > div {
+  animation: onboarding-result 520ms cubic-bezier(0.22, 0.68, 0, 1) both;
+}
+.onboarding-motion .onboarding-finish > div:nth-child(1) {
+  animation-delay: 220ms;
+}
+.onboarding-motion .onboarding-finish > div:nth-child(2) {
+  animation-delay: 275ms;
+}
+.onboarding-motion .onboarding-finish > div:nth-child(3) {
+  animation-delay: 330ms;
+}
+@keyframes onboarding-ring {
+  from {
+    transform: scale(0.94);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes onboarding-check {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes onboarding-result {
+  from {
+    transform: translateY(3px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.onboarding-error {
+  margin-top: 12px;
+  font-size: 12px;
+}
+.onboarding-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 24px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--card);
+}
+.onboarding-footer > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.onboarding-footer button {
+  font-size: 12px;
+  min-height: 34px;
+  padding: 6px 11px;
+}
+.onboarding-footer .text-button {
+  color: var(--muted);
+  padding: 6px 0;
+  font-weight: 400;
+}
+@media (max-height: 520px) {
+  .onboarding-dialog .dialog-head {
+    padding: 8px 20px;
+    min-height: 40px;
+  }
+  .onboarding-progress {
+    padding: 10px 24px 0;
+  }
+  .onboarding-content {
+    padding: 16px 24px;
+  }
+  .onboarding-content > header {
+    margin-bottom: 14px;
+  }
+  .onboarding-content > header h2 {
+    font-size: 20px;
+  }
+  .onboarding-welcome {
+    gap: 10px;
+  }
+  .onboarding-welcome > div > span {
+    width: 32px;
+    height: 32px;
+  }
+  .onboarding-footer {
+    padding: 9px 20px;
+  }
+  .onboarding-success {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 8px;
+  }
+  .onboarding-step-6 .onboarding-content > header {
+    margin-bottom: 12px;
+  }
+  .onboarding-finish > div {
+    padding: 8px 0;
+  }
+}
+@media (max-width: 580px) {
+  .onboarding-content {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+  .onboarding-progress {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+  .onboarding-content > header h2 {
+    font-size: 20px;
+  }
+  .onboarding-tasks > div {
+    gap: 5px;
+  }
+  .onboarding-tasks label {
+    gap: 4px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-dialog,
+  .onboarding-dialog * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+.onboarding-dialog:not(.onboarding-motion) {
+  transition: none;
+}

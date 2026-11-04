@@ -1,4 +1,5 @@
 import { localToday } from "./domain/clock";
+import { quantityText } from "./domain/quantity";
 import type { AppPreferences } from "./domain/preferences";
 import { isSeasoning, type SeasoningSupply } from "./domain/seasonings";
 import { DEMO_TODAY, DEMO_DAYS } from "./fixtures/demo";
@@ -59,6 +60,9 @@ export interface RecipeMedia {
   steps: { image: string; sourceStep: number }[];
 }
 export interface Recipe {
+  tagIds?: string[];
+  legacyTags?: string[];
+  tagOrigin?: string;
   steward?: import("./services/steward").StewardMetadata;
   ingredientKinds?: Record<string, boolean>;
   media?: RecipeMedia;
@@ -90,6 +94,8 @@ export interface InventoryLot extends Requirement {
   precision: "exact" | "rough";
 }
 export interface InventoryEvent {
+  beforeUnit?: string;
+  afterUnit?: string;
   id: string;
   lotId: string;
   kind: "receive" | "use" | "discard" | "correct" | "move" | "reverse";
@@ -157,6 +163,7 @@ export interface CookingLog {
   note: string;
 }
 export interface DemoState {
+  recipeTags?: import("./domain/recipeTags").RecipeTag[];
   undo?: { operationId: string; label: string } | null;
   preferences?: AppPreferences;
   seasonings?: SeasoningSupply[];
@@ -167,6 +174,7 @@ export interface DemoState {
   dataRevision?: string;
   recipes: Recipe[];
   inspiration: string[];
+  inspirationWeeks?: Record<string, string[]>;
   recipeCategories: string[];
   ingredientCategories: string[];
   ingredients: Ingredient[];
@@ -202,7 +210,7 @@ export function stock(s: DemoState, r: Requirement) {
     .reduce((n, l) => n + l.quantity, 0);
 }
 export function amount(quantity: number, unit: string) {
-  return `${Number(quantity.toFixed(6))} ${unit}`;
+  return `${quantityText(quantity)} ${unit}`;
 }
 export interface Need extends Requirement {
   name: string;

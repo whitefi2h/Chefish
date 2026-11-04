@@ -1,3 +1,4 @@
+import defaultUnits from "./ingredientDefaultUnits.json";
 import standards from "./ingredientStandards.json";
 export function ingredientName(raw: string) {
   const name = raw.trim();
@@ -65,4 +66,11 @@ export function unitFactor(name: string, from: string, to: string) {
   const a = from === rule.base ? 1 : units[from],
     b = to === rule.base ? 1 : units[to];
   return a && b ? a / b : undefined;
+}
+
+export function defaultIngredientUnit(raw: string) {
+  const name = ingredientName(raw).toLowerCase();
+  return defaultUnits.find((r) =>
+    [r.name, ...r.aliases].some((a) => a.toLowerCase() === name),
+  )?.unit;
 }

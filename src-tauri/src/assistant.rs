@@ -80,8 +80,9 @@ pub fn context(conn: &Connection, week: Option<&str>) -> Result<Value> {
         }
     }
     compact(&mut snapshot);
+    snapshot["recipeTags"] = db::recipe_tags::ai_catalog(conn)?;
     Ok(
-        json!({"today":today,"weekStart":week,"snapshot":snapshot,"preferences":{"defaultServings":preferences.default_servings,"taste":preferences.taste,"restrictions":preferences.restrictions,"equipment":preferences.equipment},"shopping":db::shopping::forecast(conn,&week)?,"toolResults":[]}),
+        json!({"today":today,"weekStart":week,"snapshot":snapshot,"preferences":{"defaultServings":preferences.default_servings,"taste":preferences.taste,"restrictions":preferences.restrictions,"equipment":preferences.equipment},"shopping":db::shopping::forecast(conn,&week)?,"ingredientDefaultUnits":db::ingredient_standard::default_units(),"toolResults":[]}),
     )
 }
 
@@ -237,7 +238,11 @@ fn destructive(c: &Command) -> bool {
 fn label(c: &Command) -> &'static str {
     match c {
         Command::SetReviewDate { .. } => "修正预计复查日期",
-        Command::SetStewardTags { .. } => "修改标签",
+        Command::SaveRecipeTagDefinitions { .. }
+        | Command::SetRecipeTags { .. }
+        | Command::ResetRecipeTagVisibility { .. }
+        | Command::MergeRecipeTags { .. }
+        | Command::ResolveLegacyRecipeTag { .. } => "修改菜谱标签",
         Command::MaintainKitchen { .. } => "整理厨房信息",
         Command::UndoMaintenance { .. } => "撤销厨房整理",
         Command::SaveIngredientRule { .. } => "保存食材对应关系",
@@ -511,6 +516,35 @@ pub fn changes(before: &Value, after: &Value) -> Vec<Value> {
             result.push(json!({"section":title,"before":show(before),"after":show(after)}));
         }
     }
+    if before["inspirationWeeks"] != after["inspirationWeeks"]
+        && before["inspiration"] == after["inspiration"]
+    {
+        let show = |s: &Value| {
+            s["inspirationWeeks"]
+                .as_object()
+                .map(|weeks| {
+                    weeks
+                        .iter()
+                        .map(|(week, ids)| {
+                            format!(
+                                "{}：{}",
+                                week,
+                                ids.as_array()
+                                    .map(|ids| ids
+                                        .iter()
+                                        .map(|id| item_name(s, id))
+                                        .collect::<Vec<_>>()
+                                        .join("、"))
+                                    .unwrap_or_default()
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("；")
+                })
+                .unwrap_or_default()
+        };
+        result.push(json!({"section":"周灵感","before":show(before),"after":show(after)}));
+    }
     result
 }
 pub fn prepare(
@@ -527,8 +561,14 @@ pub fn prepare(
         .into_iter()
         .enumerate()
         .map(|(i, v)| {
-            serde_json::from_value(crate::assistant_commands::normalize(v))
-                .map_err(|e| format!("第{}项：{}", i + 1, e))
+            {
+                let mut v = crate::assistant_commands::normalize(v);
+                if v["type"] == "inspiration" && v["week_start"].is_null() {
+                    v["week_start"] = json!(week);
+                }
+                serde_json::from_value(v)
+            }
+            .map_err(|e| format!("第{}项：{}", i + 1, e))
         })
         .collect::<std::result::Result<_, _>>()
         .map_err(|e| fail("INVALID_TOOL", &format!("助手操作格式不正确：{}", e)))?;

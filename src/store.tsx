@@ -192,14 +192,22 @@ export function DemoProvider({
     };
   }, [client, ready]);
   useEffect(() => {
-    const check = () => setToday(clock.today());
+    const check = () => {
+      const next = clock.today();
+      if (next !== today) {
+        setWeekStart((viewed) =>
+          viewed === weekOf(today) ? weekOf(next) : viewed,
+        );
+        setToday(next);
+      }
+    };
     const timer = setInterval(check, 30000);
     window.addEventListener("focus", check);
     return () => {
       clearInterval(timer);
       window.removeEventListener("focus", check);
     };
-  }, [clock]);
+  }, [clock, today]);
   useEffect(() => {
     if (!notification.text) return;
     const timer = setTimeout(

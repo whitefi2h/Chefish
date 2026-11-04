@@ -276,7 +276,7 @@ pub fn session(conn: &Connection, key: &str) -> Result<Value> {
             )
             .optional()?;
         result["record"] = json!(record.unwrap_or_default());
-        let mut stmt=conn.prepare("SELECT i.name,c.quantity,l.unit FROM cooking_consumptions c JOIN inventory_lots l ON l.id=c.lot_id JOIN ingredients i ON i.id=l.ingredient_id WHERE c.session_id=?1 ORDER BY c.rowid")?;
+        let mut stmt=conn.prepare("SELECT i.name,c.quantity,coalesce(json_extract(a.value,'$.afterUnit'),l.unit) FROM cooking_consumptions c JOIN inventory_lots l ON l.id=c.lot_id JOIN ingredients i ON i.id=l.ingredient_id LEFT JOIN app_settings a ON a.key='inventory_units:'||c.event_id WHERE c.session_id=?1 ORDER BY c.rowid")?;
         result["consumptions"]=Value::Array(stmt.query_map([result["id"].as_str().unwrap()],|r|Ok(json!({"name":r.get::<_,String>(0)?,"quantity":r.get::<_,String>(1)?,"unit":r.get::<_,String>(2)?})))?.collect::<std::result::Result<Vec<_>,_>>()?);
     }
     Ok(result)

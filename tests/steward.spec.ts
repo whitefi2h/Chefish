@@ -37,6 +37,7 @@ async function setup(page: Page, conflict = false, empty = false) {
         recommendationInterval: 7,
         meals: ["晚餐"],
         allowEstimates: true,
+        allowAutoEnableTags: false,
       };
       let draft = JSON.parse(
         localStorage.getItem("steward-draft") ?? "null",
@@ -167,6 +168,44 @@ async function setup(page: Page, conflict = false, empty = false) {
           }
           if (name === "kitchen_steward_draft") return draft;
           if (name === "kitchen_steward_reply") {
+            if (String(args.message).includes("醋已买")) {
+              return {
+                ...draft,
+                proposal: {
+                  id: "proposal-weekly",
+                  operations: ["补齐调料"],
+                  changes: [
+                    { section: "调料", before: "醋缺货", after: "醋已备有" },
+                  ],
+                  destructive: false,
+                  expectedRevision: "1",
+                },
+              };
+            }
+            if (String(args.message).includes("去搜")) {
+              draft = {
+                ...draft,
+                version: draft.version + 1,
+                messages: [
+                  ...draft.messages,
+                  { role: "user", content: args.message },
+                  {
+                    role: "assistant",
+                    content: "找到玉米排骨汤的做法，原菜单保持不变。",
+                    candidates: [
+                      {
+                        title: "玉米排骨汤",
+                        url: "https://www.xiachufang.com/recipe/123/",
+                        author: "测试来源",
+                      },
+                    ],
+                  },
+                ],
+              };
+              localStorage.setItem("steward-draft", JSON.stringify(draft));
+              return draft;
+            }
+
             draft = {
               ...draft,
               messages: [
@@ -266,11 +305,35 @@ test("steward settings are opt-in and quiet mode persists", async ({
   await setup(page);
   await page.getByRole("button", { name: "打开厨房设置" }).click();
   await page.getByRole("tab", { name: "厨房管家" }).click();
+  for (const width of [1000, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.locator(".settings-option-group")).toHaveCount(4);
+    await page.locator(".settings-content").evaluate((el) => {
+      el.scrollTop = 0;
+    });
+    await page.screenshot({
+      path: `docs/screenshots/settings-refinement/${width}-steward-top.png`,
+      animations: "disabled",
+    });
+    await page.locator("#recommendation-time").scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: `docs/screenshots/settings-refinement/${width}-steward-bottom.png`,
+      animations: "disabled",
+    });
+    const footer = await page.locator(".settings-footer").boundingBox();
+    expect(footer!.y + footer!.height).toBeLessThanOrEqual(900);
+  }
   await expect(
     page.getByRole("switch", { name: "在这台电脑启用厨房管家", exact: true }),
   ).not.toBeChecked();
   await page
     .getByRole("switch", { name: "在这台电脑启用厨房管家", exact: true })
+    .check();
+  await expect(
+    page.getByRole("switch", { name: "允许助手自动开启标签", exact: true }),
+  ).not.toBeChecked();
+  await page
+    .getByRole("switch", { name: "允许助手自动开启标签", exact: true })
     .check();
   await page.getByRole("switch", { name: "免打扰", exact: true }).check();
   await page.getByRole("button", { name: "保存设置", exact: true }).click();
@@ -288,6 +351,7 @@ test("steward settings are opt-in and quiet mode persists", async ({
   ).toMatchObject({
     enabled: true,
     doNotDisturb: true,
+    allowAutoEnableTags: true,
     meals: ["晚餐"],
     weeklyTime: "18:00",
   });
@@ -368,6 +432,12 @@ for (const width of [1000, 1440, 1920])
     await expect(
       page.getByRole("button", { name: "历史会话", exact: true }),
     ).toBeVisible();
+    for (const label of ["历史会话", "模型设置", "更多操作"]) {
+      const svg = page
+        .getByRole("button", { name: label, exact: true })
+        .locator("svg");
+      expect((await svg.boundingBox())!.width).toBeGreaterThanOrEqual(17);
+    }
     await page.screenshot({
       path: `docs/screenshots/assistant-redesign/${width}-empty.png`,
     });
@@ -485,4 +555,56 @@ test("autostart can be enabled independently of proactive kitchen jobs", async (
       JSON.parse(localStorage.getItem("steward-settings")!),
     ),
   ).toMatchObject({ enabled: false, autostart: true });
+});
+
+test("weekly search displays real candidate sources and retains the existing plan after reopening", async ({
+  page,
+}) => {
+  await setup(page);
+  await openInbox(page);
+  await page.getByLabel("告诉管家这周怎么安排").fill("安排周三晚餐");
+  await page.getByRole("button", { name: "生成或调整草稿" }).click();
+  await expect(page.getByRole("cell", { name: "清炒西兰花" })).toBeVisible();
+  await page
+    .getByLabel("告诉管家这周怎么安排")
+    .fill("去搜玉米排骨汤，只推荐不要改菜单");
+  await page.getByRole("button", { name: "生成或调整草稿" }).click();
+  await expect(page.locator(".weekly-search-results")).toContainText(
+    "玉米排骨汤",
+  );
+  await expect(page.getByRole("cell", { name: "清炒西兰花" })).toBeVisible();
+  await page.reload();
+  await openInbox(page);
+  await expect(page.locator(".weekly-search-results")).toContainText(
+    "玉米排骨汤",
+  );
+  await expect(page.getByRole("cell", { name: "清炒西兰花" })).toBeVisible();
+  await page.screenshot({
+    path: "docs/screenshots/ui-kitchen-refinement/weekly-search.png",
+  });
+});
+
+test("other kitchen operations in a weekly conversation still require explicit confirmation", async ({
+  page,
+}) => {
+  await setup(page);
+  await openInbox(page);
+  await page.getByLabel("告诉管家这周怎么安排").fill("醋已买，帮我标记补齐");
+  await page.getByRole("button", { name: "生成或调整草稿" }).click();
+  await expect(
+    page.getByRole("region", { name: "厨房操作提案" }),
+  ).toContainText("醋已备有");
+  const applyCount = () =>
+    page.evaluate(
+      () =>
+        (window as unknown as { stewardCalls: string[] }).stewardCalls.filter(
+          (n) => n === "kitchen_ai_apply",
+        ).length,
+    );
+  expect(await applyCount()).toBe(0);
+  await page.getByRole("button", { name: "同意并执行" }).click();
+  await expect.poll(applyCount).toBe(1);
+  await expect(page.getByRole("region", { name: "厨房操作提案" })).toHaveCount(
+    0,
+  );
 });

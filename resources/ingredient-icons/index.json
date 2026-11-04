@@ -1,0 +1,5755 @@
+{
+  "schemaVersion": 1,
+  "version": "0.1.0",
+  "updatedOn": "2026-10-30",
+  "purpose": "食材头像索引，已接入应用的本地展示。名称别名只用于选图，不用于合并库存或换算食材。",
+  "policy": {
+    "libraryPreference": [
+      "fluent",
+      "twemoji",
+      "svgrepo"
+    ],
+    "userSelectionPriority": true,
+    "automaticMatching": "normalized-name-or-alias-only",
+    "unknownHandling": "retrieve-small-candidate-set-then-llm; never invent asset IDs",
+    "pendingRightsHandling": "exclude-from-default-selection",
+    "categoryHandling": "return explicit category flag; never present as exact",
+    "ambiguousNames": [
+      "肉",
+      "鱼肉",
+      "蒜",
+      "青菜类",
+      "辣酱"
+    ],
+    "forbiddenFoodIconIds": [
+      "fluent:mushroom-red",
+      "twemoji:mushroom-red"
+    ],
+    "categorySelection": "random among eligible category candidates on first assignment; persist per ingredient; retain explicit user choice",
+    "usageContext": "noncommercial Chefish; respect attribution and redistribution conditions",
+    "visualStyle": "color-only; reject outline artwork",
+    "fallbackOrder": [
+      "user-image",
+      "exact-color-icon",
+      "allowed-category-color-icon",
+      "curated-text-avatar"
+    ]
+  },
+  "libraries": [
+    {
+      "id": "fluent",
+      "name": "Fluent Flat",
+      "author": "Microsoft Corporation",
+      "license": "MIT",
+      "licenseFile": "licenses/fluent-MIT.txt",
+      "licenseUrl": "https://github.com/microsoft/fluentui-emoji/blob/main/LICENSE",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji",
+      "revision": "1ffb34c752ecf5d402f04cfb4b392c77f57c54bc",
+      "distributionStatus": "license-recorded",
+      "note": "保留版权和 MIT 许可声明；原图未改色。"
+    },
+    {
+      "id": "twemoji",
+      "name": "Twemoji",
+      "author": "Jason Sofonia & Justine De Caires; Twitter, Inc. and Twemoji contributors",
+      "license": "CC-BY-4.0",
+      "licenseFile": "licenses/twemoji-CC-BY-4.0.txt",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "sourceUrl": "https://github.com/jdecked/twemoji",
+      "revision": "b6b55fef1e8636b540a6d016a4729ca8cdf2e60b",
+      "distributionStatus": "license-recorded",
+      "note": "图形需署名、链接许可并说明修改；代码的 MIT 许可不替代图形许可。原图未改色。",
+      "copyrightFile": "licenses/twemoji-COPYRIGHT-MIT.txt"
+    },
+    {
+      "id": "svgrepo",
+      "name": "SVG Repo · Food And Drinks Flat Icons 2",
+      "author": "Nanda Pratama",
+      "license": "PD label; original source pending",
+      "licenseFile": "licenses/svgrepo-NOTICE.txt",
+      "licenseUrl": "https://www.svgrepo.com/page/licensing/",
+      "sourceUrl": "https://www.svgrepo.com/collection/food-and-drinks-flat-icons-2/",
+      "revision": null,
+      "distributionStatus": "pending-original-verification",
+      "note": "两个样例的镜像页面标注 PD，尚未从原站完成授权复核；仅本地人工比较，默认自动选图会排除此库。"
+    },
+    {
+      "id": "japaclip",
+      "name": "Japaclip 彩色插画",
+      "author": "ジャパクリップ / イラストスイッチ",
+      "license": "Custom free-use terms; not a stock-asset redistribution license",
+      "licenseFile": "licenses/japaclip-NOTICE.txt",
+      "licenseUrl": "https://japaclip.com/terms/",
+      "sourceUrl": "https://japaclip.com/",
+      "revision": null,
+      "distributionStatus": "application-use-recorded",
+      "note": "已核对非商用应用使用；原 PNG 本机缓存与生成的检阅页不加入公开素材仓库。"
+    },
+    {
+      "id": "irasutoya",
+      "name": "いらすとや 彩色插画",
+      "author": "みふねたかし",
+      "license": "Custom free-use terms; not a stock-asset redistribution license",
+      "licenseFile": "licenses/irasutoya-NOTICE.txt",
+      "licenseUrl": "https://www.irasutoya.com/p/terms.html",
+      "sourceUrl": "https://www.irasutoya.com/",
+      "revision": null,
+      "distributionStatus": "application-use-recorded",
+      "note": "已核对非商用应用使用；原 PNG 本机缓存与生成的检阅页不加入公开素材仓库。"
+    }
+  ],
+  "assets": [
+    {
+      "id": "fluent:tomato",
+      "library": "fluent",
+      "subject": "tomato",
+      "label": "Tomato",
+      "unicode": "1F345",
+      "file": "svg/fluent/tomato.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Tomato/Flat/tomato_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Tomato/Flat/tomato_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:tomato",
+      "library": "twemoji",
+      "subject": "tomato",
+      "label": "Tomato",
+      "unicode": "1F345",
+      "file": "svg/twemoji/tomato.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f345.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f345.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:egg",
+      "library": "fluent",
+      "subject": "egg",
+      "label": "Egg",
+      "unicode": "1F95A",
+      "file": "svg/fluent/egg.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Egg/Flat/egg_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Egg/Flat/egg_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:egg",
+      "library": "twemoji",
+      "subject": "egg",
+      "label": "Egg",
+      "unicode": "1F95A",
+      "file": "svg/twemoji/egg.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f95a.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f95a.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:carrot",
+      "library": "fluent",
+      "subject": "carrot",
+      "label": "Carrot",
+      "unicode": "1F955",
+      "file": "svg/fluent/carrot.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Carrot/Flat/carrot_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Carrot/Flat/carrot_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:carrot",
+      "library": "twemoji",
+      "subject": "carrot",
+      "label": "Carrot",
+      "unicode": "1F955",
+      "file": "svg/twemoji/carrot.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f955.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f955.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:broccoli",
+      "library": "fluent",
+      "subject": "broccoli",
+      "label": "Broccoli",
+      "unicode": "1F966",
+      "file": "svg/fluent/broccoli.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Broccoli/Flat/broccoli_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Broccoli/Flat/broccoli_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:broccoli",
+      "library": "twemoji",
+      "subject": "broccoli",
+      "label": "Broccoli",
+      "unicode": "1F966",
+      "file": "svg/twemoji/broccoli.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f966.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f966.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:garlic",
+      "library": "fluent",
+      "subject": "garlic",
+      "label": "Garlic",
+      "unicode": "1F9C4",
+      "file": "svg/fluent/garlic.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Garlic/Flat/garlic_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Garlic/Flat/garlic_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:garlic",
+      "library": "twemoji",
+      "subject": "garlic",
+      "label": "Garlic",
+      "unicode": "1F9C4",
+      "file": "svg/twemoji/garlic.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f9c4.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f9c4.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:potato",
+      "library": "fluent",
+      "subject": "potato",
+      "label": "Potato",
+      "unicode": "1F954",
+      "file": "svg/fluent/potato.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Potato/Flat/potato_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Potato/Flat/potato_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:potato",
+      "library": "twemoji",
+      "subject": "potato",
+      "label": "Potato",
+      "unicode": "1F954",
+      "file": "svg/twemoji/potato.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f954.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f954.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:onion",
+      "library": "fluent",
+      "subject": "onion",
+      "label": "Onion",
+      "unicode": "1F9C5",
+      "file": "svg/fluent/onion.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Onion/Flat/onion_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Onion/Flat/onion_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:onion",
+      "library": "twemoji",
+      "subject": "onion",
+      "label": "Onion",
+      "unicode": "1F9C5",
+      "file": "svg/twemoji/onion.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f9c5.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f9c5.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:cucumber",
+      "library": "fluent",
+      "subject": "cucumber",
+      "label": "Cucumber",
+      "unicode": "1F952",
+      "file": "svg/fluent/cucumber.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Cucumber/Flat/cucumber_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Cucumber/Flat/cucumber_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:cucumber",
+      "library": "twemoji",
+      "subject": "cucumber",
+      "label": "Cucumber",
+      "unicode": "1F952",
+      "file": "svg/twemoji/cucumber.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f952.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f952.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:bell-pepper",
+      "library": "fluent",
+      "subject": "bell-pepper",
+      "label": "Bell pepper",
+      "unicode": "1FAD1",
+      "file": "svg/fluent/bell-pepper.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Bell%20pepper/Flat/bell_pepper_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Bell%20pepper/Flat/bell_pepper_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:bell-pepper",
+      "library": "twemoji",
+      "subject": "bell-pepper",
+      "label": "Bell pepper",
+      "unicode": "1FAD1",
+      "file": "svg/twemoji/bell-pepper.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1fad1.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1fad1.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:hot-pepper",
+      "library": "fluent",
+      "subject": "hot-pepper",
+      "label": "Hot pepper",
+      "unicode": "1F336",
+      "file": "svg/fluent/hot-pepper.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Hot%20pepper/Flat/hot_pepper_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Hot%20pepper/Flat/hot_pepper_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:hot-pepper",
+      "library": "twemoji",
+      "subject": "hot-pepper",
+      "label": "Hot pepper",
+      "unicode": "1F336",
+      "file": "svg/twemoji/hot-pepper.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f336.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f336.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:leafy-green",
+      "library": "fluent",
+      "subject": "leafy-green",
+      "label": "Leafy green",
+      "unicode": "1F96C",
+      "file": "svg/fluent/leafy-green.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Leafy%20green/Flat/leafy_green_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Leafy%20green/Flat/leafy_green_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:leafy-green",
+      "library": "twemoji",
+      "subject": "leafy-green",
+      "label": "Leafy green",
+      "unicode": "1F96C",
+      "file": "svg/twemoji/leafy-green.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f96c.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f96c.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:eggplant",
+      "library": "fluent",
+      "subject": "eggplant",
+      "label": "Eggplant",
+      "unicode": "1F346",
+      "file": "svg/fluent/eggplant.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Eggplant/Flat/eggplant_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Eggplant/Flat/eggplant_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:eggplant",
+      "library": "twemoji",
+      "subject": "eggplant",
+      "label": "Eggplant",
+      "unicode": "1F346",
+      "file": "svg/twemoji/eggplant.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f346.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f346.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:corn",
+      "library": "fluent",
+      "subject": "corn",
+      "label": "Ear of corn",
+      "unicode": "1F33D",
+      "file": "svg/fluent/corn.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Ear%20of%20corn/Flat/ear_of_corn_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Ear%20of%20corn/Flat/ear_of_corn_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:corn",
+      "library": "twemoji",
+      "subject": "corn",
+      "label": "Ear of corn",
+      "unicode": "1F33D",
+      "file": "svg/twemoji/corn.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f33d.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f33d.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:sweet-potato",
+      "library": "fluent",
+      "subject": "sweet-potato",
+      "label": "Roasted sweet potato",
+      "unicode": "1F360",
+      "file": "svg/fluent/sweet-potato.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Roasted%20sweet%20potato/Flat/roasted_sweet_potato_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Roasted%20sweet%20potato/Flat/roasted_sweet_potato_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:sweet-potato",
+      "library": "twemoji",
+      "subject": "sweet-potato",
+      "label": "Roasted sweet potato",
+      "unicode": "1F360",
+      "file": "svg/twemoji/sweet-potato.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f360.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f360.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:ginger",
+      "library": "fluent",
+      "subject": "ginger",
+      "label": "Ginger root",
+      "unicode": "1FADA",
+      "file": "svg/fluent/ginger.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Ginger%20root/Flat/ginger_root_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Ginger%20root/Flat/ginger_root_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:ginger",
+      "library": "twemoji",
+      "subject": "ginger",
+      "label": "Ginger root",
+      "unicode": "1FADA",
+      "file": "svg/twemoji/ginger.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1fada.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1fada.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:pea-pod",
+      "library": "fluent",
+      "subject": "pea-pod",
+      "label": "Pea pod",
+      "unicode": "1FADB",
+      "file": "svg/fluent/pea-pod.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Pea%20pod/Flat/pea_pod_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Pea%20pod/Flat/pea_pod_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:pea-pod",
+      "library": "twemoji",
+      "subject": "pea-pod",
+      "label": "Pea pod",
+      "unicode": "1FADB",
+      "file": "svg/twemoji/pea-pod.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1fadb.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1fadb.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:mushroom-brown",
+      "library": "fluent",
+      "subject": "mushroom-brown",
+      "label": "Brown mushroom",
+      "unicode": "1F344-200D-1F7EB",
+      "file": "svg/fluent/mushroom-brown.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Brown%20mushroom/Flat/brown_mushroom_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Brown%20mushroom/Flat/brown_mushroom_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:mushroom-brown",
+      "library": "twemoji",
+      "subject": "mushroom-brown",
+      "label": "Brown mushroom",
+      "unicode": "1F344-200D-1F7EB",
+      "file": "svg/twemoji/mushroom-brown.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f344-200d-1f7eb.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f344-200d-1f7eb.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:mushroom-red",
+      "library": "fluent",
+      "subject": "mushroom-red",
+      "label": "Mushroom",
+      "unicode": "1F344",
+      "file": "svg/fluent/mushroom-red.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Mushroom/Flat/mushroom_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Mushroom/Flat/mushroom_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "blocked-semantic",
+      "notes": "红伞蘑菇，仅保留作反例；不得代指香菇、口蘑或其他可食菌菇。",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:mushroom-red",
+      "library": "twemoji",
+      "subject": "mushroom-red",
+      "label": "Mushroom",
+      "unicode": "1F344",
+      "file": "svg/twemoji/mushroom-red.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f344.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f344.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "blocked-semantic",
+      "notes": "红伞蘑菇，仅保留作反例；不得代指香菇、口蘑或其他可食菌菇。",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:apple",
+      "library": "fluent",
+      "subject": "apple",
+      "label": "Red apple",
+      "unicode": "1F34E",
+      "file": "svg/fluent/apple.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Red%20apple/Flat/red_apple_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Red%20apple/Flat/red_apple_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:apple",
+      "library": "twemoji",
+      "subject": "apple",
+      "label": "Red apple",
+      "unicode": "1F34E",
+      "file": "svg/twemoji/apple.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f34e.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f34e.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:green-apple",
+      "library": "fluent",
+      "subject": "green-apple",
+      "label": "Green apple",
+      "unicode": "1F34F",
+      "file": "svg/fluent/green-apple.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Green%20apple/Flat/green_apple_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Green%20apple/Flat/green_apple_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:green-apple",
+      "library": "twemoji",
+      "subject": "green-apple",
+      "label": "Green apple",
+      "unicode": "1F34F",
+      "file": "svg/twemoji/green-apple.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f34f.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f34f.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:banana",
+      "library": "fluent",
+      "subject": "banana",
+      "label": "Banana",
+      "unicode": "1F34C",
+      "file": "svg/fluent/banana.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Banana/Flat/banana_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Banana/Flat/banana_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:banana",
+      "library": "twemoji",
+      "subject": "banana",
+      "label": "Banana",
+      "unicode": "1F34C",
+      "file": "svg/twemoji/banana.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f34c.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f34c.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:orange",
+      "library": "fluent",
+      "subject": "orange",
+      "label": "Tangerine",
+      "unicode": "1F34A",
+      "file": "svg/fluent/orange.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Tangerine/Flat/tangerine_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Tangerine/Flat/tangerine_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:orange",
+      "library": "twemoji",
+      "subject": "orange",
+      "label": "Tangerine",
+      "unicode": "1F34A",
+      "file": "svg/twemoji/orange.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f34a.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f34a.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:lemon",
+      "library": "fluent",
+      "subject": "lemon",
+      "label": "Lemon",
+      "unicode": "1F34B",
+      "file": "svg/fluent/lemon.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Lemon/Flat/lemon_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Lemon/Flat/lemon_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:lemon",
+      "library": "twemoji",
+      "subject": "lemon",
+      "label": "Lemon",
+      "unicode": "1F34B",
+      "file": "svg/twemoji/lemon.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f34b.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f34b.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:grapes",
+      "library": "fluent",
+      "subject": "grapes",
+      "label": "Grapes",
+      "unicode": "1F347",
+      "file": "svg/fluent/grapes.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Grapes/Flat/grapes_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Grapes/Flat/grapes_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:grapes",
+      "library": "twemoji",
+      "subject": "grapes",
+      "label": "Grapes",
+      "unicode": "1F347",
+      "file": "svg/twemoji/grapes.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f347.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f347.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:strawberry",
+      "library": "fluent",
+      "subject": "strawberry",
+      "label": "Strawberry",
+      "unicode": "1F353",
+      "file": "svg/fluent/strawberry.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Strawberry/Flat/strawberry_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Strawberry/Flat/strawberry_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:strawberry",
+      "library": "twemoji",
+      "subject": "strawberry",
+      "label": "Strawberry",
+      "unicode": "1F353",
+      "file": "svg/twemoji/strawberry.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f353.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f353.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:blueberries",
+      "library": "fluent",
+      "subject": "blueberries",
+      "label": "Blueberries",
+      "unicode": "1FAD0",
+      "file": "svg/fluent/blueberries.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Blueberries/Flat/blueberries_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Blueberries/Flat/blueberries_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:blueberries",
+      "library": "twemoji",
+      "subject": "blueberries",
+      "label": "Blueberries",
+      "unicode": "1FAD0",
+      "file": "svg/twemoji/blueberries.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1fad0.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1fad0.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:peach",
+      "library": "fluent",
+      "subject": "peach",
+      "label": "Peach",
+      "unicode": "1F351",
+      "file": "svg/fluent/peach.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Peach/Flat/peach_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Peach/Flat/peach_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:peach",
+      "library": "twemoji",
+      "subject": "peach",
+      "label": "Peach",
+      "unicode": "1F351",
+      "file": "svg/twemoji/peach.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f351.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f351.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:pear",
+      "library": "fluent",
+      "subject": "pear",
+      "label": "Pear",
+      "unicode": "1F350",
+      "file": "svg/fluent/pear.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Pear/Flat/pear_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Pear/Flat/pear_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:pear",
+      "library": "twemoji",
+      "subject": "pear",
+      "label": "Pear",
+      "unicode": "1F350",
+      "file": "svg/twemoji/pear.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f350.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f350.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:watermelon",
+      "library": "fluent",
+      "subject": "watermelon",
+      "label": "Watermelon",
+      "unicode": "1F349",
+      "file": "svg/fluent/watermelon.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Watermelon/Flat/watermelon_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Watermelon/Flat/watermelon_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:watermelon",
+      "library": "twemoji",
+      "subject": "watermelon",
+      "label": "Watermelon",
+      "unicode": "1F349",
+      "file": "svg/twemoji/watermelon.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f349.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f349.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:cherries",
+      "library": "fluent",
+      "subject": "cherries",
+      "label": "Cherries",
+      "unicode": "1F352",
+      "file": "svg/fluent/cherries.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Cherries/Flat/cherries_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Cherries/Flat/cherries_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:cherries",
+      "library": "twemoji",
+      "subject": "cherries",
+      "label": "Cherries",
+      "unicode": "1F352",
+      "file": "svg/twemoji/cherries.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f352.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f352.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:kiwi",
+      "library": "fluent",
+      "subject": "kiwi",
+      "label": "Kiwi fruit",
+      "unicode": "1F95D",
+      "file": "svg/fluent/kiwi.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Kiwi%20fruit/Flat/kiwi_fruit_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Kiwi%20fruit/Flat/kiwi_fruit_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:kiwi",
+      "library": "twemoji",
+      "subject": "kiwi",
+      "label": "Kiwi fruit",
+      "unicode": "1F95D",
+      "file": "svg/twemoji/kiwi.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f95d.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f95d.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:pineapple",
+      "library": "fluent",
+      "subject": "pineapple",
+      "label": "Pineapple",
+      "unicode": "1F34D",
+      "file": "svg/fluent/pineapple.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Pineapple/Flat/pineapple_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Pineapple/Flat/pineapple_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:pineapple",
+      "library": "twemoji",
+      "subject": "pineapple",
+      "label": "Pineapple",
+      "unicode": "1F34D",
+      "file": "svg/twemoji/pineapple.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f34d.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f34d.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:mango",
+      "library": "fluent",
+      "subject": "mango",
+      "label": "Mango",
+      "unicode": "1F96D",
+      "file": "svg/fluent/mango.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Mango/Flat/mango_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Mango/Flat/mango_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:mango",
+      "library": "twemoji",
+      "subject": "mango",
+      "label": "Mango",
+      "unicode": "1F96D",
+      "file": "svg/twemoji/mango.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f96d.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f96d.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:coconut",
+      "library": "fluent",
+      "subject": "coconut",
+      "label": "Coconut",
+      "unicode": "1F965",
+      "file": "svg/fluent/coconut.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Coconut/Flat/coconut_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Coconut/Flat/coconut_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:coconut",
+      "library": "twemoji",
+      "subject": "coconut",
+      "label": "Coconut",
+      "unicode": "1F965",
+      "file": "svg/twemoji/coconut.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f965.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f965.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:avocado",
+      "library": "fluent",
+      "subject": "avocado",
+      "label": "Avocado",
+      "unicode": "1F951",
+      "file": "svg/fluent/avocado.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Avocado/Flat/avocado_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Avocado/Flat/avocado_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:avocado",
+      "library": "twemoji",
+      "subject": "avocado",
+      "label": "Avocado",
+      "unicode": "1F951",
+      "file": "svg/twemoji/avocado.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f951.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f951.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:cut-meat",
+      "library": "fluent",
+      "subject": "cut-meat",
+      "label": "Cut of meat",
+      "unicode": "1F969",
+      "file": "svg/fluent/cut-meat.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Cut%20of%20meat/Flat/cut_of_meat_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Cut%20of%20meat/Flat/cut_of_meat_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:cut-meat",
+      "library": "twemoji",
+      "subject": "cut-meat",
+      "label": "Cut of meat",
+      "unicode": "1F969",
+      "file": "svg/twemoji/cut-meat.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f969.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f969.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:poultry-leg",
+      "library": "fluent",
+      "subject": "poultry-leg",
+      "label": "Poultry leg",
+      "unicode": "1F357",
+      "file": "svg/fluent/poultry-leg.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Poultry%20leg/Flat/poultry_leg_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Poultry%20leg/Flat/poultry_leg_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:poultry-leg",
+      "library": "twemoji",
+      "subject": "poultry-leg",
+      "label": "Poultry leg",
+      "unicode": "1F357",
+      "file": "svg/twemoji/poultry-leg.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f357.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f357.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:fish",
+      "library": "fluent",
+      "subject": "fish",
+      "label": "Fish",
+      "unicode": "1F41F",
+      "file": "svg/fluent/fish.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Fish/Flat/fish_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Fish/Flat/fish_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:fish",
+      "library": "twemoji",
+      "subject": "fish",
+      "label": "Fish",
+      "unicode": "1F41F",
+      "file": "svg/twemoji/fish.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f41f.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f41f.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:shrimp",
+      "library": "fluent",
+      "subject": "shrimp",
+      "label": "Shrimp",
+      "unicode": "1F990",
+      "file": "svg/fluent/shrimp.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Shrimp/Flat/shrimp_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Shrimp/Flat/shrimp_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:shrimp",
+      "library": "twemoji",
+      "subject": "shrimp",
+      "label": "Shrimp",
+      "unicode": "1F990",
+      "file": "svg/twemoji/shrimp.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f990.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f990.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:crab",
+      "library": "fluent",
+      "subject": "crab",
+      "label": "Crab",
+      "unicode": "1F980",
+      "file": "svg/fluent/crab.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Crab/Flat/crab_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Crab/Flat/crab_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:crab",
+      "library": "twemoji",
+      "subject": "crab",
+      "label": "Crab",
+      "unicode": "1F980",
+      "file": "svg/twemoji/crab.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f980.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f980.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:lobster",
+      "library": "fluent",
+      "subject": "lobster",
+      "label": "Lobster",
+      "unicode": "1F99E",
+      "file": "svg/fluent/lobster.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Lobster/Flat/lobster_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Lobster/Flat/lobster_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:lobster",
+      "library": "twemoji",
+      "subject": "lobster",
+      "label": "Lobster",
+      "unicode": "1F99E",
+      "file": "svg/twemoji/lobster.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f99e.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f99e.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:squid",
+      "library": "fluent",
+      "subject": "squid",
+      "label": "Squid",
+      "unicode": "1F991",
+      "file": "svg/fluent/squid.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Squid/Flat/squid_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Squid/Flat/squid_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:squid",
+      "library": "twemoji",
+      "subject": "squid",
+      "label": "Squid",
+      "unicode": "1F991",
+      "file": "svg/twemoji/squid.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f991.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f991.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:oyster",
+      "library": "fluent",
+      "subject": "oyster",
+      "label": "Oyster",
+      "unicode": "1F9AA",
+      "file": "svg/fluent/oyster.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Oyster/Flat/oyster_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Oyster/Flat/oyster_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:oyster",
+      "library": "twemoji",
+      "subject": "oyster",
+      "label": "Oyster",
+      "unicode": "1F9AA",
+      "file": "svg/twemoji/oyster.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f9aa.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f9aa.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:bacon",
+      "library": "fluent",
+      "subject": "bacon",
+      "label": "Bacon",
+      "unicode": "1F953",
+      "file": "svg/fluent/bacon.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Bacon/Flat/bacon_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Bacon/Flat/bacon_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:bacon",
+      "library": "twemoji",
+      "subject": "bacon",
+      "label": "Bacon",
+      "unicode": "1F953",
+      "file": "svg/twemoji/bacon.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f953.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f953.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:bread",
+      "library": "fluent",
+      "subject": "bread",
+      "label": "Bread",
+      "unicode": "1F35E",
+      "file": "svg/fluent/bread.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Bread/Flat/bread_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Bread/Flat/bread_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:bread",
+      "library": "twemoji",
+      "subject": "bread",
+      "label": "Bread",
+      "unicode": "1F35E",
+      "file": "svg/twemoji/bread.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f35e.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f35e.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:baguette",
+      "library": "fluent",
+      "subject": "baguette",
+      "label": "Baguette bread",
+      "unicode": "1F956",
+      "file": "svg/fluent/baguette.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Baguette%20bread/Flat/baguette_bread_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Baguette%20bread/Flat/baguette_bread_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:baguette",
+      "library": "twemoji",
+      "subject": "baguette",
+      "label": "Baguette bread",
+      "unicode": "1F956",
+      "file": "svg/twemoji/baguette.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f956.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f956.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:rice",
+      "library": "fluent",
+      "subject": "rice",
+      "label": "Cooked rice",
+      "unicode": "1F35A",
+      "file": "svg/fluent/rice.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Cooked%20rice/Flat/cooked_rice_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Cooked%20rice/Flat/cooked_rice_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:rice",
+      "library": "twemoji",
+      "subject": "rice",
+      "label": "Cooked rice",
+      "unicode": "1F35A",
+      "file": "svg/twemoji/rice.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f35a.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f35a.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:spaghetti",
+      "library": "fluent",
+      "subject": "spaghetti",
+      "label": "Spaghetti",
+      "unicode": "1F35D",
+      "file": "svg/fluent/spaghetti.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Spaghetti/Flat/spaghetti_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Spaghetti/Flat/spaghetti_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:spaghetti",
+      "library": "twemoji",
+      "subject": "spaghetti",
+      "label": "Spaghetti",
+      "unicode": "1F35D",
+      "file": "svg/twemoji/spaghetti.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f35d.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f35d.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:dumpling",
+      "library": "fluent",
+      "subject": "dumpling",
+      "label": "Dumpling",
+      "unicode": "1F95F",
+      "file": "svg/fluent/dumpling.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Dumpling/Flat/dumpling_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Dumpling/Flat/dumpling_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:dumpling",
+      "library": "twemoji",
+      "subject": "dumpling",
+      "label": "Dumpling",
+      "unicode": "1F95F",
+      "file": "svg/twemoji/dumpling.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f95f.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f95f.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:beans",
+      "library": "fluent",
+      "subject": "beans",
+      "label": "Beans",
+      "unicode": "1FAD8",
+      "file": "svg/fluent/beans.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Beans/Flat/beans_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Beans/Flat/beans_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:beans",
+      "library": "twemoji",
+      "subject": "beans",
+      "label": "Beans",
+      "unicode": "1FAD8",
+      "file": "svg/twemoji/beans.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1fad8.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1fad8.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:peanuts",
+      "library": "fluent",
+      "subject": "peanuts",
+      "label": "Peanuts",
+      "unicode": "1F95C",
+      "file": "svg/fluent/peanuts.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Peanuts/Flat/peanuts_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Peanuts/Flat/peanuts_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:peanuts",
+      "library": "twemoji",
+      "subject": "peanuts",
+      "label": "Peanuts",
+      "unicode": "1F95C",
+      "file": "svg/twemoji/peanuts.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f95c.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f95c.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:chestnut",
+      "library": "fluent",
+      "subject": "chestnut",
+      "label": "Chestnut",
+      "unicode": "1F330",
+      "file": "svg/fluent/chestnut.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Chestnut/Flat/chestnut_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Chestnut/Flat/chestnut_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:chestnut",
+      "library": "twemoji",
+      "subject": "chestnut",
+      "label": "Chestnut",
+      "unicode": "1F330",
+      "file": "svg/twemoji/chestnut.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f330.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f330.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:milk",
+      "library": "fluent",
+      "subject": "milk",
+      "label": "Glass of milk",
+      "unicode": "1F95B",
+      "file": "svg/fluent/milk.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Glass%20of%20milk/Flat/glass_of_milk_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Glass%20of%20milk/Flat/glass_of_milk_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:milk",
+      "library": "twemoji",
+      "subject": "milk",
+      "label": "Glass of milk",
+      "unicode": "1F95B",
+      "file": "svg/twemoji/milk.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f95b.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f95b.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:butter",
+      "library": "fluent",
+      "subject": "butter",
+      "label": "Butter",
+      "unicode": "1F9C8",
+      "file": "svg/fluent/butter.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Butter/Flat/butter_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Butter/Flat/butter_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:butter",
+      "library": "twemoji",
+      "subject": "butter",
+      "label": "Butter",
+      "unicode": "1F9C8",
+      "file": "svg/twemoji/butter.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f9c8.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f9c8.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:cheese",
+      "library": "fluent",
+      "subject": "cheese",
+      "label": "Cheese wedge",
+      "unicode": "1F9C0",
+      "file": "svg/fluent/cheese.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Cheese%20wedge/Flat/cheese_wedge_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Cheese%20wedge/Flat/cheese_wedge_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:cheese",
+      "library": "twemoji",
+      "subject": "cheese",
+      "label": "Cheese wedge",
+      "unicode": "1F9C0",
+      "file": "svg/twemoji/cheese.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f9c0.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f9c0.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:honey",
+      "library": "fluent",
+      "subject": "honey",
+      "label": "Honey pot",
+      "unicode": "1F36F",
+      "file": "svg/fluent/honey.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Honey%20pot/Flat/honey_pot_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Honey%20pot/Flat/honey_pot_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:honey",
+      "library": "twemoji",
+      "subject": "honey",
+      "label": "Honey pot",
+      "unicode": "1F36F",
+      "file": "svg/twemoji/honey.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f36f.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f36f.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:salt",
+      "library": "fluent",
+      "subject": "salt",
+      "label": "Salt",
+      "unicode": "1F9C2",
+      "file": "svg/fluent/salt.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Salt/Flat/salt_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Salt/Flat/salt_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:salt",
+      "library": "twemoji",
+      "subject": "salt",
+      "label": "Salt",
+      "unicode": "1F9C2",
+      "file": "svg/twemoji/salt.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f9c2.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1f9c2.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "fluent:jar",
+      "library": "fluent",
+      "subject": "jar",
+      "label": "Jar",
+      "unicode": "1FAD9",
+      "file": "svg/fluent/jar.svg",
+      "sourceUrl": "https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Jar/Flat/jar_flat.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Jar/Flat/jar_flat.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "twemoji:jar",
+      "library": "twemoji",
+      "subject": "jar",
+      "label": "Jar",
+      "unicode": "1FAD9",
+      "file": "svg/twemoji/jar.svg",
+      "sourceUrl": "https://github.com/jdecked/twemoji/blob/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1fad9.svg",
+      "downloadUrl": "https://raw.githubusercontent.com/jdecked/twemoji/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b/assets/svg/1fad9.svg",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "notes": "",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "svgrepo:garlic",
+      "library": "svgrepo",
+      "subject": "garlic",
+      "label": "Garlic",
+      "unicode": null,
+      "file": "svg/svgrepo/garlic.svg",
+      "sourceUrl": "https://www.svgrepo.com/svg/388750/garlic",
+      "downloadUrl": null,
+      "mirrorUrl": "https://www.svgviewer.dev/s/388750/garlic",
+      "retrievedOn": "2026-10-29",
+      "selectionStatus": "reference-only",
+      "notes": "沿用前次对照页原始 SVG；原站授权待复核，不参与默认自动选图。",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "svgrepo:potato",
+      "library": "svgrepo",
+      "subject": "potato",
+      "label": "Potato",
+      "unicode": null,
+      "file": "svg/svgrepo/potato.svg",
+      "sourceUrl": "https://www.svgrepo.com/svg/388748/potato",
+      "downloadUrl": null,
+      "mirrorUrl": "https://www.svgviewer.dev/s/388748/potato",
+      "retrievedOn": "2026-10-29",
+      "selectionStatus": "reference-only",
+      "notes": "沿用前次对照页原始 SVG；原站授权待复核，不参与默认自动选图。",
+      "visualStyle": "color",
+      "format": "svg"
+    },
+    {
+      "id": "irasutoya:scallion",
+      "library": "irasutoya",
+      "subject": "scallion",
+      "label": "小葱",
+      "file": "local/irasutoya/scallion.png",
+      "sourceUrl": "https://www.irasutoya.com/2017/08/blog-post_407.html",
+      "downloadUrl": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiChXR4Ek1Id7gJhCyvNPThX93G1GNbFtDR7XK6szF0NYUyamVr0i9yfIWZUxTIPbbg_6wN4cuDZMJi103gOIkX2chWukXWCgHGYFeWID9thWSe64Im6dznrv4jAGhovGyvQFxFd7JxAh1b/s400/vegetable_hoso_negi.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "irasutoya:leek-cn",
+      "library": "irasutoya",
+      "subject": "leek-cn",
+      "label": "大葱",
+      "file": "local/irasutoya/leek-cn.png",
+      "sourceUrl": "https://www.irasutoya.com/2017/08/blog-post_567.html",
+      "downloadUrl": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEht7MVPgfw_XOQajxOl4SxeE4PbiYYQSY6JA1rr3TbDGTSjWW2kTZneNrgg16Usba7l_wJLy0Akd-ihvoe-OCHRJOV1d06TfiGD1j8iLYX4BlgpJ5cFriZJ3m_m1aH3h6l1t-mK_yu5BEO6/s400/vegetable_negi.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "japaclip:asparagus",
+      "library": "japaclip",
+      "subject": "asparagus",
+      "label": "芦笋",
+      "file": "local/japaclip/asparagus.png",
+      "sourceUrl": "https://japaclip.com/en/asparagus/",
+      "downloadUrl": "https://japaclip.com/en/files/asparagus.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "japaclip:lotus-root",
+      "library": "japaclip",
+      "subject": "lotus-root",
+      "label": "莲藕",
+      "file": "local/japaclip/lotus-root.png",
+      "sourceUrl": "https://japaclip.com/en/lotus-root/",
+      "downloadUrl": "https://japaclip.com/en/files/lotus-root.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "irasutoya:yam",
+      "library": "irasutoya",
+      "subject": "yam",
+      "label": "山药",
+      "file": "local/irasutoya/yam.png",
+      "sourceUrl": "https://www.irasutoya.com/2014/01/blog-post_3571.html",
+      "downloadUrl": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjzEvSCKuq422jL6y8zlusqqc5ZmrS_fP_mjO1UjrcPyS9MsCGZxgV4V-KDPj0scY3uGw9Gb8FhL0MQwRNJtbb4KWuhKa716SOTnpjXLOnxkrWhK3lf38wR2cQk1IWaf92Z7ym2MdYD9DLx/s400/yamaimo.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "japaclip:pumpkin",
+      "library": "japaclip",
+      "subject": "pumpkin",
+      "label": "南瓜",
+      "file": "local/japaclip/pumpkin.png",
+      "sourceUrl": "https://japaclip.com/en/pumpkin/",
+      "downloadUrl": "https://japaclip.com/en/files/pumpkin.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "irasutoya:winter-melon",
+      "library": "irasutoya",
+      "subject": "winter-melon",
+      "label": "冬瓜",
+      "file": "local/irasutoya/winter-melon.png",
+      "sourceUrl": "https://www.irasutoya.com/2013/06/blog-post_862.html",
+      "downloadUrl": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhrBIFwiH8-nzs_NAzwxQwuWXCdsmdEtQIHX5hqYJjxTV_rszOOXq3MRvcF7lfKV2qv5tQdHMdPIaHYMw6NtYBHUAefygvtcI8n-rN_ttF2I7FA4MqnnbushkxDQGWNSS67sQlo0YLlkTg/s400/tougan.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "japaclip:enoki",
+      "library": "japaclip",
+      "subject": "enoki",
+      "label": "金针菇",
+      "file": "local/japaclip/enoki.png",
+      "sourceUrl": "https://japaclip.com/en/enoki-mushroom/",
+      "downloadUrl": "https://japaclip.com/en/files/enoki.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "irasutoya:enoki",
+      "library": "irasutoya",
+      "subject": "enoki",
+      "label": "金针菇",
+      "file": "local/irasutoya/enoki.png",
+      "sourceUrl": "https://www.irasutoya.com/2014/01/blog-post_2548.html",
+      "downloadUrl": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg3Tm30qi8Cfthyk8jeAq0m22OJby4O-LKBuu-pXUgihkc6KfsVR0yr_bwT_cEVlLA1K5JxpOiViPuFjrUfS0MU_j3MYHxZcaCEsI1S1XacCoRARsWjZoHJotgE01HJ2CNr9KKw0TEItaUI/s400/kinoko_enoki.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "irasutoya:wood-ear",
+      "library": "irasutoya",
+      "subject": "wood-ear",
+      "label": "木耳",
+      "file": "local/irasutoya/wood-ear.png",
+      "sourceUrl": "https://www.irasutoya.com/2016/02/blog-post_99.html",
+      "downloadUrl": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiDl5YQddEV5JWO3-gopNSSPUNs9JD7C1JWaXgO6vRLtChbbN6EN5BDRlkkVUoQWJBkH6F2mWxP9jivr28FSQSd8aQFvx7ciic8HWYCmniLCLjRVd6UDz7ESaQxsOMO4yNRhtopfh7vQPSZ/s400/food_kikurage.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "japaclip:flour",
+      "library": "japaclip",
+      "subject": "flour",
+      "label": "面粉",
+      "file": "local/japaclip/flour.png",
+      "sourceUrl": "https://japaclip.com/en/flour/",
+      "downloadUrl": "https://japaclip.com/en/files/komugiko-flour.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "irasutoya:flour",
+      "library": "irasutoya",
+      "subject": "flour",
+      "label": "面粉",
+      "file": "local/irasutoya/flour.png",
+      "sourceUrl": "https://www.irasutoya.com/2014/07/blog-post_8148.html",
+      "downloadUrl": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhNBEF9YsyfOq-JiX0KOqfG3r0YaL-WLHPytB47y8v00fpiaSCyriV9kBVO7rp5Ou9Db2ODHXQPPYiCGtfdVn6eVC03co76iUOyiOPsNjYB2v-M6m5kYi3UBacgbj7tS2buf7_Ym2N4LKzQ/s400/food_flour_komugiko.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "irasutoya:oats",
+      "library": "irasutoya",
+      "subject": "oats",
+      "label": "燕麦",
+      "file": "local/irasutoya/oats.png",
+      "sourceUrl": "https://www.irasutoya.com/2015/02/blog-post_236.html",
+      "downloadUrl": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh0Yjl38ieZBJdttWnSSjYXCRQavIFqegJMAoMOG8gwg36gAguBXnWGtb8ngdyICw9mAwhdOnwSOrNy6895fGxZwF5LP2Edu_ENjfyK3IGue1iBRHC0VmStwN1nGP6eIn7LOZ_8CrVBtgZo/s400/food_oatmeal.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "燕麦片包装与成品仅作燕麦类别图，不代表原粒燕麦。"
+    },
+    {
+      "id": "japaclip:sesame",
+      "library": "japaclip",
+      "subject": "sesame",
+      "label": "芝麻",
+      "file": "local/japaclip/sesame.png",
+      "sourceUrl": "https://japaclip.com/en/sesame/",
+      "downloadUrl": "https://japaclip.com/en/files/sesame.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "japaclip:cinnamon",
+      "library": "japaclip",
+      "subject": "cinnamon",
+      "label": "桂皮",
+      "file": "local/japaclip/cinnamon.png",
+      "sourceUrl": "https://japaclip.com/en/cinnamon/",
+      "downloadUrl": "https://japaclip.com/en/files/cinnamon.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "肉桂棒作为桂皮的类别图，不承诺实际品种或形态一致。"
+    },
+    {
+      "id": "irasutoya:tofu",
+      "library": "irasutoya",
+      "subject": "tofu",
+      "label": "豆腐",
+      "file": "local/irasutoya/tofu.png",
+      "sourceUrl": "https://www.irasutoya.com/2017/07/blog-post_99.html",
+      "downloadUrl": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEipn9Pa6hVNUczFoEumJceeGQau3OPEBYrNbJywEjYapVhTyvrTT_NtioQLrqcVM7hIYZSzl7iUzcvsbA-6OC36k4NN3IrSwubowRX7l46rEMrwVCvAt22fiebUKsiA_LvDZG6SklQcJJja/s400/food_toufu_pack.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "包装豆腐；包装文字只是原图装饰，不表示品牌。"
+    },
+    {
+      "id": "japaclip:cauliflower",
+      "library": "japaclip",
+      "subject": "cauliflower",
+      "label": "花菜",
+      "file": "local/japaclip/cauliflower.png",
+      "sourceUrl": "https://japaclip.com/en/cauliflower/",
+      "downloadUrl": "https://japaclip.com/en/files/cauliflower.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "japaclip:celery",
+      "library": "japaclip",
+      "subject": "celery",
+      "label": "芹菜",
+      "file": "local/japaclip/celery.png",
+      "sourceUrl": "https://japaclip.com/en/celery/",
+      "downloadUrl": "https://japaclip.com/en/files/celery.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    },
+    {
+      "id": "japaclip:sausage",
+      "library": "japaclip",
+      "subject": "sausage",
+      "label": "香肠",
+      "file": "local/japaclip/sausage.png",
+      "sourceUrl": "https://japaclip.com/en/sausage/",
+      "downloadUrl": "https://japaclip.com/en/files/sausages.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "西式香肠仅作香肠类别图，不用于区分中式腊肠、火腿肠或具体包装。"
+    },
+    {
+      "id": "japaclip:clam",
+      "library": "japaclip",
+      "subject": "clam",
+      "label": "蛤蜊",
+      "file": "local/japaclip/clams.png",
+      "sourceUrl": "https://japaclip.com/en/clams/",
+      "downloadUrl": "https://japaclip.com/en/files/clams.png",
+      "retrievedOn": "2026-10-30",
+      "selectionStatus": "candidate",
+      "visualStyle": "color",
+      "format": "png",
+      "distributionScope": "local-review-and-application-use; no-raw-asset-redistribution",
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+    }
+  ],
+  "entries": [
+    {
+      "id": "tomato",
+      "name": "番茄",
+      "category": "蔬菜",
+      "aliases": [
+        "西红柿",
+        "tomato"
+      ],
+      "defaultIcon": "fluent:tomato",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:tomato",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:tomato",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [
+        "番茄酱",
+        "番茄罐头"
+      ],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "番茄"
+    },
+    {
+      "id": "cherry-tomato",
+      "name": "小番茄",
+      "category": "蔬菜",
+      "aliases": [
+        "圣女果",
+        "樱桃番茄",
+        "cherry tomato"
+      ],
+      "defaultIcon": "fluent:tomato",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:tomato",
+          "kind": "category",
+          "reason": "借用普通番茄图，不能表达小番茄大小。"
+        },
+        {
+          "iconId": "twemoji:tomato",
+          "kind": "category",
+          "reason": "借用普通番茄图，不能表达小番茄大小。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "借用普通番茄图，不能表达小番茄大小。",
+      "reviewStatus": "draft",
+      "avatarText": "番茄"
+    },
+    {
+      "id": "carrot",
+      "name": "胡萝卜",
+      "category": "蔬菜",
+      "aliases": [
+        "红萝卜",
+        "carrot"
+      ],
+      "defaultIcon": "fluent:carrot",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:carrot",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:carrot",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [
+        "白萝卜",
+        "胡萝卜汁"
+      ],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "萝卜"
+    },
+    {
+      "id": "broccoli",
+      "name": "西兰花",
+      "category": "蔬菜",
+      "aliases": [
+        "青花菜",
+        "绿花椰菜",
+        "broccoli"
+      ],
+      "defaultIcon": "fluent:broccoli",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:broccoli",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:broccoli",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [
+        "花菜",
+        "菜花"
+      ],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "西兰"
+    },
+    {
+      "id": "cauliflower",
+      "name": "花菜",
+      "category": "蔬菜",
+      "aliases": [
+        "菜花",
+        "白花椰菜",
+        "cauliflower"
+      ],
+      "defaultIcon": "japaclip:cauliflower",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "japaclip:cauliflower",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。",
+      "reviewStatus": "draft",
+      "avatarText": "花菜"
+    },
+    {
+      "id": "garlic",
+      "name": "大蒜",
+      "category": "蔬菜",
+      "aliases": [
+        "蒜头",
+        "蒜瓣",
+        "garlic"
+      ],
+      "defaultIcon": "fluent:garlic",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:garlic",
+          "kind": "exact",
+          "reason": "蒜瓣可共用蒜头图形，但不与蒜苗或蒜薹互作别名。"
+        },
+        {
+          "iconId": "twemoji:garlic",
+          "kind": "exact",
+          "reason": "蒜瓣可共用蒜头图形，但不与蒜苗或蒜薹互作别名。"
+        },
+        {
+          "iconId": "svgrepo:garlic",
+          "kind": "exact",
+          "reason": "蒜瓣可共用蒜头图形，但不与蒜苗或蒜薹互作别名。"
+        }
+      ],
+      "excludedNames": [
+        "蒜苗",
+        "蒜薹",
+        "蒜蓉酱"
+      ],
+      "forbiddenIconIds": [],
+      "notes": "蒜瓣可共用蒜头图形，但不与蒜苗或蒜薹互作别名。",
+      "reviewStatus": "draft",
+      "avatarText": "大蒜"
+    },
+    {
+      "id": "minced-garlic",
+      "name": "蒜末",
+      "category": "蔬菜",
+      "aliases": [
+        "蒜蓉",
+        "蒜泥",
+        "minced garlic"
+      ],
+      "defaultIcon": "fluent:garlic",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:garlic",
+          "kind": "category",
+          "reason": "完整蒜头图仅作加工后大蒜的类别图。"
+        },
+        {
+          "iconId": "twemoji:garlic",
+          "kind": "category",
+          "reason": "完整蒜头图仅作加工后大蒜的类别图。"
+        },
+        {
+          "iconId": "svgrepo:garlic",
+          "kind": "category",
+          "reason": "完整蒜头图仅作加工后大蒜的类别图。"
+        }
+      ],
+      "excludedNames": [
+        "蒜蓉酱"
+      ],
+      "forbiddenIconIds": [],
+      "notes": "完整蒜头图仅作加工后大蒜的类别图。",
+      "reviewStatus": "draft",
+      "avatarText": "蒜末"
+    },
+    {
+      "id": "onion",
+      "name": "洋葱",
+      "category": "蔬菜",
+      "aliases": [
+        "onion"
+      ],
+      "defaultIcon": "fluent:onion",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:onion",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:onion",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [
+        "小葱",
+        "大葱",
+        "洋葱粉"
+      ],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "洋葱"
+    },
+    {
+      "id": "scallion",
+      "name": "小葱",
+      "category": "蔬菜",
+      "aliases": [
+        "香葱",
+        "青葱",
+        "scallion",
+        "spring onion"
+      ],
+      "defaultIcon": "irasutoya:scallion",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "irasutoya:scallion",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。",
+      "reviewStatus": "draft",
+      "avatarText": "小葱"
+    },
+    {
+      "id": "leek-cn",
+      "name": "大葱",
+      "category": "蔬菜",
+      "aliases": [
+        "green onion stalk"
+      ],
+      "defaultIcon": "irasutoya:leek-cn",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "irasutoya:leek-cn",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。",
+      "reviewStatus": "draft",
+      "avatarText": "大葱"
+    },
+    {
+      "id": "garlic-sprout",
+      "name": "蒜苗",
+      "category": "蔬菜",
+      "aliases": [
+        "青蒜",
+        "garlic greens"
+      ],
+      "defaultIcon": null,
+      "matchKind": "pending",
+      "candidates": [],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "待补专用图，不用蒜头图冒充。",
+      "reviewStatus": "draft",
+      "avatarText": "蒜苗"
+    },
+    {
+      "id": "garlic-scape",
+      "name": "蒜薹",
+      "category": "蔬菜",
+      "aliases": [
+        "蒜苔",
+        "蒜台",
+        "garlic scape"
+      ],
+      "defaultIcon": null,
+      "matchKind": "pending",
+      "candidates": [],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "待补专用图；与蒜苗分开。",
+      "reviewStatus": "draft",
+      "avatarText": "蒜薹"
+    },
+    {
+      "id": "ginger",
+      "name": "生姜",
+      "category": "蔬菜",
+      "aliases": [
+        "姜",
+        "姜块",
+        "鲜姜",
+        "ginger"
+      ],
+      "defaultIcon": "fluent:ginger",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:ginger",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:ginger",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [
+        "姜粉",
+        "腌姜"
+      ],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "生姜"
+    },
+    {
+      "id": "potato",
+      "name": "土豆",
+      "category": "蔬菜",
+      "aliases": [
+        "马铃薯",
+        "洋芋",
+        "potato"
+      ],
+      "defaultIcon": "fluent:potato",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:potato",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:potato",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "svgrepo:potato",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [
+        "土豆泥",
+        "薯片"
+      ],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "土豆"
+    },
+    {
+      "id": "sweet-potato",
+      "name": "红薯",
+      "category": "蔬菜",
+      "aliases": [
+        "地瓜",
+        "番薯",
+        "sweet potato"
+      ],
+      "defaultIcon": "fluent:sweet-potato",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:sweet-potato",
+          "kind": "category",
+          "reason": "现有图为烤红薯切面，仅作甘薯类别。"
+        },
+        {
+          "iconId": "twemoji:sweet-potato",
+          "kind": "category",
+          "reason": "现有图为烤红薯切面，仅作甘薯类别。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "现有图为烤红薯切面，仅作甘薯类别。",
+      "reviewStatus": "draft",
+      "avatarText": "红薯"
+    },
+    {
+      "id": "cucumber",
+      "name": "黄瓜",
+      "category": "蔬菜",
+      "aliases": [
+        "青瓜",
+        "cucumber"
+      ],
+      "defaultIcon": "fluent:cucumber",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:cucumber",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:cucumber",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [
+        "腌黄瓜"
+      ],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "黄瓜"
+    },
+    {
+      "id": "eggplant",
+      "name": "茄子",
+      "category": "蔬菜",
+      "aliases": [
+        "eggplant",
+        "aubergine"
+      ],
+      "defaultIcon": "fluent:eggplant",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:eggplant",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:eggplant",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [
+        "茄子酱"
+      ],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "茄子"
+    },
+    {
+      "id": "corn",
+      "name": "玉米",
+      "category": "蔬菜",
+      "aliases": [
+        "玉米棒",
+        "甜玉米",
+        "corn"
+      ],
+      "defaultIcon": "fluent:corn",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:corn",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:corn",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [
+        "玉米淀粉",
+        "玉米油"
+      ],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "玉米"
+    },
+    {
+      "id": "corn-kernels",
+      "name": "玉米粒",
+      "category": "蔬菜",
+      "aliases": [
+        "甜玉米粒",
+        "corn kernels"
+      ],
+      "defaultIcon": "fluent:corn",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:corn",
+          "kind": "category",
+          "reason": "借用整根玉米图，非颗粒形态。"
+        },
+        {
+          "iconId": "twemoji:corn",
+          "kind": "category",
+          "reason": "借用整根玉米图，非颗粒形态。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "借用整根玉米图，非颗粒形态。",
+      "reviewStatus": "draft",
+      "avatarText": "玉米"
+    },
+    {
+      "id": "bell-pepper",
+      "name": "彩椒",
+      "category": "蔬菜",
+      "aliases": [
+        "甜椒",
+        "灯笼椒",
+        "bell pepper"
+      ],
+      "defaultIcon": "fluent:bell-pepper",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:bell-pepper",
+          "kind": "exact",
+          "reason": "图形不能区分红黄绿彩椒。"
+        },
+        {
+          "iconId": "twemoji:bell-pepper",
+          "kind": "exact",
+          "reason": "图形不能区分红黄绿彩椒。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "图形不能区分红黄绿彩椒。",
+      "reviewStatus": "draft",
+      "avatarText": "彩椒"
+    },
+    {
+      "id": "green-pepper",
+      "name": "青椒",
+      "category": "蔬菜",
+      "aliases": [
+        "green pepper"
+      ],
+      "defaultIcon": "fluent:bell-pepper",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:bell-pepper",
+          "kind": "category",
+          "reason": "青椒可能是长椒或块椒；此图仅表达椒类，精确形态需另核对。"
+        },
+        {
+          "iconId": "twemoji:bell-pepper",
+          "kind": "category",
+          "reason": "青椒可能是长椒或块椒；此图仅表达椒类，精确形态需另核对。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "青椒可能是长椒或块椒；此图仅表达椒类，精确形态需另核对。",
+      "reviewStatus": "draft",
+      "avatarText": "青椒"
+    },
+    {
+      "id": "hot-pepper",
+      "name": "红辣椒",
+      "category": "蔬菜",
+      "aliases": [
+        "辣椒",
+        "小米椒",
+        "hot pepper",
+        "chili"
+      ],
+      "defaultIcon": "fluent:hot-pepper",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:hot-pepper",
+          "kind": "category",
+          "reason": "长辣椒图作椒类代用，不表达辣度、鲜干或具体品种。"
+        },
+        {
+          "iconId": "twemoji:hot-pepper",
+          "kind": "category",
+          "reason": "长辣椒图作椒类代用，不表达辣度、鲜干或具体品种。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "长辣椒图作椒类代用，不表达辣度、鲜干或具体品种。",
+      "reviewStatus": "draft",
+      "avatarText": "辣椒"
+    },
+    {
+      "id": "pea",
+      "name": "豌豆",
+      "category": "蔬菜",
+      "aliases": [
+        "豌豆荚",
+        "pea",
+        "peas"
+      ],
+      "defaultIcon": "fluent:pea-pod",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:pea-pod",
+          "kind": "exact",
+          "reason": "采用豌豆荚造型。"
+        },
+        {
+          "iconId": "twemoji:pea-pod",
+          "kind": "exact",
+          "reason": "采用豌豆荚造型。"
+        }
+      ],
+      "excludedNames": [
+        "荷兰豆"
+      ],
+      "forbiddenIconIds": [],
+      "notes": "采用豌豆荚造型。",
+      "reviewStatus": "draft",
+      "avatarText": "豌豆"
+    },
+    {
+      "id": "spinach",
+      "name": "菠菜",
+      "category": "蔬菜",
+      "aliases": [
+        "spinach"
+      ],
+      "defaultIcon": "fluent:leafy-green",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:leafy-green",
+          "kind": "category",
+          "reason": "叶菜通用图；不表示这一品种的精确叶形。"
+        },
+        {
+          "iconId": "twemoji:leafy-green",
+          "kind": "category",
+          "reason": "叶菜通用图；不表示这一品种的精确叶形。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "叶菜通用图；不表示这一品种的精确叶形。",
+      "reviewStatus": "draft",
+      "avatarText": "菠菜"
+    },
+    {
+      "id": "bok-choy",
+      "name": "小白菜",
+      "category": "蔬菜",
+      "aliases": [
+        "青菜",
+        "bok choy"
+      ],
+      "defaultIcon": "fluent:leafy-green",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:leafy-green",
+          "kind": "category",
+          "reason": "叶菜通用图；不表示这一品种的精确叶形。"
+        },
+        {
+          "iconId": "twemoji:leafy-green",
+          "kind": "category",
+          "reason": "叶菜通用图；不表示这一品种的精确叶形。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "叶菜通用图；不表示这一品种的精确叶形。",
+      "reviewStatus": "draft",
+      "avatarText": "白菜"
+    },
+    {
+      "id": "lettuce",
+      "name": "生菜",
+      "category": "蔬菜",
+      "aliases": [
+        "lettuce"
+      ],
+      "defaultIcon": "fluent:leafy-green",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:leafy-green",
+          "kind": "category",
+          "reason": "叶菜通用图；不表示这一品种的精确叶形。"
+        },
+        {
+          "iconId": "twemoji:leafy-green",
+          "kind": "category",
+          "reason": "叶菜通用图；不表示这一品种的精确叶形。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "叶菜通用图；不表示这一品种的精确叶形。",
+      "reviewStatus": "draft",
+      "avatarText": "生菜"
+    },
+    {
+      "id": "cabbage",
+      "name": "卷心菜",
+      "category": "蔬菜",
+      "aliases": [
+        "包菜",
+        "圆白菜",
+        "cabbage"
+      ],
+      "defaultIcon": "fluent:leafy-green",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:leafy-green",
+          "kind": "category",
+          "reason": "叶菜通用图；不表示这一品种的精确叶形。"
+        },
+        {
+          "iconId": "twemoji:leafy-green",
+          "kind": "category",
+          "reason": "叶菜通用图；不表示这一品种的精确叶形。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "叶菜通用图；不表示这一品种的精确叶形。",
+      "reviewStatus": "draft",
+      "avatarText": "包菜"
+    },
+    {
+      "id": "napa-cabbage",
+      "name": "大白菜",
+      "category": "蔬菜",
+      "aliases": [
+        "白菜",
+        "napa cabbage"
+      ],
+      "defaultIcon": "fluent:leafy-green",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:leafy-green",
+          "kind": "category",
+          "reason": "叶菜通用图；不表示这一品种的精确叶形。"
+        },
+        {
+          "iconId": "twemoji:leafy-green",
+          "kind": "category",
+          "reason": "叶菜通用图；不表示这一品种的精确叶形。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "叶菜通用图；不表示这一品种的精确叶形。",
+      "reviewStatus": "draft",
+      "avatarText": "白菜"
+    },
+    {
+      "id": "baby-cabbage",
+      "name": "娃娃菜",
+      "category": "蔬菜",
+      "aliases": [
+        "baby napa cabbage"
+      ],
+      "defaultIcon": "fluent:leafy-green",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:leafy-green",
+          "kind": "category",
+          "reason": "叶菜通用图；不表示这一品种的精确叶形。"
+        },
+        {
+          "iconId": "twemoji:leafy-green",
+          "kind": "category",
+          "reason": "叶菜通用图；不表示这一品种的精确叶形。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "叶菜通用图；不表示这一品种的精确叶形。",
+      "reviewStatus": "draft",
+      "avatarText": "娃菜"
+    },
+    {
+      "id": "chives",
+      "name": "韭菜",
+      "category": "蔬菜",
+      "aliases": [
+        "chives"
+      ],
+      "defaultIcon": "fluent:leafy-green",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:leafy-green",
+          "kind": "category",
+          "reason": "叶菜通用图；不表示这一品种的精确叶形。"
+        },
+        {
+          "iconId": "twemoji:leafy-green",
+          "kind": "category",
+          "reason": "叶菜通用图；不表示这一品种的精确叶形。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "叶菜通用图；不表示这一品种的精确叶形。",
+      "reviewStatus": "draft",
+      "avatarText": "韭菜"
+    },
+    {
+      "id": "asparagus",
+      "name": "芦笋",
+      "category": "蔬菜",
+      "aliases": [
+        "asparagus"
+      ],
+      "defaultIcon": "japaclip:asparagus",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "japaclip:asparagus",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。",
+      "reviewStatus": "draft",
+      "avatarText": "芦笋"
+    },
+    {
+      "id": "celery",
+      "name": "芹菜",
+      "category": "蔬菜",
+      "aliases": [
+        "celery"
+      ],
+      "defaultIcon": "japaclip:celery",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "japaclip:celery",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。",
+      "reviewStatus": "draft",
+      "avatarText": "芹菜"
+    },
+    {
+      "id": "radish",
+      "name": "白萝卜",
+      "category": "蔬菜",
+      "aliases": [
+        "白玉萝卜",
+        "daikon"
+      ],
+      "defaultIcon": null,
+      "matchKind": "pending",
+      "candidates": [],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "待补形态匹配的素材。",
+      "reviewStatus": "draft",
+      "avatarText": "萝卜"
+    },
+    {
+      "id": "lotus-root",
+      "name": "莲藕",
+      "category": "蔬菜",
+      "aliases": [
+        "藕",
+        "lotus root"
+      ],
+      "defaultIcon": "japaclip:lotus-root",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "japaclip:lotus-root",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。",
+      "reviewStatus": "draft",
+      "avatarText": "莲藕"
+    },
+    {
+      "id": "yam",
+      "name": "山药",
+      "category": "蔬菜",
+      "aliases": [
+        "淮山",
+        "yam"
+      ],
+      "defaultIcon": "irasutoya:yam",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "irasutoya:yam",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。",
+      "reviewStatus": "draft",
+      "avatarText": "山药"
+    },
+    {
+      "id": "pumpkin",
+      "name": "南瓜",
+      "category": "蔬菜",
+      "aliases": [
+        "pumpkin"
+      ],
+      "defaultIcon": "japaclip:pumpkin",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "japaclip:pumpkin",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。",
+      "reviewStatus": "draft",
+      "avatarText": "南瓜"
+    },
+    {
+      "id": "winter-melon",
+      "name": "冬瓜",
+      "category": "蔬菜",
+      "aliases": [
+        "winter melon"
+      ],
+      "defaultIcon": "irasutoya:winter-melon",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "irasutoya:winter-melon",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。",
+      "reviewStatus": "draft",
+      "avatarText": "冬瓜"
+    },
+    {
+      "id": "mushroom",
+      "name": "蘑菇",
+      "category": "菌菇",
+      "aliases": [
+        "鲜蘑菇",
+        "mushroom"
+      ],
+      "defaultIcon": "fluent:mushroom-brown",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:mushroom-brown",
+          "kind": "category",
+          "reason": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。"
+        },
+        {
+          "iconId": "twemoji:mushroom-brown",
+          "kind": "category",
+          "reason": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [
+        "fluent:mushroom-red",
+        "twemoji:mushroom-red"
+      ],
+      "notes": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。",
+      "reviewStatus": "draft",
+      "avatarText": "蘑菇"
+    },
+    {
+      "id": "shiitake",
+      "name": "香菇",
+      "category": "菌菇",
+      "aliases": [
+        "鲜香菇",
+        "shiitake"
+      ],
+      "defaultIcon": "fluent:mushroom-brown",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:mushroom-brown",
+          "kind": "category",
+          "reason": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。"
+        },
+        {
+          "iconId": "twemoji:mushroom-brown",
+          "kind": "category",
+          "reason": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [
+        "fluent:mushroom-red",
+        "twemoji:mushroom-red"
+      ],
+      "notes": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。",
+      "reviewStatus": "draft",
+      "avatarText": "香菇"
+    },
+    {
+      "id": "button-mushroom",
+      "name": "口蘑",
+      "category": "菌菇",
+      "aliases": [
+        "白蘑菇",
+        "白口蘑",
+        "button mushroom",
+        "champignon"
+      ],
+      "defaultIcon": "fluent:mushroom-brown",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:mushroom-brown",
+          "kind": "category",
+          "reason": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。"
+        },
+        {
+          "iconId": "twemoji:mushroom-brown",
+          "kind": "category",
+          "reason": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [
+        "fluent:mushroom-red",
+        "twemoji:mushroom-red"
+      ],
+      "notes": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。",
+      "reviewStatus": "draft",
+      "avatarText": "口蘑"
+    },
+    {
+      "id": "oyster-mushroom",
+      "name": "平菇",
+      "category": "菌菇",
+      "aliases": [
+        "秀珍菇",
+        "oyster mushroom"
+      ],
+      "defaultIcon": "fluent:mushroom-brown",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:mushroom-brown",
+          "kind": "category",
+          "reason": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。"
+        },
+        {
+          "iconId": "twemoji:mushroom-brown",
+          "kind": "category",
+          "reason": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [
+        "fluent:mushroom-red",
+        "twemoji:mushroom-red"
+      ],
+      "notes": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。",
+      "reviewStatus": "draft",
+      "avatarText": "平菇"
+    },
+    {
+      "id": "king-oyster",
+      "name": "杏鲍菇",
+      "category": "菌菇",
+      "aliases": [
+        "king oyster mushroom"
+      ],
+      "defaultIcon": "fluent:mushroom-brown",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:mushroom-brown",
+          "kind": "category",
+          "reason": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。"
+        },
+        {
+          "iconId": "twemoji:mushroom-brown",
+          "kind": "category",
+          "reason": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [
+        "fluent:mushroom-red",
+        "twemoji:mushroom-red"
+      ],
+      "notes": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。",
+      "reviewStatus": "draft",
+      "avatarText": "杏鲍"
+    },
+    {
+      "id": "shimeji",
+      "name": "白玉菇",
+      "category": "菌菇",
+      "aliases": [
+        "蟹味菇",
+        "shimeji"
+      ],
+      "defaultIcon": "fluent:mushroom-brown",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:mushroom-brown",
+          "kind": "category",
+          "reason": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。"
+        },
+        {
+          "iconId": "twemoji:mushroom-brown",
+          "kind": "category",
+          "reason": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [
+        "fluent:mushroom-red",
+        "twemoji:mushroom-red"
+      ],
+      "notes": "借用棕色菌菇图，仅作菌菇类别；形态与具体品种可能不同，不作为可食性判断。",
+      "reviewStatus": "draft",
+      "avatarText": "白玉"
+    },
+    {
+      "id": "enoki",
+      "name": "金针菇",
+      "category": "菌菇",
+      "aliases": [
+        "enoki"
+      ],
+      "defaultIcon": "japaclip:enoki",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "japaclip:enoki",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        },
+        {
+          "iconId": "irasutoya:enoki",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [
+        "fluent:mushroom-red",
+        "twemoji:mushroom-red"
+      ],
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。",
+      "reviewStatus": "draft",
+      "avatarText": "金针"
+    },
+    {
+      "id": "wood-ear",
+      "name": "木耳",
+      "category": "菌菇",
+      "aliases": [
+        "黑木耳",
+        "wood ear"
+      ],
+      "defaultIcon": "irasutoya:wood-ear",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "irasutoya:wood-ear",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [
+        "fluent:mushroom-red",
+        "twemoji:mushroom-red"
+      ],
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。",
+      "reviewStatus": "draft",
+      "avatarText": "木耳"
+    },
+    {
+      "id": "apple",
+      "name": "苹果",
+      "category": "水果",
+      "aliases": [
+        "红苹果",
+        "apple"
+      ],
+      "defaultIcon": "fluent:apple",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:apple",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:apple",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "苹果"
+    },
+    {
+      "id": "green-apple",
+      "name": "青苹果",
+      "category": "水果",
+      "aliases": [
+        "green apple"
+      ],
+      "defaultIcon": "fluent:green-apple",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:green-apple",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:green-apple",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "苹果"
+    },
+    {
+      "id": "banana",
+      "name": "香蕉",
+      "category": "水果",
+      "aliases": [
+        "banana"
+      ],
+      "defaultIcon": "fluent:banana",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:banana",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:banana",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "香蕉"
+    },
+    {
+      "id": "orange",
+      "name": "橘子",
+      "category": "水果",
+      "aliases": [
+        "桔子",
+        "蜜橘",
+        "柑橘",
+        "tangerine"
+      ],
+      "defaultIcon": "fluent:orange",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:orange",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:orange",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "橘子"
+    },
+    {
+      "id": "lemon",
+      "name": "柠檬",
+      "category": "水果",
+      "aliases": [
+        "lemon"
+      ],
+      "defaultIcon": "fluent:lemon",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:lemon",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:lemon",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "柠檬"
+    },
+    {
+      "id": "grapes",
+      "name": "葡萄",
+      "category": "水果",
+      "aliases": [
+        "grapes"
+      ],
+      "defaultIcon": "fluent:grapes",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:grapes",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:grapes",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "葡萄"
+    },
+    {
+      "id": "strawberry",
+      "name": "草莓",
+      "category": "水果",
+      "aliases": [
+        "strawberry"
+      ],
+      "defaultIcon": "fluent:strawberry",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:strawberry",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:strawberry",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "草莓"
+    },
+    {
+      "id": "blueberries",
+      "name": "蓝莓",
+      "category": "水果",
+      "aliases": [
+        "blueberry",
+        "blueberries"
+      ],
+      "defaultIcon": "fluent:blueberries",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:blueberries",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:blueberries",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "蓝莓"
+    },
+    {
+      "id": "peach",
+      "name": "桃子",
+      "category": "水果",
+      "aliases": [
+        "桃",
+        "peach"
+      ],
+      "defaultIcon": "fluent:peach",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:peach",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:peach",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "桃子"
+    },
+    {
+      "id": "pear",
+      "name": "梨",
+      "category": "水果",
+      "aliases": [
+        "梨子",
+        "pear"
+      ],
+      "defaultIcon": "fluent:pear",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:pear",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:pear",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "梨"
+    },
+    {
+      "id": "watermelon",
+      "name": "西瓜",
+      "category": "水果",
+      "aliases": [
+        "watermelon"
+      ],
+      "defaultIcon": "fluent:watermelon",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:watermelon",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:watermelon",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "西瓜"
+    },
+    {
+      "id": "cherries",
+      "name": "樱桃",
+      "category": "水果",
+      "aliases": [
+        "车厘子",
+        "cherry",
+        "cherries"
+      ],
+      "defaultIcon": "fluent:cherries",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:cherries",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:cherries",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "樱桃"
+    },
+    {
+      "id": "kiwi",
+      "name": "猕猴桃",
+      "category": "水果",
+      "aliases": [
+        "奇异果",
+        "kiwi"
+      ],
+      "defaultIcon": "fluent:kiwi",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:kiwi",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:kiwi",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "猕"
+    },
+    {
+      "id": "pineapple",
+      "name": "菠萝",
+      "category": "水果",
+      "aliases": [
+        "凤梨",
+        "pineapple"
+      ],
+      "defaultIcon": "fluent:pineapple",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:pineapple",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:pineapple",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "菠萝"
+    },
+    {
+      "id": "mango",
+      "name": "芒果",
+      "category": "水果",
+      "aliases": [
+        "mango"
+      ],
+      "defaultIcon": "fluent:mango",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:mango",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:mango",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "芒果"
+    },
+    {
+      "id": "coconut",
+      "name": "椰子",
+      "category": "水果",
+      "aliases": [
+        "coconut"
+      ],
+      "defaultIcon": "fluent:coconut",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:coconut",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:coconut",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "椰子"
+    },
+    {
+      "id": "avocado",
+      "name": "牛油果",
+      "category": "水果",
+      "aliases": [
+        "鳄梨",
+        "avocado"
+      ],
+      "defaultIcon": "fluent:avocado",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:avocado",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:avocado",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "鳄梨"
+    },
+    {
+      "id": "sweet-orange",
+      "name": "橙子",
+      "category": "水果",
+      "aliases": [
+        "甜橙",
+        "orange"
+      ],
+      "defaultIcon": "fluent:orange",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:orange",
+          "kind": "category",
+          "reason": "借用橘子图；不把橙子与橘子当作同一种库存食材。"
+        },
+        {
+          "iconId": "twemoji:orange",
+          "kind": "category",
+          "reason": "借用橘子图；不把橙子与橘子当作同一种库存食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "借用橘子图；不把橙子与橘子当作同一种库存食材。",
+      "reviewStatus": "draft",
+      "avatarText": "橙子"
+    },
+    {
+      "id": "egg",
+      "name": "鸡蛋",
+      "category": "肉禽蛋",
+      "aliases": [
+        "鲜鸡蛋",
+        "egg",
+        "chicken egg"
+      ],
+      "defaultIcon": "fluent:egg",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:egg",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:egg",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [
+        "咸鸭蛋",
+        "皮蛋",
+        "蛋液"
+      ],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "鸡蛋"
+    },
+    {
+      "id": "duck-egg",
+      "name": "鸭蛋",
+      "category": "肉禽蛋",
+      "aliases": [
+        "duck egg"
+      ],
+      "defaultIcon": "fluent:egg",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:egg",
+          "kind": "category",
+          "reason": "仅借用蛋形，不能区分禽种。"
+        },
+        {
+          "iconId": "twemoji:egg",
+          "kind": "category",
+          "reason": "仅借用蛋形，不能区分禽种。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "仅借用蛋形，不能区分禽种。",
+      "reviewStatus": "draft",
+      "avatarText": "鸭蛋"
+    },
+    {
+      "id": "steak",
+      "name": "牛排",
+      "category": "肉禽蛋",
+      "aliases": [
+        "steak",
+        "beef steak"
+      ],
+      "defaultIcon": "fluent:cut-meat",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:cut-meat",
+          "kind": "exact",
+          "reason": "原图为红肉切块／带骨牛排造型。"
+        },
+        {
+          "iconId": "twemoji:cut-meat",
+          "kind": "exact",
+          "reason": "原图为红肉切块／带骨牛排造型。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "原图为红肉切块／带骨牛排造型。",
+      "reviewStatus": "draft",
+      "avatarText": "牛排"
+    },
+    {
+      "id": "beef",
+      "name": "牛肉",
+      "category": "肉禽蛋",
+      "aliases": [
+        "beef"
+      ],
+      "defaultIcon": "fluent:cut-meat",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:cut-meat",
+          "kind": "category",
+          "reason": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。"
+        },
+        {
+          "iconId": "twemoji:cut-meat",
+          "kind": "category",
+          "reason": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。",
+      "reviewStatus": "draft",
+      "avatarText": "牛肉"
+    },
+    {
+      "id": "pork",
+      "name": "猪肉",
+      "category": "肉禽蛋",
+      "aliases": [
+        "pork"
+      ],
+      "defaultIcon": "fluent:cut-meat",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:cut-meat",
+          "kind": "category",
+          "reason": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。"
+        },
+        {
+          "iconId": "twemoji:cut-meat",
+          "kind": "category",
+          "reason": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。",
+      "reviewStatus": "draft",
+      "avatarText": "猪肉"
+    },
+    {
+      "id": "lamb",
+      "name": "羊肉",
+      "category": "肉禽蛋",
+      "aliases": [
+        "lamb",
+        "mutton"
+      ],
+      "defaultIcon": "fluent:cut-meat",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:cut-meat",
+          "kind": "category",
+          "reason": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。"
+        },
+        {
+          "iconId": "twemoji:cut-meat",
+          "kind": "category",
+          "reason": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。",
+      "reviewStatus": "draft",
+      "avatarText": "羊肉"
+    },
+    {
+      "id": "pork-mince",
+      "name": "猪肉末",
+      "category": "肉禽蛋",
+      "aliases": [
+        "猪肉馅",
+        "猪绞肉",
+        "ground pork"
+      ],
+      "defaultIcon": "fluent:cut-meat",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:cut-meat",
+          "kind": "category",
+          "reason": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。"
+        },
+        {
+          "iconId": "twemoji:cut-meat",
+          "kind": "category",
+          "reason": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。",
+      "reviewStatus": "draft",
+      "avatarText": "猪肉"
+    },
+    {
+      "id": "beef-mince",
+      "name": "牛肉末",
+      "category": "肉禽蛋",
+      "aliases": [
+        "牛肉馅",
+        "ground beef"
+      ],
+      "defaultIcon": "fluent:cut-meat",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:cut-meat",
+          "kind": "category",
+          "reason": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。"
+        },
+        {
+          "iconId": "twemoji:cut-meat",
+          "kind": "category",
+          "reason": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "红肉切块图仅作肉类类别，不区分畜种、部位或绞肉形态。",
+      "reviewStatus": "draft",
+      "avatarText": "牛肉"
+    },
+    {
+      "id": "chicken",
+      "name": "鸡肉",
+      "category": "肉禽蛋",
+      "aliases": [
+        "chicken"
+      ],
+      "defaultIcon": "fluent:poultry-leg",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:poultry-leg",
+          "kind": "category",
+          "reason": "现有图为烤鸡腿，仅作禽肉类别，不代表生熟或具体部位。"
+        },
+        {
+          "iconId": "twemoji:poultry-leg",
+          "kind": "category",
+          "reason": "现有图为烤鸡腿，仅作禽肉类别，不代表生熟或具体部位。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "现有图为烤鸡腿，仅作禽肉类别，不代表生熟或具体部位。",
+      "reviewStatus": "draft",
+      "avatarText": "鸡肉"
+    },
+    {
+      "id": "chicken-thigh",
+      "name": "鸡腿",
+      "category": "肉禽蛋",
+      "aliases": [
+        "鸡腿肉",
+        "chicken thigh"
+      ],
+      "defaultIcon": "fluent:poultry-leg",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:poultry-leg",
+          "kind": "category",
+          "reason": "现有图为烤鸡腿，仅作禽肉类别，不代表生熟或具体部位。"
+        },
+        {
+          "iconId": "twemoji:poultry-leg",
+          "kind": "category",
+          "reason": "现有图为烤鸡腿，仅作禽肉类别，不代表生熟或具体部位。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "现有图为烤鸡腿，仅作禽肉类别，不代表生熟或具体部位。",
+      "reviewStatus": "draft",
+      "avatarText": "鸡腿"
+    },
+    {
+      "id": "chicken-breast",
+      "name": "鸡胸肉",
+      "category": "肉禽蛋",
+      "aliases": [
+        "鸡胸",
+        "chicken breast"
+      ],
+      "defaultIcon": "fluent:poultry-leg",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:poultry-leg",
+          "kind": "category",
+          "reason": "现有图为烤鸡腿，仅作禽肉类别，不代表生熟或具体部位。"
+        },
+        {
+          "iconId": "twemoji:poultry-leg",
+          "kind": "category",
+          "reason": "现有图为烤鸡腿，仅作禽肉类别，不代表生熟或具体部位。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "现有图为烤鸡腿，仅作禽肉类别，不代表生熟或具体部位。",
+      "reviewStatus": "draft",
+      "avatarText": "鸡胸"
+    },
+    {
+      "id": "chicken-wings",
+      "name": "鸡翅",
+      "category": "肉禽蛋",
+      "aliases": [
+        "鸡翅中",
+        "鸡翅根",
+        "chicken wings"
+      ],
+      "defaultIcon": "fluent:poultry-leg",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:poultry-leg",
+          "kind": "category",
+          "reason": "现有图为烤鸡腿，仅作禽肉类别，不代表生熟或具体部位。"
+        },
+        {
+          "iconId": "twemoji:poultry-leg",
+          "kind": "category",
+          "reason": "现有图为烤鸡腿，仅作禽肉类别，不代表生熟或具体部位。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "现有图为烤鸡腿，仅作禽肉类别，不代表生熟或具体部位。",
+      "reviewStatus": "draft",
+      "avatarText": "鸡翅"
+    },
+    {
+      "id": "bacon",
+      "name": "培根",
+      "category": "肉禽蛋",
+      "aliases": [
+        "bacon"
+      ],
+      "defaultIcon": "fluent:bacon",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:bacon",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:bacon",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "培根"
+    },
+    {
+      "id": "sausage",
+      "name": "香肠",
+      "category": "肉禽蛋",
+      "aliases": [
+        "火腿肠",
+        "sausage"
+      ],
+      "defaultIcon": "japaclip:sausage",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "japaclip:sausage",
+          "kind": "category",
+          "reason": "西式香肠仅作香肠类别图，不用于区分中式腊肠、火腿肠或具体包装。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "西式香肠仅作香肠类别图，不用于区分中式腊肠、火腿肠或具体包装。",
+      "reviewStatus": "draft",
+      "avatarText": "香肠"
+    },
+    {
+      "id": "fish",
+      "name": "鱼",
+      "category": "水产",
+      "aliases": [
+        "fish"
+      ],
+      "defaultIcon": "fluent:fish",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:fish",
+          "kind": "exact",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        },
+        {
+          "iconId": "twemoji:fish",
+          "kind": "exact",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "整只水产图不表示切片、去壳或生熟；只用于头像。",
+      "reviewStatus": "draft",
+      "avatarText": "鱼"
+    },
+    {
+      "id": "salmon",
+      "name": "三文鱼",
+      "category": "水产",
+      "aliases": [
+        "salmon"
+      ],
+      "defaultIcon": "fluent:fish",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:fish",
+          "kind": "category",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        },
+        {
+          "iconId": "twemoji:fish",
+          "kind": "category",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "整只水产图不表示切片、去壳或生熟；只用于头像。",
+      "reviewStatus": "draft",
+      "avatarText": "鲑鱼"
+    },
+    {
+      "id": "cod",
+      "name": "鳕鱼",
+      "category": "水产",
+      "aliases": [
+        "cod"
+      ],
+      "defaultIcon": "fluent:fish",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:fish",
+          "kind": "category",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        },
+        {
+          "iconId": "twemoji:fish",
+          "kind": "category",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "整只水产图不表示切片、去壳或生熟；只用于头像。",
+      "reviewStatus": "draft",
+      "avatarText": "鳕鱼"
+    },
+    {
+      "id": "shrimp",
+      "name": "虾",
+      "category": "水产",
+      "aliases": [
+        "鲜虾",
+        "虾仁",
+        "虾肉",
+        "shrimp",
+        "prawn"
+      ],
+      "defaultIcon": "fluent:shrimp",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:shrimp",
+          "kind": "category",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        },
+        {
+          "iconId": "twemoji:shrimp",
+          "kind": "category",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "整只水产图不表示切片、去壳或生熟；只用于头像。",
+      "reviewStatus": "draft",
+      "avatarText": "虾"
+    },
+    {
+      "id": "crab",
+      "name": "螃蟹",
+      "category": "水产",
+      "aliases": [
+        "蟹",
+        "crab"
+      ],
+      "defaultIcon": "fluent:crab",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:crab",
+          "kind": "exact",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        },
+        {
+          "iconId": "twemoji:crab",
+          "kind": "exact",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "整只水产图不表示切片、去壳或生熟；只用于头像。",
+      "reviewStatus": "draft",
+      "avatarText": "螃蟹"
+    },
+    {
+      "id": "lobster",
+      "name": "龙虾",
+      "category": "水产",
+      "aliases": [
+        "lobster"
+      ],
+      "defaultIcon": "fluent:lobster",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:lobster",
+          "kind": "exact",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        },
+        {
+          "iconId": "twemoji:lobster",
+          "kind": "exact",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "整只水产图不表示切片、去壳或生熟；只用于头像。",
+      "reviewStatus": "draft",
+      "avatarText": "龙虾"
+    },
+    {
+      "id": "squid",
+      "name": "鱿鱼",
+      "category": "水产",
+      "aliases": [
+        "squid"
+      ],
+      "defaultIcon": "fluent:squid",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:squid",
+          "kind": "exact",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        },
+        {
+          "iconId": "twemoji:squid",
+          "kind": "exact",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "整只水产图不表示切片、去壳或生熟；只用于头像。",
+      "reviewStatus": "draft",
+      "avatarText": "鱿鱼"
+    },
+    {
+      "id": "oyster",
+      "name": "生蚝",
+      "category": "水产",
+      "aliases": [
+        "牡蛎",
+        "oyster"
+      ],
+      "defaultIcon": "fluent:oyster",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:oyster",
+          "kind": "exact",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        },
+        {
+          "iconId": "twemoji:oyster",
+          "kind": "exact",
+          "reason": "整只水产图不表示切片、去壳或生熟；只用于头像。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "整只水产图不表示切片、去壳或生熟；只用于头像。",
+      "reviewStatus": "draft",
+      "avatarText": "生蚝"
+    },
+    {
+      "id": "clam",
+      "name": "蛤蜊",
+      "category": "水产",
+      "aliases": [
+        "花蛤",
+        "文蛤",
+        "clam"
+      ],
+      "defaultIcon": "japaclip:clam",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "japaclip:clam",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。",
+      "reviewStatus": "draft",
+      "avatarText": "蛤蜊"
+    },
+    {
+      "id": "bread",
+      "name": "面包",
+      "category": "主食豆类",
+      "aliases": [
+        "bread"
+      ],
+      "defaultIcon": "fluent:bread",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:bread",
+          "kind": "exact",
+          "reason": "吐司／整块面包造型。"
+        },
+        {
+          "iconId": "twemoji:bread",
+          "kind": "exact",
+          "reason": "吐司／整块面包造型。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "吐司／整块面包造型。",
+      "reviewStatus": "draft",
+      "avatarText": "面包"
+    },
+    {
+      "id": "toast",
+      "name": "吐司",
+      "category": "主食豆类",
+      "aliases": [
+        "吐司面包",
+        "toast"
+      ],
+      "defaultIcon": "fluent:bread",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:bread",
+          "kind": "exact",
+          "reason": "切片吐司可使用面包图。"
+        },
+        {
+          "iconId": "twemoji:bread",
+          "kind": "exact",
+          "reason": "切片吐司可使用面包图。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "切片吐司可使用面包图。",
+      "reviewStatus": "draft",
+      "avatarText": "吐司"
+    },
+    {
+      "id": "baguette",
+      "name": "法棍",
+      "category": "主食豆类",
+      "aliases": [
+        "法式长棍",
+        "baguette"
+      ],
+      "defaultIcon": "fluent:baguette",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:baguette",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:baguette",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "法棍"
+    },
+    {
+      "id": "cooked-rice",
+      "name": "米饭",
+      "category": "主食豆类",
+      "aliases": [
+        "熟米饭",
+        "cooked rice"
+      ],
+      "defaultIcon": "fluent:rice",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:rice",
+          "kind": "exact",
+          "reason": "碗装熟米饭图。"
+        },
+        {
+          "iconId": "twemoji:rice",
+          "kind": "exact",
+          "reason": "碗装熟米饭图。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "碗装熟米饭图。",
+      "reviewStatus": "draft",
+      "avatarText": "米饭"
+    },
+    {
+      "id": "spaghetti",
+      "name": "意大利面",
+      "category": "主食豆类",
+      "aliases": [
+        "意面",
+        "Spaghetti",
+        "pasta"
+      ],
+      "defaultIcon": "fluent:spaghetti",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:spaghetti",
+          "kind": "category",
+          "reason": "现有图为带酱熟意面，仅作意面类别，不代表干面或酱料。"
+        },
+        {
+          "iconId": "twemoji:spaghetti",
+          "kind": "category",
+          "reason": "现有图为带酱熟意面，仅作意面类别，不代表干面或酱料。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "现有图为带酱熟意面，仅作意面类别，不代表干面或酱料。",
+      "reviewStatus": "draft",
+      "avatarText": "意面"
+    },
+    {
+      "id": "dumpling",
+      "name": "饺子",
+      "category": "主食豆类",
+      "aliases": [
+        "水饺",
+        "速冻水饺",
+        "dumpling"
+      ],
+      "defaultIcon": "fluent:dumpling",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:dumpling",
+          "kind": "exact",
+          "reason": "饺子造型不表达馅料或储存状态。"
+        },
+        {
+          "iconId": "twemoji:dumpling",
+          "kind": "exact",
+          "reason": "饺子造型不表达馅料或储存状态。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "饺子造型不表达馅料或储存状态。",
+      "reviewStatus": "draft",
+      "avatarText": "饺子"
+    },
+    {
+      "id": "beans",
+      "name": "豆子",
+      "category": "主食豆类",
+      "aliases": [
+        "杂豆",
+        "beans"
+      ],
+      "defaultIcon": "fluent:beans",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:beans",
+          "kind": "category",
+          "reason": "通用豆类造型，不精确表示品种。"
+        },
+        {
+          "iconId": "twemoji:beans",
+          "kind": "category",
+          "reason": "通用豆类造型，不精确表示品种。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用豆类造型，不精确表示品种。",
+      "reviewStatus": "draft",
+      "avatarText": "豆子"
+    },
+    {
+      "id": "peanuts",
+      "name": "花生",
+      "category": "主食豆类",
+      "aliases": [
+        "花生米",
+        "peanut",
+        "peanuts"
+      ],
+      "defaultIcon": "fluent:peanuts",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:peanuts",
+          "kind": "exact",
+          "reason": "带壳花生图，不表示加工状态。"
+        },
+        {
+          "iconId": "twemoji:peanuts",
+          "kind": "exact",
+          "reason": "带壳花生图，不表示加工状态。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "带壳花生图，不表示加工状态。",
+      "reviewStatus": "draft",
+      "avatarText": "花生"
+    },
+    {
+      "id": "chestnut",
+      "name": "栗子",
+      "category": "主食豆类",
+      "aliases": [
+        "板栗",
+        "chestnut"
+      ],
+      "defaultIcon": "fluent:chestnut",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:chestnut",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:chestnut",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "栗子"
+    },
+    {
+      "id": "raw-rice",
+      "name": "大米",
+      "category": "主食豆类",
+      "aliases": [
+        "生米",
+        "rice",
+        "uncooked rice"
+      ],
+      "defaultIcon": null,
+      "matchKind": "pending",
+      "candidates": [],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "待补原料形态匹配素材，不用熟食或其他谷物图强行代替。",
+      "reviewStatus": "draft",
+      "avatarText": "大米"
+    },
+    {
+      "id": "flour",
+      "name": "面粉",
+      "category": "主食豆类",
+      "aliases": [
+        "小麦粉",
+        "flour"
+      ],
+      "defaultIcon": "irasutoya:flour",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "japaclip:flour",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        },
+        {
+          "iconId": "irasutoya:flour",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。",
+      "reviewStatus": "draft",
+      "avatarText": "面粉"
+    },
+    {
+      "id": "starch",
+      "name": "淀粉",
+      "category": "主食豆类",
+      "aliases": [
+        "生粉",
+        "starch"
+      ],
+      "defaultIcon": null,
+      "matchKind": "pending",
+      "candidates": [],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "待补原料形态匹配素材，不用熟食或其他谷物图强行代替。",
+      "reviewStatus": "draft",
+      "avatarText": "淀粉"
+    },
+    {
+      "id": "tofu",
+      "name": "豆腐",
+      "category": "主食豆类",
+      "aliases": [
+        "tofu"
+      ],
+      "defaultIcon": "irasutoya:tofu",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "irasutoya:tofu",
+          "kind": "exact",
+          "reason": "包装豆腐；包装文字只是原图装饰，不表示品牌。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "包装豆腐；包装文字只是原图装饰，不表示品牌。",
+      "reviewStatus": "draft",
+      "avatarText": "豆腐"
+    },
+    {
+      "id": "vermicelli",
+      "name": "粉丝",
+      "category": "主食豆类",
+      "aliases": [
+        "龙口粉丝",
+        "vermicelli"
+      ],
+      "defaultIcon": null,
+      "matchKind": "pending",
+      "candidates": [],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "待补原料形态匹配素材，不用熟食或其他谷物图强行代替。",
+      "reviewStatus": "draft",
+      "avatarText": "粉丝"
+    },
+    {
+      "id": "noodles",
+      "name": "面条",
+      "category": "主食豆类",
+      "aliases": [
+        "挂面",
+        "noodles"
+      ],
+      "defaultIcon": null,
+      "matchKind": "pending",
+      "candidates": [],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "待补原料形态匹配素材，不用熟食或其他谷物图强行代替。",
+      "reviewStatus": "draft",
+      "avatarText": "面条"
+    },
+    {
+      "id": "oats",
+      "name": "燕麦",
+      "category": "主食豆类",
+      "aliases": [
+        "燕麦片",
+        "oats"
+      ],
+      "defaultIcon": "irasutoya:oats",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "irasutoya:oats",
+          "kind": "category",
+          "reason": "燕麦片包装与成品仅作燕麦类别图，不代表原粒燕麦。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "燕麦片包装与成品仅作燕麦类别图，不代表原粒燕麦。",
+      "reviewStatus": "draft",
+      "avatarText": "燕麦"
+    },
+    {
+      "id": "sesame",
+      "name": "芝麻",
+      "category": "主食豆类",
+      "aliases": [
+        "白芝麻",
+        "黑芝麻",
+        "sesame"
+      ],
+      "defaultIcon": "japaclip:sesame",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "japaclip:sesame",
+          "kind": "exact",
+          "reason": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "已检查彩色图形与 32px 预览；保持原 PNG，不伪装成矢量。",
+      "reviewStatus": "draft",
+      "avatarText": "芝麻"
+    },
+    {
+      "id": "milk",
+      "name": "牛奶",
+      "category": "乳制品",
+      "aliases": [
+        "纯牛奶",
+        "鲜牛奶",
+        "milk"
+      ],
+      "defaultIcon": "fluent:milk",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:milk",
+          "kind": "exact",
+          "reason": "杯装牛奶图，不表达品牌或包装。"
+        },
+        {
+          "iconId": "twemoji:milk",
+          "kind": "exact",
+          "reason": "杯装牛奶图，不表达品牌或包装。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "杯装牛奶图，不表达品牌或包装。",
+      "reviewStatus": "draft",
+      "avatarText": "牛奶"
+    },
+    {
+      "id": "cream",
+      "name": "淡奶油",
+      "category": "乳制品",
+      "aliases": [
+        "动物淡奶油",
+        "whipping cream",
+        "cream"
+      ],
+      "defaultIcon": "fluent:milk",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:milk",
+          "kind": "category",
+          "reason": "借用乳制品图；不与牛奶共用名称别名。"
+        },
+        {
+          "iconId": "twemoji:milk",
+          "kind": "category",
+          "reason": "借用乳制品图；不与牛奶共用名称别名。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "借用乳制品图；不与牛奶共用名称别名。",
+      "reviewStatus": "draft",
+      "avatarText": "奶油"
+    },
+    {
+      "id": "yogurt",
+      "name": "酸奶",
+      "category": "乳制品",
+      "aliases": [
+        "yogurt",
+        "yoghurt"
+      ],
+      "defaultIcon": "fluent:milk",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:milk",
+          "kind": "category",
+          "reason": "借用乳制品图；杯中内容不能精确表达酸奶。"
+        },
+        {
+          "iconId": "twemoji:milk",
+          "kind": "category",
+          "reason": "借用乳制品图；杯中内容不能精确表达酸奶。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "借用乳制品图；杯中内容不能精确表达酸奶。",
+      "reviewStatus": "draft",
+      "avatarText": "酸奶"
+    },
+    {
+      "id": "butter",
+      "name": "黄油",
+      "category": "乳制品",
+      "aliases": [
+        "butter"
+      ],
+      "defaultIcon": "fluent:butter",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:butter",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:butter",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "黄油"
+    },
+    {
+      "id": "cheese",
+      "name": "奶酪",
+      "category": "乳制品",
+      "aliases": [
+        "芝士",
+        "cheese"
+      ],
+      "defaultIcon": "fluent:cheese",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:cheese",
+          "kind": "exact",
+          "reason": "楔形奶酪图不表示具体品种。"
+        },
+        {
+          "iconId": "twemoji:cheese",
+          "kind": "exact",
+          "reason": "楔形奶酪图不表示具体品种。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "楔形奶酪图不表示具体品种。",
+      "reviewStatus": "draft",
+      "avatarText": "奶酪"
+    },
+    {
+      "id": "honey",
+      "name": "蜂蜜",
+      "category": "调味品",
+      "aliases": [
+        "honey"
+      ],
+      "defaultIcon": "fluent:honey",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:honey",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        },
+        {
+          "iconId": "twemoji:honey",
+          "kind": "exact",
+          "reason": "图形直接表达该食材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "",
+      "reviewStatus": "draft",
+      "avatarText": "蜂蜜"
+    },
+    {
+      "id": "salt",
+      "name": "盐",
+      "category": "调味品",
+      "aliases": [
+        "食盐",
+        "海盐",
+        "salt"
+      ],
+      "defaultIcon": "fluent:salt",
+      "matchKind": "exact",
+      "candidates": [
+        {
+          "iconId": "fluent:salt",
+          "kind": "exact",
+          "reason": "盐瓶图仅作食盐，不给糖、味精或胡椒代用。"
+        },
+        {
+          "iconId": "twemoji:salt",
+          "kind": "exact",
+          "reason": "盐瓶图仅作食盐，不给糖、味精或胡椒代用。"
+        }
+      ],
+      "excludedNames": [
+        "糖",
+        "味精",
+        "胡椒粉"
+      ],
+      "forbiddenIconIds": [],
+      "notes": "盐瓶图仅作食盐，不给糖、味精或胡椒代用。",
+      "reviewStatus": "draft",
+      "avatarText": "盐"
+    },
+    {
+      "id": "soy-sauce",
+      "name": "酱油",
+      "category": "调味品",
+      "aliases": [
+        "soy sauce"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "酱油"
+    },
+    {
+      "id": "light-soy",
+      "name": "生抽",
+      "category": "调味品",
+      "aliases": [
+        "light soy sauce"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "生抽"
+    },
+    {
+      "id": "dark-soy",
+      "name": "老抽",
+      "category": "调味品",
+      "aliases": [
+        "dark soy sauce"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "老抽"
+    },
+    {
+      "id": "vinegar",
+      "name": "醋",
+      "category": "调味品",
+      "aliases": [
+        "食醋",
+        "米醋",
+        "陈醋",
+        "白醋",
+        "vinegar"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "醋"
+    },
+    {
+      "id": "oyster-sauce",
+      "name": "蚝油",
+      "category": "调味品",
+      "aliases": [
+        "oyster sauce"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "蚝油"
+    },
+    {
+      "id": "cooking-wine",
+      "name": "料酒",
+      "category": "调味品",
+      "aliases": [
+        "cooking wine"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "料酒"
+    },
+    {
+      "id": "oil",
+      "name": "食用油",
+      "category": "调味品",
+      "aliases": [
+        "植物油",
+        "菜籽油",
+        "大豆油",
+        "cooking oil"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "油"
+    },
+    {
+      "id": "olive-oil",
+      "name": "橄榄油",
+      "category": "调味品",
+      "aliases": [
+        "olive oil"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "橄榄"
+    },
+    {
+      "id": "sesame-oil",
+      "name": "香油",
+      "category": "调味品",
+      "aliases": [
+        "芝麻油",
+        "sesame oil"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "香油"
+    },
+    {
+      "id": "sugar",
+      "name": "糖",
+      "category": "调味品",
+      "aliases": [
+        "白糖",
+        "白砂糖",
+        "sugar"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "糖"
+    },
+    {
+      "id": "ketchup",
+      "name": "番茄酱",
+      "category": "调味品",
+      "aliases": [
+        "番茄沙司",
+        "ketchup"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "茄酱"
+    },
+    {
+      "id": "doubanjiang",
+      "name": "豆瓣酱",
+      "category": "调味品",
+      "aliases": [
+        "郫县豆瓣",
+        "doubanjiang"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "豆瓣"
+    },
+    {
+      "id": "chili-sauce",
+      "name": "辣椒酱",
+      "category": "调味品",
+      "aliases": [
+        "chili sauce"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "辣酱"
+    },
+    {
+      "id": "jam",
+      "name": "果酱",
+      "category": "调味品",
+      "aliases": [
+        "草莓果酱",
+        "jam"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "果酱"
+    },
+    {
+      "id": "marinade",
+      "name": "腌料",
+      "category": "调味品",
+      "aliases": [
+        "奥尔良腌料",
+        "marinade"
+      ],
+      "defaultIcon": "fluent:jar",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "fluent:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        },
+        {
+          "iconId": "twemoji:jar",
+          "kind": "category",
+          "reason": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "通用密封罐仅表示调味／容器类别，不能辨认内容物；待补专用瓶罐素材。",
+      "reviewStatus": "draft",
+      "avatarText": "腌料"
+    },
+    {
+      "id": "black-pepper",
+      "name": "黑胡椒",
+      "category": "调味品",
+      "aliases": [
+        "黑胡椒粉",
+        "black pepper"
+      ],
+      "defaultIcon": null,
+      "matchKind": "pending",
+      "candidates": [],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "待补专用香料或粉料图，不用盐瓶冒充。",
+      "reviewStatus": "draft",
+      "avatarText": "胡椒"
+    },
+    {
+      "id": "cumin",
+      "name": "孜然",
+      "category": "调味品",
+      "aliases": [
+        "孜然粉",
+        "cumin"
+      ],
+      "defaultIcon": null,
+      "matchKind": "pending",
+      "candidates": [],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "待补专用香料或粉料图，不用盐瓶冒充。",
+      "reviewStatus": "draft",
+      "avatarText": "孜然"
+    },
+    {
+      "id": "chili-powder",
+      "name": "辣椒粉",
+      "category": "调味品",
+      "aliases": [
+        "干辣椒面",
+        "chili powder"
+      ],
+      "defaultIcon": null,
+      "matchKind": "pending",
+      "candidates": [],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "待补专用香料或粉料图，不用盐瓶冒充。",
+      "reviewStatus": "draft",
+      "avatarText": "椒粉"
+    },
+    {
+      "id": "star-anise",
+      "name": "八角",
+      "category": "调味品",
+      "aliases": [
+        "大料",
+        "star anise"
+      ],
+      "defaultIcon": null,
+      "matchKind": "pending",
+      "candidates": [],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "待补专用香料或粉料图，不用盐瓶冒充。",
+      "reviewStatus": "draft",
+      "avatarText": "八角"
+    },
+    {
+      "id": "cinnamon",
+      "name": "桂皮",
+      "category": "调味品",
+      "aliases": [
+        "肉桂",
+        "cinnamon"
+      ],
+      "defaultIcon": "japaclip:cinnamon",
+      "matchKind": "category",
+      "candidates": [
+        {
+          "iconId": "japaclip:cinnamon",
+          "kind": "category",
+          "reason": "肉桂棒作为桂皮的类别图，不承诺实际品种或形态一致。"
+        }
+      ],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "肉桂棒作为桂皮的类别图，不承诺实际品种或形态一致。",
+      "reviewStatus": "draft",
+      "avatarText": "桂皮"
+    },
+    {
+      "id": "baking-powder",
+      "name": "泡打粉",
+      "category": "调味品",
+      "aliases": [
+        "baking powder"
+      ],
+      "defaultIcon": null,
+      "matchKind": "pending",
+      "candidates": [],
+      "excludedNames": [],
+      "forbiddenIconIds": [],
+      "notes": "待补专用香料或粉料图，不用盐瓶冒充。",
+      "reviewStatus": "draft",
+      "avatarText": "泡打"
+    }
+  ],
+  "avatar": {
+    "defaultTone": {
+      "background": "#EEF0EB",
+      "color": "#52604D"
+    },
+    "tones": {
+      "蔬菜": {
+        "background": "#EDF3E8",
+        "color": "#4F6845"
+      },
+      "菌菇": {
+        "background": "#F2EDE4",
+        "color": "#715C3E"
+      },
+      "水果": {
+        "background": "#FFF0E6",
+        "color": "#A84B24"
+      },
+      "肉禽蛋": {
+        "background": "#F8EBE6",
+        "color": "#99513C"
+      },
+      "水产": {
+        "background": "#EAF1F2",
+        "color": "#45686D"
+      },
+      "主食豆类": {
+        "background": "#F4EFDF",
+        "color": "#756133"
+      },
+      "乳制品": {
+        "background": "#F2EFE5",
+        "color": "#70613F"
+      },
+      "调味品": {
+        "background": "#F3EBE2",
+        "color": "#7D593A"
+      }
+    }
+  }
+}

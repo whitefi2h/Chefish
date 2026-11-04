@@ -1,5 +1,6 @@
 import { supplies } from "./domain/seasonings";
-import { useState } from "react";
+import { quantityText } from "./domain/quantity";
+import { useEffect, useRef, useState } from "react";
 import Seasonings from "./Seasonings";
 import {
   Plus,
@@ -14,7 +15,7 @@ import { weekLabel, weekOf, shiftDate, validDate } from "./model";
 import { useDemo } from "./store";
 import { Badge, Empty, Modal } from "./components";
 import { shoppingPending, type ShoppingLine } from "./domain/shopping";
-const format = (n: string, u: string) => `${n} ${u}`;
+const format = (n: string, u: string) => `${quantityText(n)} ${u}`;
 function PurchaseForm({
   line,
   receive,
@@ -228,35 +229,72 @@ function ManualForm({
 function ShoppingMemo() {
   const { state, mutate, busy } = useDemo();
   const [memo, setMemo] = useState(state.memo);
+  const [status, setStatus] = useState("");
+  const saved = useRef(state.memo);
+  const latest = useRef({ memo, state, mutate, busy });
+  latest.current = { memo, state, mutate, busy };
+  const saving = useRef(false);
+  const flush = useRef(async () => {});
+  flush.current = async () => {
+    const current = latest.current;
+    if (saving.current || current.busy || current.memo === saved.current)
+      return;
+    saving.current = true;
+    setStatus("正在保存…");
+    const text = current.memo;
+    const ok = await current.mutate(
+      {
+        type: "save_shopping_memo",
+        memo: text,
+        expected_revision: current.state.dataRevision ?? "",
+      },
+      (s) => s,
+      "",
+    );
+    saving.current = false;
+    if (ok) {
+      saved.current = text;
+      setStatus("已自动保存");
+      if (latest.current.memo !== text) void flush.current();
+    } else setStatus("保存未完成，内容仍保留");
+  };
+  useEffect(() => {
+    if (memo === saved.current && state.memo !== saved.current) {
+      saved.current = state.memo;
+      setMemo(state.memo);
+    }
+  }, [state.memo, memo]);
+  useEffect(() => {
+    if (memo === saved.current || busy || status.startsWith("保存未完成"))
+      return;
+    const timer = setTimeout(() => void flush.current(), 500);
+    return () => clearTimeout(timer);
+  }, [memo, busy, status]);
+  useEffect(
+    () => () => {
+      void flush.current();
+    },
+    [],
+  );
   return (
-    <section className="panel">
+    <section className="panel shopping-memo">
       <h3>采购备忘</h3>
-      <form
-        className="form-stack"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          await mutate(
-            {
-              type: "save_shopping_memo",
-              memo,
-              expected_revision: state.dataRevision ?? "",
-            },
-            (s) => s,
-            "采购备忘已保存",
-          );
+      <textarea
+        aria-label="采购备忘"
+        maxLength={4000}
+        value={memo}
+        onChange={(e) => {
+          setMemo(e.target.value);
+          setStatus("");
         }}
-      >
-        <textarea
-          aria-label="采购备忘"
-          maxLength={4000}
-          value={memo}
-          onChange={(e) => setMemo(e.target.value)}
-        />
-        <button disabled={busy} type="submit">
-          保存备忘
+        onBlur={() => void flush.current()}
+      />
+      <small role="status">{status}</small>
+      {status.startsWith("保存未完成") && (
+        <button className="text-button" onClick={() => void flush.current()}>
+          重试保存
         </button>
-        <small>保存在本机，关闭重启仍保留。</small>
-      </form>
+      )}
     </section>
   );
 }
@@ -279,6 +317,7 @@ export default function NativeShopping() {
     line?: ShoppingLine;
   } | null>(null);
   const [detail, setDetail] = useState<ShoppingLine | null>(null);
+  const [showPurchased, setShowPurchased] = useState(false);
   const items = forecast?.items ?? [];
   const pending = shoppingPending(forecast);
   const missingSeasonings = supplies(state).filter((s) => s.missing);
@@ -286,15 +325,16 @@ export default function NativeShopping() {
   const visible = items
     .filter((i) => !i.hidden)
     .sort((a, b) => Number(b.remaining !== "0") - Number(a.remaining !== "0"));
+  const displayed = visible.filter(
+    (i) => showPurchased || i.remaining !== "0" || i.purchased === "0",
+  );
   return (
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">FROM A GOOD PLAN TO YOUR KITCHEN</div>
           <h1>
             采购清单<span className="heading-dot">.</span>
           </h1>
-          <p>{weekLabel(weekStart)} · 手动采购项跨周保留。</p>
         </div>
         <div className="actions">
           <button disabled={busy} onClick={() => setForm({ kind: "manual" })}>
@@ -317,7 +357,6 @@ export default function NativeShopping() {
           </button>
         </div>
       </div>
-      <Seasonings reminder />
       <div className="week-toolbar">
         <div className="inline">
           <button
@@ -358,6 +397,7 @@ export default function NativeShopping() {
           />
         </div>
       </div>
+      <Seasonings reminder />
       {forecastError && (
         <div className="panel load-error" role="alert">
           采购计算失败：{forecastError}
@@ -377,9 +417,19 @@ export default function NativeShopping() {
                 <h2>
                   购物清单 <Badge>{visible.length}</Badge>
                 </h2>
-                <span className="hint">{pending.length} 项待买</span>
+                <div className="inline shopping-list-tools">
+                  <span className="hint">{pending.length} 项待买</span>
+                  <label className="check-label">
+                    <input
+                      type="checkbox"
+                      checked={showPurchased}
+                      onChange={(e) => setShowPurchased(e.target.checked)}
+                    />
+                    <span>显示已买</span>
+                  </label>
+                </div>
               </div>
-              {visible.map((i) => (
+              {displayed.map((i) => (
                 <div
                   className={`shopping-row ${i.remaining === "0" && i.unreceived === "0" && i.received !== "0" ? "is-stocked" : ""}`}
                   key={i.id ?? `${i.weekStart}|${i.ingredientId}|${i.unit}`}
@@ -405,6 +455,13 @@ export default function NativeShopping() {
                 >
                   <div className="shopping-name">
                     <div className="shopping-title">
+                      <IngredientAvatar
+                        ingredient={
+                          state.ingredients.find(
+                            (ingredient) => ingredient.id === i.ingredientId,
+                          ) ?? { name: i.name }
+                        }
+                      />
                       <strong title={i.name}>{i.name}</strong>
 
                       {i.hidden && <Badge>已忽略</Badge>}
@@ -451,12 +508,6 @@ export default function NativeShopping() {
           )}
           {forecast && visible.length === 0 && (
             <Empty>没有食材采购项目，可以安排菜单或手动添加。</Empty>
-          )}
-          {items.some((i) => i.hidden) && (
-            <p className="hint">
-              已移除 {items.filter((i) => i.hidden).length}{" "}
-              项本周清单，点击「更新计划需求」可恢复。
-            </p>
           )}
         </div>
         <aside className="shopping-summary">
@@ -659,3 +710,4 @@ export default function NativeShopping() {
     </>
   );
 }
+import IngredientAvatar from "./IngredientAvatar";

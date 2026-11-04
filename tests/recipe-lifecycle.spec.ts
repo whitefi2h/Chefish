@@ -93,7 +93,7 @@ for (const [width, height] of [
     await expect(
       page.getByRole("heading", { name: "新版·" + name, exact: true }),
     ).toBeVisible();
-    await expect(page.locator(".ingredients-panel")).toContainText("0.12");
+    await expect(page.locator(".ingredients-panel")).toContainText("0.1 g");
     await expect(
       page
         .locator(".steps-panel")

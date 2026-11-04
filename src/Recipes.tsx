@@ -1,3 +1,7 @@
+import {
+  inspirationForWeek,
+  toggleWeeklyInspiration,
+} from "./domain/weeklyInspiration";
 import ImageViewer from "./ImageViewer";
 import RecipeStep from "./RecipeStep";
 import { useNavigation } from "./navigation";
@@ -24,24 +28,36 @@ import { useDemo } from "./store";
 import { Badge, Food, Empty, Modal } from "./components";
 import { PlanForm } from "./Planner";
 import RecipeEditor from "./RecipeEditor";
-import CategoryManager from "./CategoryManager";
+import RecipeTagManager, {
+  RecipeTagBadges,
+  RecipeTagFilters,
+  RecipeTagsEditor,
+} from "./RecipeTags";
+import {
+  tagsOf,
+  recipeTagIds,
+  legacyTags,
+  matchesTags,
+} from "./domain/recipeTags";
 import RecipeHistory from "./RecipeHistory";
 function InspirationButton({ recipe }: { recipe: Recipe }) {
-  const { state, mutate } = useDemo();
-  const active = state.inspiration.includes(recipe.id);
+  const { state, mutate, busy, weekStart } = useDemo();
+  const active = inspirationForWeek(state, weekStart).includes(recipe.id);
   return (
     <button
       className="inspiration-button"
+      aria-pressed={active}
+      disabled={busy}
       aria-label={`${active ? "移出" : "加入"}周灵感${recipe.name}`}
       onClick={() =>
         mutate(
-          { type: "inspiration", recipe_id: recipe.id, enabled: !active },
-          (s) => ({
-            ...s,
-            inspiration: active
-              ? s.inspiration.filter((id) => id !== recipe.id)
-              : [...s.inspiration, recipe.id],
-          }),
+          {
+            type: "inspiration",
+            recipe_id: recipe.id,
+            enabled: !active,
+            week_start: weekStart,
+          },
+          (s) => toggleWeeklyInspiration(s, weekStart, recipe.id, !active),
           active
             ? "已移出本周灵感，已排菜单保留"
             : "已加入本周灵感，可前往每周菜单配餐",
@@ -49,7 +65,7 @@ function InspirationButton({ recipe }: { recipe: Recipe }) {
       }
     >
       {active ? <Check size={16} /> : <Plus size={16} />}
-      {active ? "已加入周灵感" : "加入周灵感"}
+      {active ? "已加入" : "周灵感"}
     </button>
   );
 }
@@ -76,9 +92,6 @@ export function RecipeCard({
           <Clock size={12} />
           {recipe.minutes} 分钟
         </Badge>
-        <span className="recipe-category-tag">
-          <Badge tone="green">{recipe.category}</Badge>
-        </span>
         <button
           className={`favorite ${favorite ? "active" : ""}`}
           aria-label={`${favorite ? "取消收藏" : "收藏"}${recipe.name}`}
@@ -101,23 +114,24 @@ export function RecipeCard({
       <div className="recipe-body">
         <div className="recipe-card-heading">
           <div>
-            <button className="recipe-title" onClick={onOpen}>
+            <button
+              className="recipe-title"
+              title={recipe.name}
+              onClick={onOpen}
+            >
               {recipe.name}
             </button>
-            <p>{recipe.subtitle}</p>
-            {!!recipe.steward?.tags?.length && (
-              <small title={recipe.steward.basis}>
-                {recipe.steward.tags.join(" · ")}
-              </small>
-            )}
           </div>
           <InspirationButton recipe={recipe} />
         </div>
+        <RecipeTagBadges recipe={recipe} />
         <footer>
-          <span>{recipe.servings} 人份 · 本地插画占位</span>
-          <button className="text-button" onClick={onOpen}>
-            查看菜谱 →
-          </button>
+          <span>{recipe.servings} 人份</span>
+          <div className="recipe-card-actions">
+            <button className="text-button" onClick={onOpen}>
+              查看菜谱 →
+            </button>
+          </div>
         </footer>
       </div>
     </article>
@@ -204,6 +218,7 @@ function RecipeDetail({
   const [plan, setPlan] = useState(false);
   const [recipeEditor, setRecipeEditor] = useState<Recipe | null>(null);
   const [versions, setVersions] = useState(false);
+  const [tagsEditor, setTagsEditor] = useState(false);
   const [archive, setArchive] = useState(false);
   const logs = state.logs.filter((l) => l.recipeId === recipe.id);
   return (
@@ -254,38 +269,13 @@ function RecipeDetail({
               {recipe.source.author ? ` · ${recipe.source.author}` : ""}
             </p>
           )}
-          <label className="recipe-category-label">
-            菜谱分类
-            <select
-              aria-label="菜谱所属分类"
-              value={recipe.category}
-              onChange={(e) =>
-                mutate(
-                  {
-                    type: "assign_category",
-                    kind: "recipe",
-                    entity_id: recipe.id,
-                    name: e.target.value,
-                  },
-                  (s) => ({
-                    ...s,
-                    recipes: s.recipes.map((r) =>
-                      r.id === recipe.id
-                        ? { ...r, category: e.target.value }
-                        : r,
-                    ),
-                  }),
-                  persistent ? "菜谱分类已保存" : "菜谱分类已更新，可撤销",
-                )
-              }
-            >
-              {state.recipeCategories.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-          </label>
+          <div className="recipe-detail-tags">
+            <RecipeTagBadges recipe={recipe} full />
+            <button className="text-button" onClick={() => setTagsEditor(true)}>
+              编辑标签
+            </button>
+          </div>
           <div className="actions">
-            <Badge tone="green">{recipe.category}</Badge>
             <Badge>
               <Clock size={13} />
               {recipe.minutes} 分钟
@@ -547,6 +537,12 @@ function RecipeDetail({
           onClose={() => setRecipeEditor(null)}
         />
       )}
+      {tagsEditor && (
+        <RecipeTagsEditor
+          recipe={recipe}
+          onClose={() => setTagsEditor(false)}
+        />
+      )}
       {versions && (
         <RecipeHistory
           recipe={recipe}
@@ -605,6 +601,8 @@ export default function Recipes() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("全部菜谱");
   const [sort, setSort] = useState("默认顺序");
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const tags = tagsOf(state);
   const { route, navigate } = useNavigation();
   const selected =
     route.page === "recipes" &&
@@ -618,10 +616,14 @@ export default function Recipes() {
   const filtered = state.recipes
     .filter(
       (r) =>
-        r.name.includes(query) &&
+        [r.name, ...legacyTags(r, tags)].join(" ").includes(query) &&
+        matchesTags(r, tagFilter, tags) &&
         (category === "全部菜谱" ||
           (category === "我的收藏" && state.favorites.includes(r.id)) ||
-          r.category === category),
+          (category === "未标注" &&
+            !recipeTagIds(r, tags).some((id) =>
+              tags.some((t) => t.id === id && !t.deleted),
+            ))),
     )
     .sort((a, b) =>
       sort === "用时最短"
@@ -635,7 +637,6 @@ export default function Recipes() {
       <div hidden={selected !== null}>
         <div className="page-heading">
           <div>
-            <div className="eyebrow">COLLECT THE THINGS YOU LOVE TO COOK</div>
             <div className="page-title-row">
               <h1>
                 我的菜谱<span className="heading-dot">.</span>
@@ -676,7 +677,7 @@ export default function Recipes() {
           </select>
         </div>
         <div className="category-tabs">
-          {["全部菜谱", ...state.recipeCategories, "我的收藏"].map((c) => (
+          {["全部菜谱", "我的收藏", "未标注"].map((c) => (
             <button
               key={c}
               className={category === c ? "selected" : ""}
@@ -686,8 +687,9 @@ export default function Recipes() {
               {c === "全部菜谱" && <span>{state.recipes.length}</span>}
             </button>
           ))}
+          <RecipeTagFilters selected={tagFilter} onChange={setTagFilter} />
           <button className="text-button" onClick={() => setCategories(true)}>
-            管理分类
+            管理标签
           </button>
         </div>
         <div className="recipe-grid">
@@ -719,8 +721,7 @@ export default function Recipes() {
         />
       )}
       {categories && (
-        <CategoryManager
-          kind="recipe"
+        <RecipeTagManager
           onClose={() => {
             setCategories(false);
             setCategory("全部菜谱");

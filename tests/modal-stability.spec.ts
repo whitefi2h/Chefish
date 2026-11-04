@@ -17,7 +17,8 @@ for (const [width, height] of [
     await page.goto("/");
     // Classic Windows scrollbars take layout space; overlay scrollbars hide this bug.
     await page.addStyleTag({
-      content: "::-webkit-scrollbar { width: 17px; height: 6px; }",
+      content:
+        "::-webkit-scrollbar { width: 17px; height: 6px; } .workspace { min-height: calc(100vh + 200px); }",
     });
     expect(
       await page.evaluate(

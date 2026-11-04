@@ -1,0 +1,660 @@
+{
+  "checkedOn": "2026-10-30",
+  "usageContext": "非商用 Chefish；本轮仅做开发研究与人工检阅，未接入应用。",
+  "libraries": [
+    {
+      "id": "iconpark",
+      "name": "IconPark",
+      "region": "中国 / ByteDance",
+      "format": "SVG",
+      "license": "Apache-2.0",
+      "url": "https://github.com/bytedance/IconPark",
+      "terms": "https://github.com/bytedance/IconPark/blob/master/LICENSE",
+      "rights": "允许修改及随软件分发，保留许可与适用声明。",
+      "fit": "已排除：与本轮确认的彩色风格不符，不提供为候选。",
+      "selectionStatus": "excluded-style"
+    },
+    {
+      "id": "sozaic",
+      "name": "SOZAIC",
+      "region": "日本",
+      "format": "EPS + PNG",
+      "license": "站点自定义免费许可",
+      "url": "https://sozaic.com/",
+      "terms": "https://sozaic.com/policy/",
+      "rights": "个人及商业用途免费，可加工，无需署名；禁止素材本身再分发、销售及图片直链。",
+      "fit": "适合补金针菇等食材；EPS 尚未下载转换和检查路径。"
+    },
+    {
+      "id": "sozai-library",
+      "name": "素材ライブラリー",
+      "region": "日本",
+      "format": "EPS + PNG / JPG（逐项核对）",
+      "license": "站点自定义非营利限制",
+      "url": "https://www.sozai-library.com/",
+      "terms": "https://www.sozai-library.com/policy",
+      "rights": "允许免费个人及团体使用与加工；禁止素材及改作素材再分发、用于销售物及直接或间接营利。当前非商用前提可继续评估；公开源码附带原素材的授权仍需确认。",
+      "fit": "已定位包装豆腐，平面彩色；包装文字与小尺寸表现仍需检查。"
+    },
+    {
+      "id": "japaclip",
+      "name": "Japaclip / ジャパクリップ",
+      "region": "日本",
+      "format": "透明 PNG",
+      "license": "站点自定义免费许可",
+      "url": "https://japaclip.com/",
+      "terms": "https://japaclip.com/terms/",
+      "rights": "明确允许软件与应用使用及成果物分发，不限数量、无需署名、可加工；禁止作为素材再分发。",
+      "fit": "莲藕、金针菇、面粉、芝麻等覆盖好。带少量纹理，不是 SVG；建议作为缺项的彩色备选。"
+    },
+    {
+      "id": "irasutoya",
+      "name": "いらすとや",
+      "region": "日本",
+      "format": "PNG",
+      "license": "站点自定义免费许可",
+      "url": "https://www.irasutoya.com/",
+      "terms": "https://www.irasutoya.com/p/terms.html",
+      "rights": "个人、法人、商业与非商业均可依规免费使用；21 项以上商用设计收费，该门槛不针对非商用。禁止以素材为主体的内容或商品再分发；版权保留。",
+      "fit": "木耳、冬瓜、山药、小葱、大葱等覆盖突出；手绘纹理明显，适合作为缺项备选。"
+    },
+    {
+      "id": "foodiconpack",
+      "name": "Food Icon Pack · Free Classic",
+      "region": "作者所在地未确认（补充来源）",
+      "format": "SVG + PNG",
+      "license": "CC BY 4.0（仅 Free Classic）",
+      "url": "https://www.foodiconpack.com/free-food-icons",
+      "terms": "https://www.foodiconpack.com/license",
+      "rights": "免费 Classic 集合允许使用、修改及分发，须署名并说明改动；彩色主题另行收费，不能套用此许可。",
+      "fit": "已排除：与本轮确认的彩色风格不符，不提供为候选。",
+      "selectionStatus": "excluded-style"
+    }
+  ],
+  "entries": [
+    {
+      "entryId": "cauliflower",
+      "name": "花菜",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/cauliflower.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "scallion",
+      "name": "小葱",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/scallion.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        },
+        {
+          "library": "iconpark",
+          "url": "https://github.com/bytedance/IconPark/blob/8dc132da4c85671ba6a5962c87aa2bdafbf158e9/source/Foods/scallion.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "已看原图：蓝色填充与粗黑描边；葱和萝卜的细分类别需要另审，不作为当前默认。"
+        },
+        {
+          "library": "irasutoya",
+          "url": "https://www.irasutoya.com/2017/08/blog-post_407.html",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已定位官方独立食材页面；手绘风格，尚未逐项做 32px 适配。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "leek-cn",
+      "name": "大葱",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/leek.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "西式 leek 不等于大葱，不能按精确图自动加入。"
+        },
+        {
+          "library": "irasutoya",
+          "url": "https://www.irasutoya.com/2017/08/blog-post_567.html",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已定位官方独立食材页面；手绘风格，尚未逐项做 32px 适配。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "garlic-sprout",
+      "name": "蒜苗",
+      "status": "not-located-this-pass",
+      "candidates": [],
+      "note": "保留文字头像；没有使用语义不符的类别图。",
+      "resolution": "text"
+    },
+    {
+      "entryId": "garlic-scape",
+      "name": "蒜薹",
+      "status": "not-located-this-pass",
+      "candidates": [],
+      "note": "保留文字头像；没有使用语义不符的类别图。",
+      "resolution": "text"
+    },
+    {
+      "entryId": "asparagus",
+      "name": "芦笋",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/asparagus.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        },
+        {
+          "library": "japaclip",
+          "url": "https://japaclip.com/en/asparagus/",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已核对官方单项页面；彩色 PNG 备选，不能当作矢量文件。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "celery",
+      "name": "芹菜",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/celery.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "radish",
+      "name": "白萝卜",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/radish.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        },
+        {
+          "library": "iconpark",
+          "url": "https://github.com/bytedance/IconPark/blob/8dc132da4c85671ba6a5962c87aa2bdafbf158e9/source/Foods/radish.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "已看原图：蓝色填充与粗黑描边；葱和萝卜的细分类别需要另审，不作为当前默认。"
+        },
+        {
+          "library": "japaclip",
+          "url": "https://japaclip.com/en/radish/",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已核对官方单项页面；彩色 PNG 备选，不能当作矢量文件。"
+        }
+      ],
+      "note": "保留文字头像；没有使用语义不符的类别图。",
+      "resolution": "text"
+    },
+    {
+      "entryId": "lotus-root",
+      "name": "莲藕",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "japaclip",
+          "url": "https://japaclip.com/en/lotus-root/",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已核对官方单项页面；彩色 PNG 备选，不能当作矢量文件。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "yam",
+      "name": "山药",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "irasutoya",
+          "url": "https://www.irasutoya.com/2014/01/blog-post_3571.html",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已定位官方独立食材页面；手绘风格，尚未逐项做 32px 适配。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "pumpkin",
+      "name": "南瓜",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/pumpkin.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        },
+        {
+          "library": "iconpark",
+          "url": "https://github.com/bytedance/IconPark/blob/8dc132da4c85671ba6a5962c87aa2bdafbf158e9/source/Foods/pumpkin.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "已看原图：蓝色填充与粗黑描边；葱和萝卜的细分类别需要另审，不作为当前默认。"
+        },
+        {
+          "library": "japaclip",
+          "url": "https://japaclip.com/en/pumpkin/",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已核对官方单项页面；彩色 PNG 备选，不能当作矢量文件。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "winter-melon",
+      "name": "冬瓜",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "irasutoya",
+          "url": "https://www.irasutoya.com/2013/06/blog-post_862.html",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已定位官方独立食材页面；手绘风格，尚未逐项做 32px 适配。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "enoki",
+      "name": "金针菇",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/enoki.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "已看原图：圆顶成团、根部粗，金针菇辨识度不佳，暂不建议采用。"
+        },
+        {
+          "library": "japaclip",
+          "url": "https://japaclip.com/en/enoki-mushroom/",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已核对官方单项页面；彩色 PNG 备选，不能当作矢量文件。"
+        },
+        {
+          "library": "irasutoya",
+          "url": "https://www.irasutoya.com/2014/01/blog-post_2548.html",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已定位官方独立食材页面；手绘风格，尚未逐项做 32px 适配。"
+        },
+        {
+          "library": "sozaic",
+          "url": "https://sozaic.com/sozai/life367/",
+          "format": "EPS + PNG",
+          "status": "reference-only",
+          "note": "官方页提供 EPS ZIP 与 PNG；未把 PNG 包成 SVG，也未将 EPS 转换后验收。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "wood-ear",
+      "name": "木耳",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "irasutoya",
+          "url": "https://www.irasutoya.com/2016/02/blog-post_99.html",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已定位官方独立食材页面；手绘风格，尚未逐项做 32px 适配。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "sausage",
+      "name": "香肠",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/sausage.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "clam",
+      "name": "蛤蜊",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/clams.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "raw-rice",
+      "name": "大米",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/rice.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "需看图确认表达生米而非熟饭。"
+        }
+      ],
+      "note": "保留文字头像；没有使用语义不符的类别图。",
+      "resolution": "text"
+    },
+    {
+      "entryId": "flour",
+      "name": "面粉",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/flour.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        },
+        {
+          "library": "japaclip",
+          "url": "https://japaclip.com/en/flour/",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已核对官方单项页面；彩色 PNG 备选，不能当作矢量文件。"
+        },
+        {
+          "library": "irasutoya",
+          "url": "https://www.irasutoya.com/2014/07/blog-post_8148.html",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已定位官方独立食材页面；手绘风格，尚未逐项做 32px 适配。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "starch",
+      "name": "淀粉",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/cornstarch.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "cornstarch 仅为玉米淀粉，通用淀粉只能作类别代用。"
+        }
+      ],
+      "note": "保留文字头像；没有使用语义不符的类别图。",
+      "resolution": "text"
+    },
+    {
+      "entryId": "tofu",
+      "name": "豆腐",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/tofu.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "已看原图：孔洞与切块形状容易让人联想到面包或奶酪，暂不建议采用。"
+        },
+        {
+          "library": "sozai-library",
+          "url": "https://www.sozai-library.com/sozai/12302",
+          "format": "EPS + PNG / JPG",
+          "status": "reference-only",
+          "note": "包装豆腐；已看页面预览，平面彩色。公开源码携带原文件仍需确认授权。"
+        },
+        {
+          "library": "irasutoya",
+          "url": "https://www.irasutoya.com/2017/07/blog-post_99.html",
+          "format": "PNG",
+          "status": "selected-color",
+          "note": "已检查包装豆腐的彩色图形。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "vermicelli",
+      "name": "粉丝",
+      "status": "not-located-this-pass",
+      "candidates": [],
+      "note": "保留文字头像；没有使用语义不符的类别图。",
+      "resolution": "text"
+    },
+    {
+      "entryId": "noodles",
+      "name": "面条",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/ramen_noodles.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "拉面图不代表所有干面、粉丝或米粉。"
+        }
+      ],
+      "note": "保留文字头像；没有使用语义不符的类别图。",
+      "resolution": "text"
+    },
+    {
+      "entryId": "oats",
+      "name": "燕麦",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "irasutoya",
+          "url": "https://www.irasutoya.com/2015/02/blog-post_236.html",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已定位官方独立食材页面；手绘风格，尚未逐项做 32px 适配。燕麦需区分原粒与燕麦片。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "sesame",
+      "name": "芝麻",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/sesame_seeds.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        },
+        {
+          "library": "japaclip",
+          "url": "https://japaclip.com/en/sesame/",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已核对官方单项页面；彩色 PNG 备选，不能当作矢量文件。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "black-pepper",
+      "name": "黑胡椒",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/black_pepper.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        },
+        {
+          "library": "japaclip",
+          "url": "https://japaclip.com/en/pepper/",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已核对官方单项页面；彩色 PNG 备选，不能当作矢量文件。"
+        }
+      ],
+      "note": "保留文字头像；没有使用语义不符的类别图。",
+      "resolution": "text"
+    },
+    {
+      "entryId": "cumin",
+      "name": "孜然",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/cumin_seed.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        }
+      ],
+      "note": "保留文字头像；没有使用语义不符的类别图。",
+      "resolution": "text"
+    },
+    {
+      "entryId": "chili-powder",
+      "name": "辣椒粉",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/chili_powder.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        }
+      ],
+      "note": "保留文字头像；没有使用语义不符的类别图。",
+      "resolution": "text"
+    },
+    {
+      "entryId": "star-anise",
+      "name": "八角",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/star_anise.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        }
+      ],
+      "note": "保留文字头像；没有使用语义不符的类别图。",
+      "resolution": "text"
+    },
+    {
+      "entryId": "cinnamon",
+      "name": "桂皮",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/cinnamon.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "仅核实官方仓库存在同名 SVG；除页面所列预览外，尚未逐图检阅。"
+        },
+        {
+          "library": "japaclip",
+          "url": "https://japaclip.com/en/cinnamon/",
+          "format": "PNG",
+          "status": "reference-only",
+          "note": "已核对官方单项页面；彩色 PNG 备选，不能当作矢量文件。"
+        }
+      ],
+      "note": "已补入彩色候选，待人工检阅。",
+      "resolution": "color"
+    },
+    {
+      "entryId": "baking-powder",
+      "name": "泡打粉",
+      "status": "source-located",
+      "candidates": [
+        {
+          "library": "foodiconpack",
+          "url": "https://github.com/michaelbollin/food-icons/blob/4f1b6ee602b0f038f7b897cd09b17629478ac7bd/icons/ingredients/svg/baking_powder.svg",
+          "format": "SVG",
+          "status": "excluded-style",
+          "note": "已看原图：小碗与勺较通用，不能凭图与其它白色粉末区分。"
+        }
+      ],
+      "note": "保留文字头像；没有使用语义不符的类别图。",
+      "resolution": "text"
+    }
+  ],
+  "previews": [],
+  "decision": "仅彩色候选；其余使用文字头像。线稿来源只保留研究记录，不显示预览、不参与选择。"
+}

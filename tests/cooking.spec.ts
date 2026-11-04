@@ -210,7 +210,10 @@ for (const [width, height] of [
     const card = page.getByRole("article", {
       name: `2026-10-19晚餐 · ${recipe.name}`,
     });
-    await expect(card).toContainText("已完成");
+    await expect(
+      card.getByRole("button", { name: "查看烹饪记录" }),
+    ).toHaveClass(/completed/);
+    await expect(card).not.toContainText("已完成");
     await page.reload();
     await page.getByLabel("查看指定周").fill("2026-10-19");
     await card.getByRole("button", { name: "查看烹饪记录" }).click();
@@ -234,7 +237,46 @@ test("cooking failure retains quantities and note", async ({ page }) => {
     "12.123456",
   );
   await expect(page.getByLabel("烹饪心得")).toHaveValue("保留草稿");
+  await page.screenshot({
+    path: "docs/screenshots/ui-coherence/cooking-failure.png",
+  });
 });
+
+for (const width of [1000, 1440]) {
+  test(`cooking AI result typography and expanded quantities ${width}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await cookingIPC(page);
+    await page.getByLabel("烹饪记录", { exact: true }).fill("牛肉只用了一点点");
+    await page
+      .getByRole("button", { name: "AI 整理实际用量", exact: true })
+      .click();
+    const result = page.locator(".cooking-ai-summary");
+    await expect(result).toContainText("牛肉用了25克");
+    expect(await result.evaluate((e) => getComputedStyle(e).fontSize)).toBe(
+      "14px",
+    );
+    expect(
+      await result
+        .locator(".hint")
+        .evaluate((e) => getComputedStyle(e).fontSize),
+    ).toBe("13px");
+    await result.scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: `docs/screenshots/ui-coherence/${width}-cooking-ai-result.png`,
+    });
+    await page.getByText("手动调整实际用量", { exact: true }).click();
+    await page.getByLabel("牛肉 lot-later 实际用量").scrollIntoViewIfNeeded();
+    const body = page.getByRole("dialog").locator(".dialog-body");
+    expect(await body.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(
+      true,
+    );
+    await page.screenshot({
+      path: `docs/screenshots/ui-coherence/${width}-cooking-expanded.png`,
+    });
+  });
+}
 
 test("future plans hide cooking until their scheduled day", async ({
   page,

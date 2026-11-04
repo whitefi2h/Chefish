@@ -22,6 +22,7 @@ pub struct Settings {
     pub recommendation_interval: u8,
     pub meals: Vec<String>,
     pub allow_estimates: bool,
+    pub allow_auto_enable_tags: bool,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -44,6 +45,7 @@ impl Default for Settings {
             recommendation_interval: 7,
             meals: vec!["晚餐".into()],
             allow_estimates: true,
+            allow_auto_enable_tags: false,
         }
     }
 }
@@ -311,29 +313,6 @@ pub fn maintenance_report(
         payload["questions"].as_array().unwrap().len()
     );
     put_item(c, key, "maintenance", "厨房整理结果", &summary, payload)?;
-    Ok(())
-}
-pub fn save_tags(tx: &Transaction, kind: &str, key: &str, tags: Vec<String>) -> Result<()> {
-    let table = match kind {
-        "recipe" => "recipes",
-        "ingredient" => "ingredients",
-        "lot" => "inventory_lots",
-        _ => return Err(error("INVALID_INPUT", "标签对象无效")),
-    };
-    if tags.len() > 12
-        || tags
-            .iter()
-            .any(|t| t.trim().is_empty() || t.chars().count() > 24)
-    {
-        return Err(error("INVALID_INPUT", "标签最多12个，每个24字以内"));
-    }
-    tx.query_row(&format!("SELECT id FROM {table} WHERE id=?1"), [key], |r| {
-        r.get::<_, String>(0)
-    })?;
-    let mut meta = metadata(tx, kind, key)?;
-    meta["tags"] = json!(tags);
-    meta["tagsOrigin"] = json!("user");
-    tx.execute("INSERT INTO app_settings(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![format!("steward_meta:{kind}:{key}"),meta.to_string()])?;
     Ok(())
 }
 pub fn mark(c: &Connection, item_id: &str, status: &str) -> Result<()> {
@@ -621,7 +600,7 @@ pub struct MaintenanceEntry {
     #[serde(default)]
     pub category: Option<String>,
     #[serde(default)]
-    pub tags: Vec<String>,
+    pub tag_ids: Vec<String>,
     #[serde(default)]
     pub review_on: Option<String>,
     #[serde(default)]
@@ -639,6 +618,9 @@ fn inspection_rows(c: &Connection) -> Result<Value> {
             )?
             .query_map([rev], |r| r.get::<_, String>(0))?
             .collect::<std::result::Result<Vec<_>, _>>()?;
+        let tags = recipe_tags::assignment(c, row["id"].as_str().unwrap())?;
+        row["tagIds"] = json!(tags.tag_ids);
+        row["tagOrigin"] = json!(tags.origin);
         row["ingredients"] = json!(names);
         row["steps"] = json!(steps
             .into_iter()
@@ -650,6 +632,11 @@ fn inspection_rows(c: &Connection) -> Result<Value> {
 }
 pub fn entities(c: &Connection) -> Result<Vec<Value>> {
     let s = inspection_rows(c)?;
+    let enabled_tags = recipe_tags::definitions(c)?
+        .into_iter()
+        .filter(|t| t.enabled && !t.deleted)
+        .map(|t| t.id)
+        .collect::<Vec<_>>();
     let mut out = Vec::new();
     for (kind, key) in [
         ("recipe", "recipes"),
@@ -679,7 +666,14 @@ pub fn entities(c: &Connection) -> Result<Vec<Value>> {
                 let signature = format!(
                     "inspection-v2:{}",
                     match kind {
-                        "recipe" => json!([v["revisionId"], v["category"]]).to_string(),
+                        "recipe" => json!([
+                            v["revisionId"],
+                            v["tagIds"],
+                            v["tagOrigin"],
+                            enabled_tags,
+                            settings(c)?.allow_auto_enable_tags
+                        ])
+                        .to_string(),
                         "ingredient" => json!([v["name"], v["category"]]).to_string(),
                         _ => v.to_string(),
                     }
@@ -714,19 +708,32 @@ pub fn maintain(tx: &Transaction, expected: &str, entries: Vec<MaintenanceEntry>
                     && v["signature"] == e.signature
             })
             .ok_or_else(|| error("STALE_REVISION", "待整理记录已变化"))?;
-        if e.tags.len() > 12
-            || e.tags
-                .iter()
-                .any(|t| t.trim().is_empty() || t.chars().count() > 24)
-            || e.basis.chars().count() > 500
-            || e.review_on.as_ref().is_some_and(|d| !valid_date(d))
-        {
+        if e.basis.chars().count() > 500 || e.review_on.as_ref().is_some_and(|d| !valid_date(d)) {
             return Err(error("INVALID_INPUT", "整理信息无效"));
         }
         let previous = metadata(tx, &e.entity_kind, &e.entity_id)?;
         let mut meta = previous.clone();
-        if previous["tags"].is_null() && !e.tags.is_empty() {
-            meta["tags"] = json!(e.tags);
+        if e.entity_kind == "recipe" && !e.tag_ids.is_empty() {
+            let defs = recipe_tags::definitions(tx)?;
+            if e.tag_ids
+                .iter()
+                .any(|id| !defs.iter().any(|t| t.id == *id && !t.deleted))
+            {
+                return Err(error("INVALID_TAG", "管家须从统一目录选择已有标签 ID"));
+            }
+            let assignment = recipe_tags::assignment(tx, &e.entity_id)?;
+            let manual = assignment.origin == "user";
+            let auto_enable = settings(tx)?.allow_auto_enable_tags && !manual;
+            if auto_enable {
+                recipe_tags::enable_for_maintenance(tx, &e.tag_ids)?;
+            }
+            let mut existing = assignment.tag_ids;
+            existing.retain(|id| defs.iter().any(|t| t.id == *id && !t.deleted));
+            existing.extend(e.tag_ids.into_iter().filter(|id| {
+                defs.iter()
+                    .any(|t| t.id == *id && (t.enabled || auto_enable) && !t.deleted)
+            }));
+            recipe_tags::set(tx, &e.entity_id, existing, "ai")?;
         }
         if e.entity_kind == "lot" && settings(tx)?.allow_estimates {
             if original["data"]["expires"].is_null()
@@ -758,7 +765,7 @@ pub fn maintain(tx: &Transaction, expected: &str, entries: Vec<MaintenanceEntry>
         }
         if let Some(cat) = e.category {
             category_name(&cat)?;
-            if e.entity_kind != "lot"
+            if e.entity_kind == "ingredient"
                 && original["data"]["category"] == "未分类"
                 && previous["categoryOrigin"] != "user"
             {

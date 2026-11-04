@@ -150,11 +150,63 @@ fn reply(app: &tauri::AppHandle, id: &str, version: i64, message: &str) -> Resul
         Ok((d, local, db::sync::status(c)?.replica_id))
     })?;
     changed(app);
-    let result = ai::completion(
-        include_str!("steward_plan_prompt.txt"),
-        json!({"local":local,"draft":d}),
+    let mut tools = Vec::new();
+    let result = plan_turn(
+        json!({"local":local,"draft":d,"toolResults":[]}),
+        |input| ai::completion(&weekly_prompt(), input),
+        |action, request| {
+            let value = match action {
+                "search" => ai::search(
+                    request["query"]
+                        .as_str()
+                        .ok_or_else(|| fail("缺少搜索关键词"))?,
+                )?,
+                "read" => connection(app, |c| assistant::read(c, request["read"].clone()))?,
+                _ => return Err(fail("不支持此查询")),
+            };
+            tools.push((action.to_string(), value.clone()));
+            Ok(value)
+        },
     )?;
-    let slots: Vec<data::Slot> = serde_json::from_value(result["slots"].clone())
+    let proposal = if result["action"] == "operate" {
+        let commands: Vec<Value> = serde_json::from_value(result["commands"].clone())
+            .map_err(|_| fail("厨房操作提案格式无效"))?;
+        Some(connection(app, |c| {
+            if db::sync::status(c)?.replica_id != lineage {
+                return Err(fail("厨房已切换，请重新打开会话"));
+            }
+            assistant::prepare(
+                c,
+                &app.state::<assistant::Proposals>(),
+                commands,
+                local["snapshot"]["dataRevision"].as_str().unwrap(),
+                d["weekStart"].as_str().unwrap(),
+            )
+        })?)
+    } else {
+        None
+    };
+    let mut candidates = Vec::new();
+    let mut urls = std::collections::HashSet::new();
+    for (_, found) in tools.iter().filter(|(kind, _)| kind == "search") {
+        for row in found.as_array().into_iter().flatten() {
+            if let Some(url) = row["url"].as_str() {
+                if urls.insert(url.to_string()) {
+                    candidates.push(row.clone());
+                }
+            }
+        }
+    }
+    candidates.truncate(6);
+    let slots_value = if result["action"] == "operate" || result["updatePlan"] == false {
+        d["slots"].clone()
+    } else {
+        result
+            .get("slots")
+            .cloned()
+            .unwrap_or_else(|| d["slots"].clone())
+    };
+    let slots: Vec<data::Slot> = serde_json::from_value(slots_value)
         .map_err(|_| fail("模型没有返回有效菜单，原草稿仍保留，请重试"))?;
     let answer = result["message"]
         .as_str()
@@ -167,7 +219,7 @@ fn reply(app: &tauri::AppHandle, id: &str, version: i64, message: &str) -> Resul
         messages
             .as_array_mut()
             .unwrap()
-            .push(json!({"role":"assistant","content":answer}));
+            .push(json!({"role":"assistant","content":answer,"candidates":candidates}));
         let saved = data::save_draft(c, id, d["version"].as_i64().unwrap(), messages, slots)?;
         data::put_item(
             c,
@@ -180,7 +232,45 @@ fn reply(app: &tauri::AppHandle, id: &str, version: i64, message: &str) -> Resul
         Ok(saved)
     })?;
     changed(app);
+    let mut saved = saved;
+    if let Some(proposal) = proposal {
+        saved["proposal"] = serde_json::to_value(proposal).map_err(|_| fail("操作提案无法显示"))?;
+    }
     Ok(saved)
+}
+fn weekly_prompt() -> String {
+    let commands = include_str!("assistant_prompt.txt")
+        .lines()
+        .filter(|line| line.starts_with("- "))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "{}\n可用commands对象格式（不是新的输出协议）：\n{}",
+        include_str!("steward_plan_prompt.txt"),
+        commands
+    )
+}
+// Read-only tools run in the task conversation; mutations remain preview-only until confirmed.
+fn plan_turn(
+    mut input: Value,
+    mut complete: impl FnMut(Value) -> Result<Value>,
+    mut tool: impl FnMut(&str, &Value) -> Result<Value>,
+) -> Result<Value> {
+    for _ in 0..4 {
+        let out = complete(input.clone())?;
+        match out["action"].as_str().unwrap_or("reply") {
+            action @ ("search" | "read") => {
+                let result = tool(action, &out)?;
+                input["toolResults"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"action":action,"request":out,"result":result}));
+            }
+            "reply" | "operate" => return Ok(out),
+            _ => return Err(fail("此任务操作不受支持，请重试")),
+        }
+    }
+    Err(fail("查询步骤较多，请缩小问题范围；草稿仍保留"))
 }
 #[tauri::command]
 pub fn kitchen_steward_preview(app: tauri::AppHandle, id: String) -> Result<Value> {
@@ -264,27 +354,6 @@ pub fn kitchen_steward_rule(app: tauri::AppHandle, rule: data::IngredientRule) -
 }
 
 #[tauri::command]
-pub fn kitchen_steward_tags(
-    app: tauri::AppHandle,
-    kind: String,
-    id: String,
-    tags: Vec<String>,
-) -> Result<()> {
-    connection(&app, |c| {
-        db::execute(
-            c,
-            &uuid::Uuid::new_v4().to_string(),
-            db::Command::SetStewardTags {
-                kind,
-                entity_id: id,
-                tags,
-            },
-        )
-    })?;
-    changed(&app);
-    Ok(())
-}
-#[tauri::command]
 pub fn kitchen_steward_review_date(
     app: tauri::AppHandle,
     id: String,
@@ -335,7 +404,7 @@ fn maintenance(app: &tauri::AppHandle, manual: bool) -> Result<()> {
         }
         let result = ai::completion(
             include_str!("steward_maintenance_prompt.txt"),
-            json!({"today":connection(app,|c|db::shopping::local_today(c))?,"allowEstimates":settings.allow_estimates,"items":work}),
+            json!({"today":connection(app,|c|db::shopping::local_today(c))?,"allowEstimates":settings.allow_estimates,"allowAutoEnableTags":settings.allow_auto_enable_tags,"recipeTagCatalog":connection(app,|c|db::recipe_tags::ai_catalog(c))?,"items":work}),
         )?;
         let entries: Vec<data::MaintenanceEntry> =
             serde_json::from_value(result["entries"].clone())

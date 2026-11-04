@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { initialState } from "../src/fixtures/demo";
 
-test("ingredient avatars fill automatically and replace across batches without editing inventory", async ({
+test("local ingredient avatars switch to photos only after an explicit request across batches", async ({
   page,
 }) => {
   const snapshot = initialState();

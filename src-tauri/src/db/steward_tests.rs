@@ -120,7 +120,7 @@ fn maintenance_is_incremental_reversible_and_does_not_replace_expiry() {
         entity_id: lot_id.into(),
         signature: lot["signature"].as_str().unwrap().into(),
         category: None,
-        tags: vec!["禽肉".into()],
+        tag_ids: vec![],
         review_on: Some("2026-10-30".into()),
         suggested_location: Some("冷藏".into()),
         basis: "假设新鲜未冷冻，预计复查".into(),
@@ -174,7 +174,7 @@ fn user_changes_prevent_maintenance_undo() {
         entity_id: row["entityId"].as_str().unwrap().into(),
         signature: row["signature"].as_str().unwrap().into(),
         category: None,
-        tags: vec!["清炒".into()],
+        tag_ids: vec!["method.stir-fry".into()],
         review_on: None,
         suggested_location: None,
         basis: "根据做法".into(),
@@ -190,7 +190,7 @@ fn user_changes_prevent_maintenance_undo() {
         },
     )
     .unwrap();
-    c.execute("UPDATE app_settings SET value=json_set(value,'$.tags',json('[\"手动标签\"]')) WHERE key GLOB 'steward_meta:recipe:*'",[]).unwrap();
+    c.execute("UPDATE app_settings SET value=json_set(value,'$.tagIds',json('[\"trait.home\"]'),'$.origin','user') WHERE key GLOB 'recipe_tag_links:*'",[]).unwrap();
     assert_eq!(
         execute(
             &mut c,
@@ -510,4 +510,67 @@ fn old_replied_maintenance_and_its_duplicate_leave_pending() {
         .unwrap()
         .iter()
         .all(|i| i["status"] != "open"));
+}
+
+#[test]
+fn maintenance_auto_enables_tags_only_when_opted_in_and_undo_restores_switch() {
+    let path = temp();
+    let mut c = open(&path).unwrap();
+    let (recipe, _) = create(&mut c);
+    let run = |c: &mut Connection| {
+        let work = entities(c).unwrap();
+        let row = work.iter().find(|v| v["entityId"] == recipe).unwrap();
+        let entry: MaintenanceEntry = serde_json::from_value(json!({"entityKind":"recipe","entityId":recipe,"signature":row["signature"],"tagIds":["cuisine.sichuan"],"basis":"明确的川菜做法"})).unwrap();
+        let rev = revision(c).unwrap();
+        let request = id();
+        execute_background(
+            c,
+            &request,
+            Command::MaintainKitchen {
+                expected_revision: rev,
+                entries: vec![entry],
+            },
+        )
+        .unwrap();
+        request
+    };
+    run(&mut c);
+    let enabled = |c: &Connection| {
+        recipe_tags::definitions(c)
+            .unwrap()
+            .iter()
+            .find(|t| t.id == "cuisine.sichuan")
+            .unwrap()
+            .enabled
+    };
+    assert!(!enabled(&c));
+    let mut prefs = settings(&c).unwrap();
+    assert!(!prefs.allow_auto_enable_tags);
+    prefs.allow_auto_enable_tags = true;
+    save_settings(&c, prefs).unwrap();
+    drop(c);
+    let mut c = open(&path).unwrap();
+    assert!(settings(&c).unwrap().allow_auto_enable_tags);
+    let request = run(&mut c);
+    assert!(enabled(&c));
+    assert!(recipe_tags::assignment(&c, &recipe)
+        .unwrap()
+        .tag_ids
+        .contains(&"cuisine.sichuan".into()));
+    execute(
+        &mut c,
+        &id(),
+        Command::UndoMaintenance {
+            operation_id: request,
+        },
+    )
+    .unwrap();
+    assert!(!enabled(&c));
+    recipe_tags::set(&c, &recipe, vec!["trait.home".into()], "user").unwrap();
+    run(&mut c);
+    assert!(!enabled(&c));
+    assert_eq!(
+        recipe_tags::assignment(&c, &recipe).unwrap().tag_ids,
+        vec!["trait.home"]
+    );
 }

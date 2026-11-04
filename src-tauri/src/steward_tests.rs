@@ -121,3 +121,43 @@ fn live_persistent_menu_and_incremental_maintenance() {
         result["summary"]
     );
 }
+
+#[test]
+fn weekly_conversation_calls_real_tools_before_reply_without_changing_slots() {
+    let draft = json!({"slots":[{"customTitle":"原菜单"}]});
+    let mut tools = Vec::new();
+    let out = plan_turn(json!({"draft":draft,"toolResults":[]}), |input| {
+        if input["toolResults"].as_array().unwrap().is_empty() {
+            Ok(json!({"action":"search","query":"玉米排骨汤"}))
+        } else {
+            assert_eq!(input["toolResults"][0]["result"][0]["title"],"玉米排骨汤");
+            Ok(json!({"action":"reply","message":"已找到真实来源","updatePlan":false,"slots":input["draft"]["slots"]}))
+        }
+    }, |kind, request| {
+        tools.push((kind.to_string(), request["query"].as_str().unwrap().to_string()));
+        Ok(json!([{"title":"玉米排骨汤","url":"https://www.xiachufang.com/recipe/1/"}]))
+    }).unwrap();
+    assert_eq!(
+        tools,
+        vec![("search".to_string(), "玉米排骨汤".to_string())]
+    );
+    assert_eq!(out["slots"], draft["slots"]);
+    assert_eq!(out["updatePlan"], false);
+}
+
+#[test]
+#[ignore = "configured model and public recipe search, synthetic menu only"]
+fn live_weekly_search_keeps_existing_menu() {
+    let draft = json!({"weekStart":"2026-11-02","messages":[{"role":"user","content":"去搜玉米排骨汤，只推荐做法和来源，不要修改菜单。"}],"slots":[],"baseline":[]});
+    let mut searched = false;
+    let out = plan_turn(json!({"local":{"today":"2026-11-01","snapshot":{"recipes":[],"lots":[],"ingredients":[]},"preferences":{"defaultServings":1}},"draft":draft,"toolResults":[]}), |input| ai::completion(&weekly_prompt(),input), |kind, request| {
+        assert_eq!(kind,"search"); searched = true;
+        let rows = ai::search(request["query"].as_str().unwrap())?;
+        assert!(!rows.as_array().unwrap().is_empty());
+        Ok(rows)
+    }).unwrap();
+    assert!(searched);
+    assert_eq!(out["updatePlan"], false);
+    assert_eq!(out["action"], "reply");
+    println!("synthetic weekly search reply: {}", out["message"]);
+}

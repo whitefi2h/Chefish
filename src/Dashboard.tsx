@@ -1,6 +1,6 @@
 import IngredientAvatar from "./IngredientAvatar";
+import { quantityText } from "./domain/quantity";
 import { shoppingPending } from "./domain/shopping";
-import Seasonings from "./Seasonings";
 import { isSeasoning, supplies } from "./domain/seasonings";
 import {
   ArrowRight,
@@ -183,37 +183,41 @@ export default function Dashboard({
               打开周菜单 →
             </button>
           </div>
-          <div className="mini-week">
+          <div className="home-agenda">
             {weekDays(weekOf(today)).map((d, i) => {
               const plans = state.plans.filter((p) => p.day === d);
               return (
                 <button
                   key={d}
-                  className={i === 6 ? "current" : ""}
+                  className={d === today ? "current" : ""}
                   onClick={() => navigate("planner")}
+                  aria-label={`查看${d}菜单`}
                 >
-                  <small>周{"一二三四五六日"[i]}</small>
-                  <strong>{d.slice(8)}</strong>
-                  <span>
-                    {plans.length ? `${plans.length} 道菜` : "留点空白"}
+                  <span className="agenda-date">
+                    <small>周{"一二三四五六日"[i]}</small>
+                    <strong>{d.slice(8)}</strong>
+                  </span>
+                  <span className="agenda-dishes">
+                    <strong>
+                      {plans.length
+                        ? plans
+                            .map((p) => recipeForPlan(state, p).name)
+                            .join("、")
+                        : "尚未安排"}
+                    </strong>
+                    <small>
+                      {plans.length
+                        ? [...new Set(plans.map((p) => p.meal))].join(" · ")
+                        : "留一点空白"}
+                      {plans.some((p) => p.cooking) ? " · 已做" : ""}
+                    </small>
                   </span>
                 </button>
               );
             })}
           </div>
-          <p className="hint">
-            共安排{" "}
-            {
-              new Set(
-                state.plans
-                  .filter((p) => weekOf(p.day) === weekOf(today))
-                  .map((p) => `${p.day}|${p.meal}`),
-              ).size
-            }{" "}
-            餐 · 安排不会消耗库存。
-          </p>
         </section>
-        <section className="panel">
+        <section className="panel dashboard-shopping">
           <div className="section-heading">
             <h2>
               <ShoppingBasket size={18} />
@@ -229,34 +233,54 @@ export default function Dashboard({
                 : `${pending.length + supplies(state).filter((s) => s.missing).length} 项`}
             </Badge>
           </div>
-          {persistent &&
-            shoppingPending(forecast)
-              .slice(0, 3)
+          <div className="dashboard-buy-list">
+            {[
+              ...(persistent
+                ? shoppingPending(forecast).map((i) => ({
+                    id: i.id ?? `${i.ingredientId}|${i.unit}`,
+                    name: i.name,
+                    amount: `${quantityText(i.remaining)} ${i.unit}`,
+                    ingredient: state.ingredients.find(
+                      (n) => n.id === i.ingredientId,
+                    ),
+                  }))
+                : pending.map((i) => ({
+                    id: i.id,
+                    name: i.name,
+                    amount: `${quantityText(i.quantity)} ${i.unit}`,
+                    ingredient: state.ingredients.find(
+                      (n) => n.id === i.ingredientId,
+                    ),
+                  }))),
+              ...supplies(state)
+                .filter((s) => s.missing)
+                .map((s) => ({
+                  id: `seasoning:${s.id}`,
+                  name: s.name,
+                  amount: "待补购",
+                  ingredient: s,
+                })),
+            ]
+              .slice(0, 5)
               .map((i) => (
-                <div
-                  className="alert-line"
-                  key={i.id ?? `${i.ingredientId}|${i.unit}`}
+                <button
+                  className="dashboard-buy-item"
+                  key={i.id}
+                  onClick={() => navigate("shopping")}
                 >
-                  <span>{i.name}</span>
-                  <strong>
-                    {i.remaining} {i.unit}
-                  </strong>
-                </div>
+                  <IngredientAvatar
+                    ingredient={i.ingredient ?? { name: i.name }}
+                  />
+                  <strong>{i.name}</strong>
+                  <span>{i.amount}</span>
+                </button>
               ))}
-          {pending.slice(0, 3).map((i) => (
-            <div key={i.id} className="alert-line">
-              <span>{i.name}</span>
-              <strong>
-                {i.quantity} {i.unit}
-              </strong>
-            </div>
-          ))}
+          </div>
           <button className="text-button" onClick={() => navigate("shopping")}>
-            去采购清单 <ArrowRight size={16} />
+            查看采购清单 <ArrowRight size={16} />
           </button>
         </section>
       </div>
-      <Seasonings reminder onOpen={() => navigate("pantry")} />
       <section className="home-note">
         <Leaf size={20} />
         <p>厨房里的小事，值得认真对待。先用好手边的食材，再期待下一顿新鲜。</p>

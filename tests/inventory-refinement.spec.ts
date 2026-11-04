@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { initialState } from "../src/fixtures/demo";
 for (const [width, height] of [
   [1280, 800],
   [1440, 900],
@@ -53,13 +54,20 @@ for (const [width, height] of [
       exact: true,
     });
     expect((await attention.boundingBox())!.height).toBeLessThan(140);
-    await attention.getByRole("button", { name: /在列表查看/ }).click();
     await expect(
-      attention.getByRole("button", { name: "显示全部库存", exact: true }),
+      attention.getByRole("button", { name: "上一张临期食材" }),
     ).toBeVisible();
-    await attention
-      .getByRole("button", { name: "显示全部库存", exact: true })
-      .click();
+    await expect(
+      attention.getByRole("button", { name: "下一张临期食材" }),
+    ).toBeVisible();
+    await expect(
+      attention.getByRole("button", { name: /在列表查看/ }),
+    ).toHaveCount(0);
+    expect(
+      await attention
+        .locator(".attention-items")
+        .evaluate((el) => getComputedStyle(el).scrollbarWidth),
+    ).toBe("none");
     const table = page.locator(".inventory-table");
     const initial = await table.boundingBox();
     const columns = await table
@@ -89,3 +97,75 @@ for (const [width, height] of [
     });
   });
 }
+
+test("attention carousel moves in both directions without a scrollbar", async ({
+  page,
+}) => {
+  const state = initialState();
+  const source = state.lots.find(
+    (l) =>
+      state.ingredients.find((i) => i.id === l.ingredientId)?.name === "牛肉",
+  )!;
+  state.lots = Array.from({ length: 12 }, (_, i) => ({
+    ...source,
+    id: `alert-${i}`,
+    expires: "2026-10-17",
+  }));
+  await page.addInitScript(
+    (state) =>
+      Object.assign(window, {
+        isTauri: true,
+        __TAURI_INTERNALS__: {
+          invoke: async (name: string) =>
+            name === "kitchen_bootstrap" ? state : null,
+        },
+      }),
+    state,
+  );
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "食材库存" })
+    .click();
+  const strip = page.locator(".attention-items");
+  const previous = page.getByRole("button", { name: "上一张临期食材" });
+  await expect(previous).toBeDisabled();
+  await page.getByRole("button", { name: "下一张临期食材" }).click();
+  await expect
+    .poll(() => strip.evaluate((el) => el.scrollLeft))
+    .toBeGreaterThan(100);
+  await expect(previous).toBeEnabled();
+  await previous.click();
+  await expect
+    .poll(() => strip.evaluate((el) => el.scrollLeft))
+    .toBeLessThan(2);
+});
+
+test("default ingredient units respect manual choices and an existing lot can be corrected", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "食材库存" })
+    .click();
+  await page.getByRole("button", { name: "食材购买", exact: true }).click();
+  const form = page.getByRole("dialog");
+  await form.getByLabel("食材名称", { exact: true }).fill("洋葱");
+  await expect(form.getByLabel("单位", { exact: true })).toHaveValue("个");
+  await form.getByLabel("单位", { exact: true }).selectOption("g");
+  await form.getByLabel("食材名称", { exact: true }).fill("青椒");
+  await expect(form.getByLabel("单位", { exact: true })).toHaveValue("g");
+  await form.getByLabel("食材名称", { exact: true }).fill("洋葱");
+  await form.getByLabel("数量", { exact: true }).fill("1");
+  await form.getByRole("button", { name: "确认演示购买", exact: true }).click();
+  await page.getByRole("button", { name: "查看洋葱批次", exact: true }).click();
+  await page.getByLabel("库存单位", { exact: true }).selectOption("个");
+  await page.getByLabel("剩余数量（个）", { exact: true }).fill("1");
+  await page.getByRole("button", { name: "保存修改", exact: true }).click();
+  await expect(page.getByLabel("库存单位", { exact: true })).toHaveValue("个");
+  await page.screenshot({
+    path: "docs/screenshots/ui-kitchen-refinement/unit-correction.png",
+  });
+});

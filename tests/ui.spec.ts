@@ -9,6 +9,11 @@ test("pointer drag adds, moves into a shared meal, removes, and undo restores di
   page,
 }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "打开厨房设置" }).click();
+  await page.getByRole("tab", { name: "通用", exact: true }).click();
+  await page.getByLabel("显示早餐", { exact: true }).check();
+  await page.getByRole("button", { name: "保存设置", exact: true }).click();
+  await page.keyboard.press("Escape");
   const source = page.locator(".pool-card").first().locator(".draggable");
   const target = page.locator('[data-slot="2026-10-12|早餐"]');
   const a = await source.boundingBox();
@@ -62,6 +67,7 @@ test("shopping purchase also stocks inventory; manual input is escaped and retai
   await page.getByLabel("购买储存位置").selectOption("冷冻");
   await page.getByLabel("购买到期日期").fill("2026-10-25");
   await page.getByRole("button", { name: "确认购买", exact: true }).click();
+  await page.getByRole("checkbox", { name: "显示已买" }).check();
   await expect(
     page.locator(".shopping-row").filter({ hasText: "牛肉" }),
   ).toContainText("已购买");
@@ -88,10 +94,19 @@ test("shopping purchase also stocks inventory; manual input is escaped and retai
     .getByRole("dialog")
     .getByRole("button", { name: "添加项目", exact: true })
     .click();
-  await expect(page.getByText(unsafe, { exact: true })).toBeVisible();
-  await expect(page.locator(".shopping-name img")).toHaveCount(0);
+  await expect(
+    page.locator(".shopping-row").getByText(unsafe, { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator(".shopping-row")
+      .filter({ hasText: unsafe })
+      .locator(".shopping-name img"),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "更新计划需求" }).click();
-  await expect(page.getByText(unsafe, { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".shopping-row").getByText(unsafe, { exact: true }),
+  ).toBeVisible();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "导出 CSV（浏览器）" }).click();
   const download = await downloadPromise;

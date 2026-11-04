@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useLayoutEffect, useId, useRef, type ReactNode } from "react";
 import { X, UtensilsCrossed } from "lucide-react";
 export function Badge({
   children,
@@ -48,6 +48,7 @@ export function Modal({
   dismissOnEscape = false,
   headerActions,
   headerLeading,
+  animateEntrance = true,
 }: {
   title: string;
   children: ReactNode;
@@ -57,10 +58,11 @@ export function Modal({
   dismissOnEscape?: boolean;
   headerActions?: ReactNode;
   headerLeading?: ReactNode;
+  animateEntrance?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current!;
     const previous = document.activeElement as HTMLElement | null;
     const root = document.documentElement;
@@ -72,13 +74,25 @@ export function Modal({
       const gap = window.innerWidth - el.getBoundingClientRect().right;
       el.style.right = `${-gap}px`;
     }
+    const keyboard = previous?.matches(":focus-visible");
+    // The dialog boundary stays fixed, including while its contents enter.
+    const entrance =
+      animateEntrance &&
+      !keyboard &&
+      !matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? el.animate([{ opacity: 0 }, { opacity: 1 }], {
+            duration: 160,
+            easing: "cubic-bezier(.23,1,.32,1)",
+          })
+        : null;
     return () => {
+      entrance?.cancel();
       el.close();
       root.style.overflow = overflow;
       el.style.right = "";
       previous?.focus({ preventScroll: true });
     };
-  }, [drawer]);
+  }, [drawer, animateEntrance]);
   return (
     <dialog
       ref={ref}

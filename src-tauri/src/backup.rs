@@ -241,6 +241,7 @@ mod tests {
 
     fn recipe(name: &str) -> RecipeDraft {
         RecipeDraft {
+            tag_ids: None,
             ingredient_kinds: Default::default(),
             media: Some(crate::recipe_images::Media {
                 cover_credit: None,

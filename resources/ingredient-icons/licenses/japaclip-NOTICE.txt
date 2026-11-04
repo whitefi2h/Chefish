@@ -1,0 +1,8 @@
+Color ingredient illustrations by ジャパクリップ / イラストスイッチ.
+Official terms: https://japaclip.com/terms/
+Reviewed: 2026-10-30. Usage context: noncommercial Chefish.
+
+Official terms explicitly permit software/applications, editing and distribution of finished works, with no item count limit or required attribution. Redistribution as illustration stock, free or paid, is prohibited.
+
+Files retain original colors and pixels. This notice is a summary, not a replacement for the official terms.
+The original PNG files are kept only in the git-ignored local/ cache for development review. The generated review HTML is also git-ignored; it is not a downloadable stock icon pack. Do not publish this cache or an embedded asset catalog as reusable illustration materials. App distribution and public source asset distribution require separate consideration.

@@ -4,8 +4,17 @@ import type { ShoppingLine, ShoppingForecast } from "../src/domain/shopping";
 async function shoppingIPC(
   page: Page,
   fail: "" | "buy" | "receive" | "forecast" = "",
+  showPurchased = true,
+  missingSeasonings = false,
+  decimalQuantities = false,
 ) {
   const state = initialState();
+  if (missingSeasonings)
+    state.seasonings = ["醋", "黄油", "蒸鱼豉油", "芝麻油"].map((name) => ({
+      id: name,
+      name,
+      missing: true,
+    }));
   state.dataRevision = "10";
   state.memo = "选新鲜的蔬菜";
   const row = (overrides: Partial<ShoppingLine>): ShoppingLine => ({
@@ -104,6 +113,25 @@ async function shoppingIPC(
       }),
     ],
   };
+  if (decimalQuantities) {
+    Object.assign(f.items[0], {
+      name: "胡萝卜",
+      unit: "个",
+      required: "0.666668",
+      covered: "0",
+      shortage: "0.666668",
+      remaining: "0.666668",
+      purchased: "0",
+      received: "0",
+      unreceived: "0",
+      history: [],
+    });
+    Object.assign(f.items[1], {
+      required: "191.666667",
+      shortage: "191.666667",
+      remaining: "191.666667",
+    });
+  }
   f.items.unshift(f.items.pop()!);
   await page.addInitScript(
     ({ state, f, fail }) => {
@@ -207,6 +235,8 @@ async function shoppingIPC(
     .getByRole("navigation")
     .getByRole("button", { name: "采购清单" })
     .click();
+  if (showPurchased && fail !== "forecast")
+    await page.getByRole("checkbox", { name: "显示已买" }).check();
 }
 for (const [width, height] of [
   [1280, 800],
@@ -392,7 +422,11 @@ test("native manual items remain visible across weeks and memo saves", async ({
 }) => {
   await shoppingIPC(page);
   await page.getByLabel("采购备忘").fill("记得带购物袋");
-  await page.getByRole("button", { name: "保存备忘" }).click();
+  await page.getByLabel("采购备忘").blur();
+  await expect(
+    page.getByRole("status").filter({ hasText: "已自动保存" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "保存备忘" })).toHaveCount(0);
   await page
     .getByRole("navigation")
     .getByRole("button", { name: "每周菜单" })
@@ -474,4 +508,90 @@ test("purchased rows can be removed and keyboard opens details", async ({
   await rice.getByRole("button", { name: "删除大米" }).click();
   await page.getByRole("button", { name: "确认删除" }).click();
   await expect(rice).toHaveCount(0);
+});
+
+test("purchased rows start hidden and can be reviewed without changing the forecast", async ({
+  page,
+}) => {
+  await shoppingIPC(page, "", false);
+  const toggle = page.getByRole("checkbox", { name: "显示已买" });
+  const purchased = page.locator(".shopping-row").filter({ hasText: "三文鱼" });
+  await expect(toggle).not.toBeChecked();
+  await expect(purchased).toHaveCount(0);
+  await page.screenshot({
+    path: "docs/screenshots/ui-annotations/shopping-pending.png",
+  });
+  await toggle.check();
+  await expect(purchased).toContainText("已购买");
+  await page.screenshot({
+    path: "docs/screenshots/ui-annotations/shopping-purchased.png",
+  });
+  await toggle.uncheck();
+  await expect(purchased).toHaveCount(0);
+});
+
+test("shopping reminder with four missing seasonings stays compact", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await shoppingIPC(page, "", false, true);
+  const reminder = page.getByRole("region", { name: "调料采购提醒" });
+  await expect(reminder.locator(".seasoning-row")).toHaveCount(4);
+  expect((await reminder.boundingBox())!.height).toBeLessThan(150);
+  const dateRow = await page.locator(".week-toolbar:visible").boundingBox();
+  const list = await page.locator(".shopping-layout").boundingBox();
+  expect(list!.y - dateRow!.y).toBeLessThan(210);
+  const tools = page.locator(".shopping-list-tools");
+  const count = await tools.locator(".hint").boundingBox();
+  const label = await tools.locator(".check-label > span").boundingBox();
+  expect(
+    Math.abs(count!.y + count!.height / 2 - label!.y - label!.height / 2),
+  ).toBeLessThan(1);
+  await page.screenshot({
+    path: "docs/screenshots/ui-alignment/after/shopping-four-seasonings.png",
+  });
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "首页" })
+    .click();
+  const top = await page
+    .locator(".dashboard-top > section")
+    .last()
+    .boundingBox();
+  const bottom = await page.locator(".dashboard-shopping").boundingBox();
+  expect(Math.abs(top!.x - bottom!.x)).toBeLessThan(1);
+  expect(Math.abs(top!.width - bottom!.width)).toBeLessThan(1);
+  await expect(page.locator(".dashboard-buy-item")).toHaveCount(5);
+  await expect(page.locator(".dashboard-shopping")).toContainText("醋");
+  await expect(page.locator(".home-agenda button")).toHaveCount(7);
+  await page.screenshot({
+    path: "docs/screenshots/ui-alignment/after/home-four-seasonings.png",
+    fullPage: true,
+  });
+});
+
+test("shopping rounds presentation to one decimal while purchase input retains precision", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await shoppingIPC(page, "", false, false, true);
+  const carrot = page.locator(".shopping-row").filter({ hasText: "胡萝卜" });
+  await expect(carrot).toContainText("总需 0.7 个 · 库存 0 个 · 仍缺 0.7 个");
+  await expect(carrot).toContainText("待买 0.7 个");
+  await expect(
+    page.locator(".shopping-row").filter({ hasText: "大米" }),
+  ).toContainText("待买 191.7 g");
+  await expect(page.getByRole("main")).not.toContainText("66666");
+  await page.screenshot({
+    path: "docs/screenshots/onboarding/shopping-one-decimal.png",
+    fullPage: true,
+  });
+  await carrot.click({ button: "right" });
+  await expect(page.getByRole("dialog")).not.toContainText("66666");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "关闭面板" })
+    .click();
+  await carrot.getByRole("button", { name: "购买", exact: true }).click();
+  await expect(page.getByLabel("本次购买数量")).toHaveValue("0.666668");
 });

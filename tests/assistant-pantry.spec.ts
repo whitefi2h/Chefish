@@ -169,9 +169,7 @@ for (const width of [1280, 1920])
       fullPage: true,
     });
     await page.getByRole("button", { name: "首页", exact: true }).click();
-    await expect(
-      page.getByRole("region", { name: "调料采购提醒" }),
-    ).toContainText("生抽");
+    await expect(page.locator(".dashboard-shopping")).toContainText("生抽");
     await page.getByRole("button", { name: /^采购清单/ }).click();
     await expect(
       page.getByRole("region", { name: "调料采购提醒" }),

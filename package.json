@@ -1,11 +1,12 @@
 {
   "name": "chefish",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
+    "pretypecheck": "node tools/ingredient-icons/prepare-app.mjs",
     "lint": "eslint src tests",
     "test": "vitest run",
     "test:ui": "playwright test",

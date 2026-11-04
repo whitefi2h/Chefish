@@ -16,6 +16,42 @@ fn rules() -> &'static Vec<Rule> {
             .expect("bundled ingredient standards")
     })
 }
+pub fn default_units() -> &'static Value {
+    static DEFAULTS: OnceLock<Value> = OnceLock::new();
+    DEFAULTS.get_or_init(|| {
+        serde_json::from_str(include_str!(
+            "../../../src/domain/ingredientDefaultUnits.json"
+        ))
+        .expect("bundled default units")
+    })
+}
+pub fn preferred_unit(raw: &str) -> String {
+    let canonical = name(raw);
+    default_units()
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| {
+            r["name"]
+                .as_str()
+                .is_some_and(|n| n.eq_ignore_ascii_case(&canonical))
+                || r["aliases"].as_array().unwrap().iter().any(|a| {
+                    a.as_str()
+                        .is_some_and(|a| a.eq_ignore_ascii_case(&canonical))
+                })
+        })
+        .and_then(|r| r["unit"].as_str())
+        .unwrap_or("g")
+        .to_string()
+}
+pub fn aliases(raw: &str) -> Vec<String> {
+    let canonical = name(raw);
+    rules()
+        .iter()
+        .find(|r| r.name == canonical)
+        .map(|r| r.aliases.clone())
+        .unwrap_or_default()
+}
 pub fn name(raw: &str) -> String {
     let raw = raw.trim();
     rules()

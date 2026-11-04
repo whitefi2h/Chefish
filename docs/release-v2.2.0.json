@@ -1,0 +1,48 @@
+{
+  "version": "2.2.0",
+  "schemaVersion": 18,
+  "date": "2026-11-04",
+  "delivery": "Windows x64 executable and NSIS installer; GitHub v2.2.0 release",
+  "checks": {
+    "rust": { "passed": 163, "ignored": 12 },
+    "frontendUnit": { "passed": 37, "optionalSkipped": 13 },
+    "ingredientIconIndex": { "passed": 8 },
+    "browserInteraction": {
+      "totalCases": 176,
+      "initialFullRun": { "passed": 164, "failed": 12 },
+      "followupRuns": [ { "passed": 11, "failed": 1 }, { "passed": 1, "failed": 0 } ],
+      "unresolvedFailures": 0,
+      "note": "Updated stale UI assertions and isolated fixtures: collapsed tags, combined dashboard shopping panel, first-run setup, week-scoped inspiration, one-decimal display and canonical ingredient names. No application code changed during release validation."
+    },
+    "firestoreEmulator": { "passed": 12, "nativeReplicas": 2, "productionDeployment": false },
+    "typecheck": true,
+    "lint": true,
+    "frontendBuild": true,
+    "releaseBuild": true,
+    "nsisBuild": true
+  },
+  "desktopEvidence": {
+    "source": "ONBOARDING_MOTION_20261104.md and earlier UI review records",
+    "scope": "Isolated Windows WebView2 layout review with synthetic kitchen data; final focus-style adjustment verified in browser regressions",
+    "newInstalledUpgradeQaThisReleaseRun": false,
+    "personalKitchenUsedForTests": false
+  },
+  "artifacts": {
+    "exe": "src-tauri/target/release/chefish.exe",
+    "installer": "src-tauri/target/release/bundle/nsis/Chefish_2.2.0_x64-setup.exe",
+    "exeBytes": 60459008,
+    "installerBytes": 44236220,
+    "windowsProductVersion": "2.2.0"
+  },
+  "cloudDeployment": {
+    "projectId": "chefish-kitchen",
+    "status": "pending_production_rules_deployment",
+    "deployedThisRun": false,
+    "productionSyncAccepted": false
+  },
+  "notValidatedThisReleaseRun": [
+    "Installed upgrade and uninstall with user data",
+    "Production cloud synchronization under schema 18",
+    "Live provider, real account registration and long-duration multi-computer operation"
+  ]
+}

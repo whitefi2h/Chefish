@@ -273,6 +273,8 @@ test("dragging a new dish uses the saved default without rewriting existing meal
   await page.goto("/");
   const dialog = await openSettings(page);
   await page.getByLabel("默认用餐人数").fill("4");
+  await dialog.getByRole("tab", { name: "通用", exact: true }).click();
+  await page.getByLabel("显示早餐", { exact: true }).check();
   await dialog.getByRole("button", { name: "保存设置", exact: true }).click();
   await page.keyboard.press("Escape");
   const source = page.locator(".pool-card .draggable").first();
@@ -524,3 +526,45 @@ declare global {
     syncUiConflict: () => void;
   }
 }
+
+test("meal visibility defaults, saves across restart and preserves hidden plans", async ({
+  page,
+}) => {
+  await fixture(page);
+  const slots = (meal: string) => page.locator(`[data-slot$="|${meal}"]`);
+  await expect(slots("早餐")).toHaveCount(0);
+  await expect(slots("午餐")).toHaveCount(7);
+  await expect(slots("晚餐")).toHaveCount(7);
+  const cards = await page.locator(".planned-card").count();
+  let dialog = await openSettings(page);
+  await dialog.getByRole("tab", { name: "通用", exact: true }).click();
+  await page.getByLabel("显示早餐", { exact: true }).check();
+  await page.getByLabel("显示午餐", { exact: true }).uncheck();
+  await page.getByLabel("显示晚餐", { exact: true }).uncheck();
+  await dialog.getByRole("button", { name: "保存设置", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(slots("早餐")).toHaveCount(7);
+  await expect(slots("午餐")).toHaveCount(0);
+  await expect(slots("晚餐")).toHaveCount(0);
+  await page.reload();
+  await expect(slots("早餐")).toHaveCount(7);
+  await expect(slots("午餐")).toHaveCount(0);
+  dialog = await openSettings(page);
+  await dialog.getByRole("tab", { name: "通用", exact: true }).click();
+  await page.getByLabel("显示早餐", { exact: true }).uncheck();
+  await dialog.getByRole("button", { name: "保存设置", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("status").filter({ hasText: "所有餐次均已隐藏" }),
+  ).toBeVisible();
+  dialog = await openSettings(page);
+  await dialog.getByRole("tab", { name: "通用", exact: true }).click();
+  await page.getByLabel("显示午餐", { exact: true }).check();
+  await page.getByLabel("显示晚餐", { exact: true }).check();
+  await dialog.getByRole("button", { name: "保存设置", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".planned-card")).toHaveCount(cards);
+  await page.screenshot({
+    path: "docs/screenshots/planner-meal-visibility/default.png",
+  });
+});

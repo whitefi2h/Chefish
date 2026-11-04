@@ -1,0 +1,202 @@
+[
+  {
+    "name": "洋葱",
+    "aliases": ["紫洋葱", "红洋葱"],
+    "unit": "个"
+  },
+  {
+    "name": "番茄",
+    "aliases": ["西红柿", "tomato"],
+    "unit": "个"
+  },
+  {
+    "name": "青椒",
+    "aliases": ["彩椒", "甜椒", "青辣椒"],
+    "unit": "个"
+  },
+  {
+    "name": "鸡蛋",
+    "aliases": ["蛋", "egg"],
+    "unit": "个"
+  },
+  {
+    "name": "大蒜",
+    "aliases": ["蒜头"],
+    "unit": "个"
+  },
+  {
+    "name": "大葱",
+    "aliases": ["葱白", "葱段"],
+    "unit": "个"
+  },
+  {
+    "name": "小葱",
+    "aliases": ["香葱", "葱花"],
+    "unit": "g"
+  },
+  {
+    "name": "猕猴桃",
+    "aliases": ["奇异果", "kiwi"],
+    "unit": "个"
+  },
+  {
+    "name": "柠檬",
+    "aliases": [],
+    "unit": "个"
+  },
+  {
+    "name": "苹果",
+    "aliases": [],
+    "unit": "个"
+  },
+  {
+    "name": "橙子",
+    "aliases": [],
+    "unit": "个"
+  },
+  {
+    "name": "土豆",
+    "aliases": ["马铃薯"],
+    "unit": "个"
+  },
+  {
+    "name": "胡萝卜",
+    "aliases": [],
+    "unit": "个"
+  },
+  {
+    "name": "黄瓜",
+    "aliases": [],
+    "unit": "个"
+  },
+  {
+    "name": "茄子",
+    "aliases": [],
+    "unit": "个"
+  },
+  {
+    "name": "鸡翅中",
+    "aliases": ["翅中"],
+    "unit": "个"
+  },
+  {
+    "name": "鸡腿",
+    "aliases": [],
+    "unit": "个"
+  },
+  {
+    "name": "娃娃菜",
+    "aliases": [],
+    "unit": "个"
+  },
+  {
+    "name": "生姜",
+    "aliases": ["姜"],
+    "unit": "g"
+  },
+  {
+    "name": "青蒜",
+    "aliases": ["蒜苗"],
+    "unit": "g"
+  },
+  {
+    "name": "韭菜",
+    "aliases": [],
+    "unit": "g"
+  },
+  {
+    "name": "小米辣",
+    "aliases": [],
+    "unit": "g"
+  },
+  {
+    "name": "口蘑",
+    "aliases": ["鲜蘑菇"],
+    "unit": "g"
+  },
+  {
+    "name": "香菇",
+    "aliases": [],
+    "unit": "g"
+  },
+  {
+    "name": "牛肉",
+    "aliases": ["牛里脊", "瘦牛肉"],
+    "unit": "g"
+  },
+  {
+    "name": "猪肉",
+    "aliases": ["瘦肉", "猪里脊", "五花肉"],
+    "unit": "g"
+  },
+  {
+    "name": "鸡肉",
+    "aliases": ["鸡胸肉", "鸡腿肉"],
+    "unit": "g"
+  },
+  {
+    "name": "三文鱼",
+    "aliases": [],
+    "unit": "g"
+  },
+  {
+    "name": "虾仁",
+    "aliases": [],
+    "unit": "g"
+  },
+  {
+    "name": "大米",
+    "aliases": ["米"],
+    "unit": "g"
+  },
+  {
+    "name": "意大利面",
+    "aliases": ["Spaghetti", "意面"],
+    "unit": "g"
+  },
+  {
+    "name": "粉丝",
+    "aliases": ["龙口粉丝"],
+    "unit": "g"
+  },
+  {
+    "name": "牛奶",
+    "aliases": ["鲜奶", "纯牛奶"],
+    "unit": "ml"
+  },
+  {
+    "name": "淡奶油",
+    "aliases": ["动物淡奶油"],
+    "unit": "ml"
+  },
+  {
+    "name": "吐司面包",
+    "aliases": ["吐司"],
+    "unit": "片"
+  },
+  {
+    "name": "手抓饼",
+    "aliases": [],
+    "unit": "片"
+  },
+  {
+    "name": "饺子",
+    "aliases": ["水饺", "白菜猪肉水饺"],
+    "unit": "个"
+  },
+  {
+    "name": "叉烧包",
+    "aliases": [],
+    "unit": "个"
+  },
+  {
+    "name": "奶黄包",
+    "aliases": [],
+    "unit": "个"
+  },
+  {
+    "name": "迷迭香",
+    "aliases": [],
+    "unit": "g"
+  }
+]

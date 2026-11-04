@@ -264,7 +264,7 @@ export function CookingForm({
               <div className="section-heading">
                 <h3>{r.name}</h3>
                 <span className="hint">
-                  配方用量 {r.required} {r.unit}
+                  配方用量 {quantityText(r.required)} {r.unit}
                 </span>
               </div>
               {r.lots.map((l) => (
@@ -328,3 +328,4 @@ export function CookingForm({
     </Modal>
   );
 }
+import { quantityText } from "./domain/quantity";

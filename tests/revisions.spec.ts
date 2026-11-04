@@ -19,7 +19,7 @@ test("drawer ignores single backdrop clicks and inside double clicks, and closes
   await expect(dialog).toBeVisible();
   await page.mouse.dblclick(15, 150);
   await expect(dialog).toHaveCount(0);
-  expect(await page.evaluate(()=>window.getSelection()?.toString())).toBe("");
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe("");
 });
 test("center modal retains draft on backdrop and Escape; X closes", async ({
   page,
@@ -146,37 +146,13 @@ test("JSON file import validates then previews before confirmation", async ({
   await expect(
     page.locator(".recipe-card").filter({ hasText: "导入的冬瓜汤" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "汤羹", exact: true }).click();
-  await expect(page.locator(".recipe-card:visible")).toHaveCount(1);
-});
-test("recipe and pantry categories can be added renamed assigned and removed", async ({
-  page,
-}) => {
-  await page.goto("/");
-  await page
-    .getByRole("navigation")
-    .getByRole("button", { name: "我的菜谱" })
-    .click();
-  await page.getByRole("button", { name: "管理分类" }).click();
-  await page.getByLabel("新分类名称").fill("快手菜");
-  await page.getByRole("button", { name: "添加分类" }).click();
-  await page.getByLabel("分类名称快手菜", { exact: true }).fill("工作日晚餐");
-  await page.getByRole("button", { name: "保存分类", exact: true }).click();
+  await page.getByRole("button", { name: "未标注", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "工作日晚餐", exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "查看香煎黑椒芦笋牛排", exact: true })
-    .click();
-  await page.getByLabel("菜谱所属分类").selectOption("工作日晚餐");
-  await page.getByRole("button", { name: "返回菜谱库" }).click();
-  await page.getByRole("button", { name: "工作日晚餐", exact: true }).click();
-  await expect(page.locator(".recipe-card:visible")).toHaveCount(1);
-  await page.getByRole("button", { name: "管理分类" }).click();
-  await page.getByRole("button", { name: "移除分类工作日晚餐" }).click();
-  await page.getByRole("button", { name: "保存分类", exact: true }).click();
-  await page.getByRole("button", { name: "未分类", exact: true }).click();
-  await expect(page.locator(".recipe-card:visible")).toHaveCount(1);
+    page.locator(".recipe-card:visible").filter({ hasText: "导入的冬瓜汤" }),
+  ).toHaveCount(1);
+});
+test("pantry categories can be added and assigned", async ({ page }) => {
+  await page.goto("/");
   await page
     .getByRole("navigation")
     .getByRole("button", { name: "食材库存" })

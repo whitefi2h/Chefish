@@ -1,3 +1,5 @@
+import { invoke } from "@tauri-apps/api/core";
+import type { AssistantProposal } from "./services/aiClient";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
@@ -107,6 +109,8 @@ export default function StewardInbox({
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [proposal, setProposal] = useState<AssistantProposal | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [forecast, setForecast] = useState<ShoppingForecast | null>(null);
   const [previewRevision, setPreviewRevision] = useState("");
   const [planChanges, setPlanChanges] = useState<
@@ -177,7 +181,10 @@ export default function StewardInbox({
     setInput("");
     await act(async () => {
       try {
-        setDraft(await steward.reply(draft, message));
+        const result = await steward.reply(draft, message);
+        setDraft(result);
+        setProposal(result.proposal ?? null);
+        setConfirmDelete(false);
         setForecast(null);
       } catch (e) {
         setDraft(await steward.draft(draft.id));
@@ -195,9 +202,73 @@ export default function StewardInbox({
             {draft?.messages.map((m, i) => (
               <div key={i} className={`assistant-turn ${m.role}`}>
                 <div className={`chat-message ${m.role}`}>{m.content}</div>
+                {!!m.candidates?.length && (
+                  <div className="weekly-search-results">
+                    {m.candidates.map((c) => (
+                      <article key={c.url}>
+                        <strong>{c.title}</strong>
+                        {c.author && <small>{c.author}</small>}
+                        <button onClick={() => onImport(c.url)}>
+                          读取原文并整理
+                        </button>
+                        <button
+                          className="text-button"
+                          onClick={() =>
+                            void invoke("kitchen_open_recipe", {
+                              url: c.url,
+                            }).catch((e) => setError(errorMessage(e)))
+                          }
+                        >
+                          查看来源
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
+          {proposal && (
+            <section className="assistant-proposal" aria-label="厨房操作提案">
+              <h3>待确认的厨房操作</h3>
+              {proposal.changes.map((change, i) => (
+                <div key={i}>
+                  <strong>{change.section}</strong>
+                  <p>{change.after || `移除：${change.before}`}</p>
+                </div>
+              ))}
+              {proposal.destructive && (
+                <label className="inline">
+                  <input
+                    type="checkbox"
+                    checked={confirmDelete}
+                    onChange={(e) => setConfirmDelete(e.target.checked)}
+                  />
+                  再次确认删除、移除或丢弃的内容
+                </label>
+              )}
+              <div className="actions">
+                <button
+                  className="primary"
+                  disabled={busy || (proposal.destructive && !confirmDelete)}
+                  onClick={() =>
+                    void act(async () => {
+                      await invoke("kitchen_ai_apply", {
+                        proposalId: proposal.id,
+                        confirmDelete,
+                      });
+                      setProposal(null);
+                    })
+                  }
+                >
+                  同意并执行
+                </button>
+                <button disabled={busy} onClick={() => setProposal(null)}>
+                  拒绝提案
+                </button>
+              </div>
+            </section>
+          )}
           {!!draft?.slots.length && (
             <section className="steward-menu-preview">
               <header>
@@ -251,7 +322,7 @@ export default function StewardInbox({
                 .map((i, n) => (
                   <div key={n}>
                     <p>
-                      {i.name} · {i.remaining} {i.unit}
+                      {i.name} · {quantityText(i.remaining)} {i.unit}
                       {i.estimated ? " · 含估算" : ""}
                       {i.review ? " · 待核对" : ""}
                     </p>
@@ -293,7 +364,7 @@ export default function StewardInbox({
           )}
           {busy && (
             <p role="status" className="assistant-working">
-              正在整理你的菜单…
+              正在处理…
             </p>
           )}
         </div>
@@ -358,7 +429,7 @@ export default function StewardInbox({
                     void reply();
                   }
                 }}
-                placeholder="说说想吃什么，或继续调整这份菜单…"
+                placeholder="发消息、搜索新菜，或调整这周菜单…"
               />
               <div className="assistant-compose-actions">
                 <span>菜单确认后才会保存到本周安排</span>
@@ -411,30 +482,7 @@ export default function StewardInbox({
             {item.payload.items?.map((v, i) => (
               <div key={i}>
                 <strong>{v.name}</strong>
-                <button
-                  disabled={busy}
-                  onClick={() => {
-                    const tags = window.prompt(
-                      "修改标签，用逗号分隔；留空可清除",
-                      v.metadata?.tags?.join("，") ?? "",
-                    );
-                    if (tags !== null)
-                      void act(() =>
-                        steward.tags(
-                          v.entityKind,
-                          v.entityId,
-                          tags
-                            .split(/[,，、]/)
-                            .map((t) => t.trim())
-                            .filter(Boolean),
-                        ),
-                      );
-                  }}
-                >
-                  修改标签
-                </button>
                 <p className="hint">
-                  {v.metadata?.tags?.join(" · ")}
                   {v.metadata?.reviewOn && ` · 预计复查 ${v.metadata.reviewOn}`}
                   {v.metadata?.suggestedLocation &&
                     ` · 推测库位 ${v.metadata.suggestedLocation}`}{" "}
@@ -576,3 +624,4 @@ export default function StewardInbox({
     </section>
   );
 }
+import { quantityText } from "./domain/quantity";

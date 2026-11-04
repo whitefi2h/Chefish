@@ -514,6 +514,10 @@ pub fn run_mode(
     instruction: String,
     automatic: bool,
 ) -> Result<Value> {
+    // Missing avatars are resolved locally; network photo search remains an explicit user action.
+    if automatic {
+        return Ok(json!({"updated":0,"remaining":0}));
+    }
     let status = ai::status()?;
     if !status["configured"].as_array().is_some_and(|items| {
         items
@@ -646,7 +650,18 @@ pub async fn kitchen_ingredient_images(
 }
 #[tauri::command]
 pub fn kitchen_open_image_source(url: String) -> Result<()> {
-    open::that(source_url(&url)?.as_str()).map_err(|_| fail("无法打开图片来源"))
+    let parsed = Url::parse(&url).map_err(|_| fail("图片来源无效"))?;
+    let catalog_source = parsed.scheme() == "https"
+        && matches!(
+            parsed.host_str(),
+            Some("github.com" | "creativecommons.org" | "japaclip.com" | "www.irasutoya.com")
+        );
+    let safe = if catalog_source {
+        parsed
+    } else {
+        source_url(&url)?
+    };
+    open::that(safe.as_str()).map_err(|_| fail("无法打开图片来源"))
 }
 
 #[cfg(test)]

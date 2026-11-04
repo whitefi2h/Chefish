@@ -73,7 +73,24 @@ fn event(
     if reason.chars().count() > 2000 {
         return Err(error("INVALID_INPUT", "说明超过长度限制"));
     }
-    tx.execute("INSERT INTO inventory_events(id,lot_id,kind,before_amount,after_amount,before_location,after_location,after_version,reason,reversed_event_id) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)", params![id(),lot_id,kind,before.amount.normalize().to_string(),after.normalize().to_string(),before.location,target,before.version+1,reason.trim(),reversed])?;
+    let event_id = id();
+    tx.execute("INSERT INTO inventory_events(id,lot_id,kind,before_amount,after_amount,before_location,after_location,after_version,reason,reversed_event_id) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)", params![event_id,lot_id,kind,before.amount.normalize().to_string(),after.normalize().to_string(),before.location,target,before.version+1,reason.trim(),reversed])?;
+    let unit: String = tx.query_row(
+        "SELECT unit FROM inventory_lots WHERE id=?1",
+        [lot_id],
+        |r| r.get(0),
+    )?;
+    tx.execute(
+        "INSERT INTO app_settings(key,value) VALUES(?1,?2)",
+        params![
+            format!("inventory_units:{event_id}"),
+            json!({"beforeUnit":unit,"afterUnit":unit}).to_string()
+        ],
+    )?;
+    Ok(())
+}
+fn freeze_event_units(tx: &Transaction, lot_id: &str) -> Result<()> {
+    tx.execute("INSERT OR IGNORE INTO app_settings(key,value) SELECT 'inventory_units:'||e.id,json_object('beforeUnit',l.unit,'afterUnit',l.unit) FROM inventory_events e JOIN inventory_lots l ON l.id=e.lot_id WHERE l.id=?1", [lot_id])?;
     Ok(())
 }
 pub fn receive_batch(tx: &Transaction, draft: InventoryDraft, reason: &str) -> Result<String> {
@@ -160,14 +177,7 @@ pub fn edit(tx: &Transaction, lot_id: &str, expected: i64, draft: InventoryEdit)
     }
     let target = location(tx, &draft.location)?;
     let (ingredient,name,prior):(String,String,String)=tx.query_row("SELECT i.id,i.name,json_object('unit',l.unit,'received',l.received_on,'expires',l.expires_on,'precision',l.precision) FROM inventory_lots l JOIN ingredients i ON i.id=l.ingredient_id WHERE l.id=?1",[lot_id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?;
-    let previous: Value =
-        serde_json::from_str(&prior).map_err(|_| error("DATABASE_ERROR", "批次属性无法读取"))?;
-    if previous["unit"].as_str() != Some(draft.unit.as_str()) {
-        return Err(error(
-            "INVALID_INPUT",
-            "批次单位保持不变；不同单位请新增购买",
-        ));
-    }
+    freeze_event_units(tx, lot_id)?;
     let category = ingredient_category::resolve(tx, &name, &draft.category)?;
     tx.execute("UPDATE inventory_lots SET amount_decimal=?1,unit=?2,location_id=?3,received_on=?4,expires_on=?5,precision=?6,version=version+1 WHERE id=?7",params![quantity.normalize().to_string(),draft.unit,target,draft.received,draft.expires,draft.precision,lot_id])?;
     tx.execute(
@@ -188,6 +198,15 @@ pub fn edit(tx: &Transaction, lot_id: &str, expected: i64, draft: InventoryEdit)
         "SELECT id FROM inventory_events WHERE lot_id=?1 AND after_version=?2",
         params![lot_id, before.version + 1],
         |r| r.get(0),
+    )?;
+    let old: Value =
+        serde_json::from_str(&prior).map_err(|_| error("DATABASE_ERROR", "批次历史无法读取"))?;
+    tx.execute(
+        "UPDATE app_settings SET value=?1 WHERE key=?2",
+        params![
+            json!({"beforeUnit":old["unit"],"afterUnit":draft.unit}).to_string(),
+            format!("inventory_units:{event_id}")
+        ],
     )?;
     tx.execute(
         "INSERT INTO app_settings(key,value) VALUES(?1,?2)",
@@ -348,6 +367,12 @@ pub fn reverse(tx: &Transaction, event_id: &str, reason: &str) -> Result<()> {
 pub(super) fn reverse_inner(tx: &Transaction, event_id: &str, reason: &str) -> Result<()> {
     let (lot_id,kind,amount,target,version):(String,String,String,String,i64)=tx.query_row("SELECT lot_id,kind,before_amount,before_location,after_version FROM inventory_events WHERE id=?1",[event_id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).optional()?.ok_or_else(||error("NOT_FOUND","操作记录不存在"))?;
     let before = lot(tx, &lot_id)?;
+    freeze_event_units(tx, &lot_id)?;
+    let before_unit: String = tx.query_row(
+        "SELECT unit FROM inventory_lots WHERE id=?1",
+        [&lot_id],
+        |r| r.get(0),
+    )?;
     if kind == "reverse" || before.version != version {
         return Err(error(
             "STALE_REVISION",
@@ -398,7 +423,25 @@ pub(super) fn reverse_inner(tx: &Transaction, event_id: &str, reason: &str) -> R
         &target,
         reason,
         Some(event_id),
-    )
+    )?;
+    let after_unit: String = tx.query_row(
+        "SELECT unit FROM inventory_lots WHERE id=?1",
+        [&lot_id],
+        |r| r.get(0),
+    )?;
+    let reversal: String = tx.query_row(
+        "SELECT id FROM inventory_events WHERE lot_id=?1 AND after_version=?2",
+        params![lot_id, before.version + 1],
+        |r| r.get(0),
+    )?;
+    tx.execute(
+        "UPDATE app_settings SET value=?1 WHERE key=?2",
+        params![
+            json!({"beforeUnit":before_unit,"afterUnit":after_unit}).to_string(),
+            format!("inventory_units:{reversal}")
+        ],
+    )?;
+    Ok(())
 }
 pub fn lots(conn: &Connection) -> Result<Vec<Value>> {
     let mut stmt=conn.prepare("SELECT l.id,l.ingredient_id,l.amount_decimal,l.unit,s.name,l.received_on,l.expires_on,l.precision,l.version FROM inventory_lots l JOIN storage_locations s ON s.id=l.location_id WHERE NOT EXISTS(SELECT 1 FROM app_settings WHERE key='inventory_deleted:'||l.id) ORDER BY (l.amount_decimal='0'),l.expires_on IS NULL,l.expires_on,l.received_on,l.id")?;
@@ -422,11 +465,72 @@ pub fn update_snapshot(conn: &Connection, base_revision: &str) -> Result<Value> 
 pub fn events(conn: &Connection) -> Result<Vec<Value>> {
     let mut stmt=conn.prepare("SELECT e.id,e.lot_id,e.kind,e.before_amount,e.after_amount,a.name,b.name,e.after_version,e.reason,e.reversed_event_id,e.occurred_at FROM inventory_events e JOIN storage_locations a ON a.id=e.before_location JOIN storage_locations b ON b.id=e.after_location ORDER BY e.rowid DESC")?;
     let rows=stmt.query_map([],|r|Ok(json!({"id":r.get::<_,String>(0)?,"lotId":r.get::<_,String>(1)?,"kind":r.get::<_,String>(2)?,"before":r.get::<_,String>(3)?,"after":r.get::<_,String>(4)?,"beforeLocation":r.get::<_,String>(5)?,"afterLocation":r.get::<_,String>(6)?,"afterVersion":r.get::<_,i64>(7)?,"reason":r.get::<_,String>(8)?,"reversedEventId":r.get::<_,Option<String>>(9)?,"occurredAt":r.get::<_,String>(10)?})))?.collect::<std::result::Result<Vec<_>,_>>()?;
+    let mut rows = rows;
+    for row in &mut rows {
+        let raw: Option<String> = conn
+            .query_row(
+                "SELECT value FROM app_settings WHERE key=?1",
+                [format!("inventory_units:{}", row["id"].as_str().unwrap())],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if let Some(value) = raw.and_then(|v| serde_json::from_str::<Value>(&v).ok()) {
+            row["beforeUnit"] = value["beforeUnit"].clone();
+            row["afterUnit"] = value["afterUnit"].clone();
+        }
+    }
     Ok(rows)
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn correcting_units_preserves_history_and_can_be_undone() {
+        let mut c = open(&temp()).unwrap();
+        let mut d = draft();
+        d.name = "洋葱".into();
+        d.quantity = "1".into();
+        d.unit = "g".into();
+        execute(&mut c, &id(), Command::ReceiveLot { draft: d.clone() }).unwrap();
+        let before = snapshot(&c).unwrap();
+        let key = before["lots"][0]["id"].as_str().unwrap();
+        execute(
+            &mut c,
+            &id(),
+            Command::EditLot {
+                lot_id: key.into(),
+                expected_version: 1,
+                draft: InventoryEdit {
+                    quantity: "1".into(),
+                    unit: "个".into(),
+                    location: d.location.clone(),
+                    received: d.received.clone(),
+                    expires: d.expires.clone(),
+                    precision: d.precision.clone(),
+                    category: d.category.clone(),
+                },
+            },
+        )
+        .unwrap();
+        let rows = events(&c).unwrap();
+        assert_eq!(rows[0]["beforeUnit"], "g");
+        assert_eq!(rows[0]["afterUnit"], "个");
+        assert_eq!(rows[1]["afterUnit"], "g");
+        assert_eq!(lots(&c).unwrap()[0]["unit"], "个");
+        execute(
+            &mut c,
+            &id(),
+            Command::UndoInventory {
+                lot_id: key.into(),
+                expected_version: 2,
+            },
+        )
+        .unwrap();
+        assert_eq!(lots(&c).unwrap()[0]["unit"], "g");
+        assert_eq!(lots(&c).unwrap()[0]["quantity"], "1");
+        assert_eq!(events(&c).unwrap()[0]["beforeUnit"], "个");
+        assert_eq!(events(&c).unwrap()[0]["afterUnit"], "g");
+    }
     #[test]
     fn inline_update_returns_authoritative_stock_without_recipe_payloads() {
         let mut conn = open(&temp()).unwrap();

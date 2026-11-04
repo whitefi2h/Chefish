@@ -55,6 +55,17 @@ test("HTML stays inert, editable import preserves author, quantities and step ti
     page.getByRole("heading", { name: "本地导入测试菜" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "编辑后导入" }).click();
+  const tagToggle = page.getByRole("button", { name: "修改标签", exact: true });
+  await expect(tagToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByLabel("搜索可用菜谱标签")).toHaveCount(0);
+  await page.screenshot({
+    path: "docs/screenshots/compact-cards/import-collapsed.png",
+    animations: "disabled",
+  });
+  await tagToggle.click();
+  await page.getByRole("button", { name: "快手菜", exact: true }).click();
+  await page.getByRole("button", { name: "收起标签", exact: true }).click();
+  await expect(page.locator(".tag-picker-summary")).toContainText("快手菜");
   await expect(page.getByLabel("食材1用量")).toHaveValue("500 g");
   await expect(page.getByLabel("食材3名称")).toHaveValue("盐");
   await expect(page.getByLabel("食材3用量")).toHaveValue("适量");
@@ -176,12 +187,14 @@ for (const [width, height] of [
     await openImport(page);
     await page.screenshot({
       path: `docs/screenshots/web-import/${width}-source.png`,
+      animations: "disabled",
     });
     await loadHtml(page);
     await page.getByRole("button", { name: "编辑后导入" }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.screenshot({
       path: `docs/screenshots/web-import/${width}-preview.png`,
+      animations: "disabled",
     });
     expect(
       await page.evaluate(
@@ -191,28 +204,59 @@ for (const [width, height] of [
   });
 }
 
-test("visible source ingredients remain authoritative and unified amounts can change type", async ({page}) => {
+test("visible source ingredients remain authoritative and unified amounts can change type", async ({
+  page,
+}) => {
   await openImport(page);
-  const pairs = [["瘦肉","150克"],["青椒","3个"],["蒜末","3瓣"],["味达美生抽","2勺"],["味达美蚝油","1勺"],["料酒","1勺"],["生粉","2勺"],["盐","2克"],["糖","5克"]];
-  const table = `<h1 class="page-title">青椒肉丝测试</h1><div class="ings"><table>${pairs.map(([name,amount]) => `<tr><td class="name">${name}</td><td class="unit">${amount}</td></tr>`).join("")}</table></div><div class="steps"><li><p class="text">加生抽一勺、盐少许、糖少许，炒熟。</p></li></div>`;
+  const pairs = [
+    ["瘦肉", "150克"],
+    ["青椒", "3个"],
+    ["蒜末", "3瓣"],
+    ["味达美生抽", "2勺"],
+    ["味达美蚝油", "1勺"],
+    ["料酒", "1勺"],
+    ["生粉", "2勺"],
+    ["盐", "2克"],
+    ["糖", "5克"],
+  ];
+  const table = `<h1 class="page-title">青椒肉丝测试</h1><div class="ings"><table>${pairs.map(([name, amount]) => `<tr><td class="name">${name}</td><td class="unit">${amount}</td></tr>`).join("")}</table></div><div class="steps"><li><p class="text">加生抽一勺、盐少许、糖少许，炒熟。</p></li></div>`;
   const rows = await page.evaluate(async (html) => {
-    const {recipeTextFromHtml} = await import(["/src/domain/recipeImport.ts"].join(""));
+    const { recipeTextFromHtml } = await import(
+      ["/src/domain/recipeImport.ts"].join("")
+    );
     return JSON.parse(recipeTextFromHtml(html)).ingredientRows;
   }, table);
-  expect(rows).toEqual(pairs.map(([name,amountText]) => ({name,amountText})));
-  await loadHtml(page,table);
-  await page.getByRole("button",{name:"编辑后导入"}).click();
+  expect(rows).toEqual(
+    pairs.map(([name, amountText]) => ({ name, amountText })),
+  );
+  await loadHtml(page, table);
+  await page.getByRole("button", { name: "编辑后导入" }).click();
   const editor = page.getByRole("dialog");
   await expect(editor.locator(".text-ingredient-edit")).toHaveCount(9);
-  await expect(editor.getByRole("heading",{name:"原文用量"})).toHaveCount(0);
-  await expect(editor.getByLabel("食材5名称",{exact:true})).toHaveValue("蒜末");
-  await expect(editor.getByLabel("食材5用量",{exact:true})).toHaveValue("3瓣");
-  await editor.getByLabel("食材4用量",{exact:true}).fill("少许");
-  await editor.getByLabel("食材5用量",{exact:true}).fill("5 g");
-  await editor.getByRole("button",{name:"确认导入",exact:true}).click();
+  await expect(editor.getByRole("heading", { name: "原文用量" })).toHaveCount(
+    0,
+  );
+  // The source rows above are retained verbatim; the editor uses the shared
+  // ingredient standard (蒜末 -> 大蒜, 3 瓣 -> 15 g).
+  const garlic = editor.locator(
+    '.text-ingredient-edit:has(input[value="大蒜"])',
+  );
+  const sugar = editor.locator('.text-ingredient-edit:has(input[value="糖"])');
+  await expect(garlic.getByRole("textbox").nth(1)).toHaveValue("15 g");
+  await sugar.getByRole("textbox").nth(1).fill("少许");
+  await garlic.getByRole("textbox").nth(1).fill("5 g");
+  await editor.getByRole("button", { name: "确认导入", exact: true }).click();
   await expect(editor).toHaveCount(0);
-  await page.locator(".recipe-card").filter({hasText:"青椒肉丝测试"}).locator(".recipe-title").click();
+  await page
+    .locator(".recipe-card")
+    .filter({ hasText: "青椒肉丝测试" })
+    .locator(".recipe-title")
+    .click();
   await expect(page.locator(".ingredient-line")).toHaveCount(9);
-  await expect(page.locator(".ingredient-line").filter({hasText:"糖"})).toContainText("少许");
-  await expect(page.locator(".ingredient-line").filter({hasText:"蒜末"})).toContainText("5 g");
+  await expect(
+    page.locator(".ingredient-line").filter({ hasText: "糖" }),
+  ).toContainText("少许");
+  await expect(
+    page.locator(".ingredient-line").filter({ hasText: "大蒜" }),
+  ).toContainText("5 g");
 });

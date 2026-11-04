@@ -1,3 +1,5 @@
+import { inspirationForWeek } from "./domain/weeklyInspiration";
+import { CarouselButtons, useHorizontalCarousel } from "./HorizontalCarousel";
 import { useNavigation } from "./navigation";
 import { CookingForm } from "./Cooking";
 import { shoppingPending } from "./domain/shopping";
@@ -22,7 +24,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarDays,
-  ShoppingBasket,
   X,
   ArrowRight,
   Search,
@@ -402,10 +403,21 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
     today,
     persistent,
     forecast,
-    forecastLoading,
     forecastError,
     preferences,
   } = useDemo();
+  const visibleMeals = MEALS.filter(
+    (m) =>
+      ({
+        早餐: preferences.showBreakfast,
+        午餐: preferences.showLunch,
+        晚餐: preferences.showDinner,
+      })[m],
+  );
+  const [pendingDrop, setPendingDrop] = useState<PlannedMeal | null>(null);
+  const displayPlans = pendingDrop
+    ? [...state.plans.filter((p) => p.id !== pendingDrop.id), pendingDrop]
+    : state.plans;
   const [query, setQuery] = useState("");
   const [cookingPlan, setCookingPlan] = useState<PlannedMeal | null>(null);
   const [form, setForm] = useState<{
@@ -415,7 +427,6 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
     meal?: MealTime;
   } | null>(null);
   const [active, setActive] = useState<string | null>(null);
-  const poolRef = useRef<HTMLDivElement>(null);
   const pointerDrop = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     // A fast pointer release can precede dnd-kit's rendered collision state.
@@ -428,85 +439,66 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
     window.addEventListener("pointerup", released, true);
     return () => window.removeEventListener("pointerup", released, true);
   }, []);
-  const [edges, setEdges] = useState({ left: true, right: true });
   const poolRecipes = state.recipes.filter(
-    (r) => state.inspiration.includes(r.id) && r.name.includes(query),
+    (r) =>
+      inspirationForWeek(state, weekStart).includes(r.id) &&
+      r.name.includes(query),
   );
   const poolSignature = poolRecipes.map((r) => r.id).join("|");
-  function measurePool() {
-    const el = poolRef.current;
-    if (el)
-      setEdges({
-        left: el.scrollLeft <= 1,
-        right: el.scrollLeft + el.clientWidth >= el.scrollWidth - 1,
-      });
-  }
-  useEffect(() => {
-    const el = poolRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(measurePool);
-    observer.observe(el);
-    for (const child of el.children) observer.observe(child);
-    measurePool();
-    return () => observer.disconnect();
-  }, [poolSignature]);
-  function scrollPool(direction: number) {
-    const el = poolRef.current;
-    if (!el) return;
-    const width =
-      el.querySelector(".pool-card")?.getBoundingClientRect().width ?? 226;
-    const gap = parseFloat(getComputedStyle(el).columnGap) || 12;
-    el.scrollBy({
-      left: direction * (width + gap),
-      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "instant"
-        : "smooth",
-    });
-  }
+  const carousel = useHorizontalCarousel(poolSignature);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor),
   );
   const days = weekDays(weekStart);
   const shopping = needs(state, weekStart).filter((n) => n.toBuy > 0);
-  const planned = new Set(
-    state.plans
-      .filter((p) => weekOf(p.day) === weekStart)
-      .map((p) => `${p.day}|${p.meal}`),
-  ).size;
   async function commit(
     recipe: string,
     day: string,
     meal: MealTime,
     move?: PlannedMeal,
   ) {
-    await mutate(
-      {
-        type: "save_plan",
-        plan_id: move?.id ?? null,
-        expected_version: move?.version ?? null,
-        draft: {
-          recipe_revision_id:
-            move?.recipeRevisionId ??
-            state.recipes.find((r) => r.id === recipe)?.revisionId ??
-            null,
-          custom_title: move?.customTitle ?? null,
-          day,
-          meal,
-          servings: move?.servings ?? preferences.defaultServings,
+    setPendingDrop({
+      ...(move ?? {
+        id: `pending-${crypto.randomUUID()}`,
+        recipeId: recipe,
+        recipeSnapshot: state.recipes.find((r) => r.id === recipe),
+        servings: preferences.defaultServings,
+      }),
+      day,
+      meal,
+    });
+    try {
+      await mutate(
+        {
+          type: "save_plan",
+          plan_id: move?.id ?? null,
+          expected_version: move?.version ?? null,
+          draft: {
+            recipe_revision_id:
+              move?.recipeRevisionId ??
+              state.recipes.find((r) => r.id === recipe)?.revisionId ??
+              null,
+            custom_title: move?.customTitle ?? null,
+            day,
+            meal,
+            servings: move?.servings ?? preferences.defaultServings,
+          },
         },
-      },
-      (s) =>
-        putMeal(
-          s,
-          recipe,
-          day,
-          meal,
-          move?.servings ?? preferences.defaultServings,
-          move?.id,
-        ),
-      "配餐已更新；库存未扣减",
-    );
+        (s) =>
+          putMeal(
+            s,
+            recipe,
+            day,
+            meal,
+            move?.servings ?? preferences.defaultServings,
+            move?.id,
+          ),
+        "配餐已更新；库存未扣减",
+      );
+    } finally {
+      setPendingDrop(null);
+    }
   }
   function dropped(e: DragEndEvent) {
     setActive(null);
@@ -522,83 +514,73 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
   }
   return (
     <>
-      <div className="page-heading">
+      <div className="page-heading planner-heading">
         <div>
-          <div className="eyebrow">A LITTLE PLANNING, A BETTER WEEK</div>
           <h1>
             每周菜单<span className="heading-dot">.</span>
           </h1>
           <p>把喜欢的菜，安排进这一周。</p>
         </div>
-        <button className="primary" disabled={busy} onClick={() => setForm({})}>
-          <Plus size={16} />
-          安排一餐
-        </button>
-      </div>
-      <div className="week-toolbar">
-        <div className="inline">
+        <div className="planner-heading-actions">
+          <div className="week-toolbar">
+            <div className="inline">
+              <button
+                className="round-button"
+                aria-label="上一周"
+                disabled={weekStart <= "1900-01-08"}
+                onClick={() => setWeekStart(shiftDate(weekStart, -7))}
+              >
+                <ChevronLeft size={17} />
+              </button>
+              <CalendarDays size={19} />
+              <strong>{weekLabel(weekStart)}</strong>
+              <Badge tone="warm">
+                {weekStart === weekOf(today)
+                  ? "本周"
+                  : weekStart < weekOf(today)
+                    ? "回看"
+                    : "提前规划"}
+              </Badge>
+              <button
+                className="round-button"
+                aria-label="下一周"
+                disabled={weekStart >= "2100-12-20"}
+                onClick={() => setWeekStart(shiftDate(weekStart, 7))}
+              >
+                <ChevronRight size={17} />
+              </button>
+            </div>
+            <div className="inline week-controls">
+              <button
+                onClick={() => setWeekStart(weekOf(today))}
+                disabled={weekStart === weekOf(today)}
+              >
+                返回本周
+              </button>
+              <label className="sr-only" htmlFor="week-jump">
+                查看指定周
+              </label>
+              <input
+                id="week-jump"
+                aria-label="查看指定周"
+                type="date"
+                min="1900-01-01"
+                max="2100-12-24"
+                value={weekStart}
+                onChange={(e) => {
+                  if (validDate(e.target.value))
+                    setWeekStart(weekOf(e.target.value));
+                }}
+              />
+            </div>
+          </div>
           <button
-            className="round-button"
-            aria-label="上一周"
-            disabled={weekStart <= "1900-01-08"}
-            onClick={() => setWeekStart(shiftDate(weekStart, -7))}
+            className="planner-add-meal"
+            disabled={busy}
+            onClick={() => setForm({})}
           >
-            <ChevronLeft size={17} />
-          </button>
-          <CalendarDays size={19} />
-          <strong>{weekLabel(weekStart)}</strong>
-          <Badge tone="warm">
-            {weekStart === weekOf(today)
-              ? "本周"
-              : weekStart < weekOf(today)
-                ? "回看"
-                : "提前规划"}
-          </Badge>
-        </div>
-        <div className="inline week-controls">
-          <button
-            className="round-button"
-            aria-label="下一周"
-            disabled={weekStart >= "2100-12-20"}
-            onClick={() => setWeekStart(shiftDate(weekStart, 7))}
-          >
-            <ChevronRight size={17} />
-          </button>
-          <button
-            onClick={() => setWeekStart(weekOf(today))}
-            disabled={weekStart === weekOf(today)}
-          >
-            返回本周
-          </button>
-          <label className="sr-only" htmlFor="week-jump">
-            查看指定周
-          </label>
-          <input
-            id="week-jump"
-            aria-label="查看指定周"
-            type="date"
-            min="1900-01-01"
-            max="2100-12-24"
-            value={weekStart}
-            onChange={(e) => {
-              if (validDate(e.target.value))
-                setWeekStart(weekOf(e.target.value));
-            }}
-          />
-          <span className="muted">已安排 {planned} / 21 餐</span>
-          <button onClick={goShopping}>
-            <ShoppingBasket size={16} />
-            采购预览{" "}
-            <b>
-              {persistent
-                ? forecastLoading
-                  ? "计算中"
-                  : forecast
-                    ? shoppingPending(forecast).length
-                    : "计算失败"
-                : shopping.length}
-            </b>
-            <ArrowRight size={15} />
+            <Plus size={16} />
+            安排一餐
           </button>
         </div>
       </div>
@@ -624,7 +606,6 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
           <div className="section-heading">
             <div>
               <h2>本周的灵感菜谱</h2>
-              <span className="hint">拖入下方餐次 · 右键已安排的菜可编辑</span>
             </div>
             <div className="pool-tools">
               <div className="search compact">
@@ -636,25 +617,14 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
                   onChange={(e) => setQuery(e.target.value)}
                 />
               </div>
-              <button
-                className="round-button"
-                aria-label="上一张灵感菜谱"
-                disabled={edges.left}
-                onClick={() => scrollPool(-1)}
-              >
-                <ChevronLeft size={17} />
-              </button>
-              <button
-                className="round-button"
-                aria-label="下一张灵感菜谱"
-                disabled={edges.right}
-                onClick={() => scrollPool(1)}
-              >
-                <ChevronRight size={17} />
-              </button>
+              <CarouselButtons carousel={carousel} label="灵感菜谱" />
             </div>
           </div>
-          <div className="pool-row" ref={poolRef} onScroll={measurePool}>
+          <div
+            className="pool-row"
+            ref={carousel.ref}
+            onScroll={carousel.measure}
+          >
             {poolRecipes.map((r) => (
               <article className="pool-card" key={r.id}>
                 <DragRecipe id={`recipe:${r.id}`}>
@@ -685,29 +655,36 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
             <div className="calendar-corner">餐次 / 日期</div>
             {days.map((d, i) => (
               <div className={`day-head ${d === today ? "today" : ""}`} key={d}>
-                <span>星期{"一二三四五六日"[i]}</span>
-                <strong>
-                  {d.slice(8)}
-                  <small>{Number(d.slice(5, 7))} 月</small>
-                </strong>
-                {d === today && (
-                  <span className="today-dot">
-                    {persistent ? "今天" : "演示今天"}
+                <strong>{d.slice(8)}</strong>
+                <span className="day-caption">
+                  <span>
+                    {Number(d.slice(5, 7))} 月 · 周{"一二三四五六日"[i]}
                   </span>
-                )}
+                  {d === today && (
+                    <span className="today-label">
+                      {persistent ? "今天" : "演示今天"}
+                    </span>
+                  )}
+                </span>
               </div>
             ))}
-            {MEALS.map((m, row) => (
+            {visibleMeals.map((m) => (
               <div className="calendar-row" key={m}>
                 <div className="meal-label">
-                  <span>{["☀", "◒", "☾"][row]}</span>
+                  <span>{{ 早餐: "☀", 午餐: "◒", 晚餐: "☾" }[m]}</span>
                   <strong>{m}</strong>
                   <small>
-                    {["开启新一天", "认真吃午饭", "今晚吃点好"][row]}
+                    {
+                      {
+                        早餐: "开启新一天",
+                        午餐: "认真吃午饭",
+                        晚餐: "今晚吃点好",
+                      }[m]
+                    }
                   </small>
                 </div>
                 {days.map((d) => {
-                  const plans = state.plans.filter(
+                  const plans = displayPlans.filter(
                     (p) => p.day === d && p.meal === m,
                   );
                   return (
@@ -724,6 +701,7 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
                             return (
                               <article
                                 className="planned-card"
+                                aria-busy={pendingDrop?.id === plan.id}
                                 key={plan.id}
                                 aria-label={`${d}${m} · ${recipe.name}`}
                                 title="右键编辑 · 拖动移动"
@@ -750,12 +728,7 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
                                     image={recipe.image}
                                     name={recipe.name}
                                   />
-                                  <strong>
-                                    {recipe.name}
-                                    {plan.cooking && (
-                                      <Badge tone="green">已完成</Badge>
-                                    )}
-                                  </strong>
+                                  <strong>{recipe.name}</strong>
                                   <small>
                                     {recipe.minutes
                                       ? `${recipe.minutes} 分钟 · `
@@ -831,6 +804,11 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
             ))}
           </div>
         </div>
+        {visibleMeals.length === 0 && (
+          <p className="hint" role="status">
+            所有餐次均已隐藏。可在厨房设置的“通用”中重新开启显示。
+          </p>
+        )}
         <DragOverlay dropAnimation={null} style={{ pointerEvents: "none" }}>
           {active && (
             <div className="drag-preview">
@@ -870,7 +848,7 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
                 <span key={i.id ?? `${i.ingredientId}|${i.unit}`}>
                   {i.name}{" "}
                   <b>
-                    {i.remaining} {i.unit}
+                    {quantityText(i.remaining)} {i.unit}
                   </b>
                 </span>
               ))}
@@ -903,3 +881,4 @@ export default function Planner({ goShopping }: { goShopping: () => void }) {
     </>
   );
 }
+import { quantityText } from "./domain/quantity";

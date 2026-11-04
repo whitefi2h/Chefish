@@ -28,6 +28,7 @@ pub fn normalize(mut value: Value) -> Value {
         ("weekStart", "week_start"),
         ("eventId", "event_id"),
         ("noteId", "note_id"),
+        ("tagIds", "tag_ids"),
     ] {
         if !o.contains_key(snake) {
             if let Some(v) = o.remove(camel) {
@@ -42,6 +43,12 @@ pub fn normalize(mut value: Value) -> Value {
         .to_string();
     if let Some(draft) = o.get_mut("draft").and_then(Value::as_object_mut) {
         if kind == "receive_lot" {
+            if !draft.contains_key("unit") {
+                let unit = crate::db::ingredient_standard::preferred_unit(
+                    draft.get("name").and_then(Value::as_str).unwrap_or(""),
+                );
+                draft.insert("unit".into(), json!(unit));
+            }
             draft.entry("category").or_insert(json!("自动分类"));
             draft.entry("expires").or_insert(Value::Null);
             draft.entry("precision").or_insert(json!("rough"));

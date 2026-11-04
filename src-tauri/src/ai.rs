@@ -402,7 +402,12 @@ fn made_count(text: &str) -> Option<u64> {
     }
     token.parse().ok()
 }
-pub fn organize(content: String, url: String, categories: Vec<String>) -> Result<Value> {
+pub fn organize(
+    content: String,
+    url: String,
+    categories: Vec<String>,
+    tags: Value,
+) -> Result<Value> {
     let url = crate::recipe_import::canonical_url(&url)?;
     if content.trim().is_empty()
         || content.chars().count() > 60000
@@ -416,11 +421,20 @@ pub fn organize(content: String, url: String, categories: Vec<String>) -> Result
     }
     let result = completion(
         include_str!("recipe_prompt.txt"),
-        json!({"sourceUrl":url,"categories":categories,"untrustedRecipeText":content}),
+        json!({"sourceUrl":url,"categories":categories,"recipeTagCatalog":tags,"untrustedRecipeText":content}),
     )?;
     let mut result = result;
     prefer_source_ingredients(&mut result, &content)?;
-    organized_draft(result, url, categories)
+    let mut result = organized_draft(result, url, categories)?;
+    if let Some(ids) = result["draft"]["tagIds"].as_array_mut() {
+        ids.retain(|id| {
+            tags.as_array().is_some_and(|rows| {
+                rows.iter()
+                    .any(|t| t["id"] == *id && t["enabled"] == true && t["deleted"] == false)
+            })
+        });
+    }
+    Ok(result)
 }
 // A visible ingredients table is authoritative. Step text may repeat quantities
 // or use shorthand names, so it must not append another ingredient list.

@@ -4,6 +4,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { DemoState, Recipe, PlannedMeal } from "../model";
 export const nativeMode = isTauri();
 export interface RecipeInput {
+  tagIds?: string[];
   ingredientKinds?: Record<string, boolean>;
   textIngredients?: { name: string; amountText: string }[];
   source?: { url: string; author: string; ingredientText: string[] };
@@ -26,6 +27,30 @@ export interface PlanInput {
   servings: number;
 }
 export type KitchenCommand =
+  | {
+      type: "save_recipe_tag_definitions";
+      expected_revision: string;
+      entries: import("../domain/recipeTags").RecipeTag[];
+    }
+  | {
+      type: "set_recipe_tags";
+      expected_revision: string;
+      recipe_id: string;
+      tag_ids: string[];
+    }
+  | { type: "reset_recipe_tag_visibility"; expected_revision: string }
+  | {
+      type: "merge_recipe_tags";
+      expected_revision: string;
+      source_id: string;
+      target_id: string;
+    }
+  | {
+      type: "resolve_legacy_recipe_tag";
+      expected_revision: string;
+      name: string;
+      target_id: string | null;
+    }
   | { type: "undo"; operation_id: string }
   | {
       type: "edit_lot";
@@ -68,7 +93,7 @@ export type KitchenCommand =
         date: string;
         note: string;
         acknowledged: boolean;
-        record?:string;
+        record?: string;
         consumptions: {
           lot_id: string;
           expected_version: number;
@@ -167,7 +192,12 @@ export type KitchenCommand =
   | { type: "archive_recipe"; recipe_id: string }
   | { type: "delete_recipe"; recipe_id: string }
   | { type: "restore_recipe"; recipe_id: string }
-  | { type: "favorite" | "inspiration"; recipe_id: string; enabled: boolean }
+  | {
+      type: "favorite" | "inspiration";
+      recipe_id: string;
+      enabled: boolean;
+      week_start?: string;
+    }
   | { type: "create_note"; recipe_id: string; date: string; note: string }
   | { type: "add_category"; kind: "recipe" | "ingredient"; name: string }
   | {

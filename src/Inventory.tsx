@@ -1,8 +1,14 @@
-import IngredientAvatar from "./IngredientAvatar";
+import { CarouselButtons, useHorizontalCarousel } from "./HorizontalCarousel";
+import IngredientAvatar, { IngredientAvatarCredit } from "./IngredientAvatar";
+import {
+  rememberIngredientPhoto,
+  usesIngredientPhoto,
+} from "./services/ingredientAvatars";
 import { invoke } from "@tauri-apps/api/core";
 import { errorMessage } from "./services/kitchenClient";
 import CategoryManager from "./CategoryManager";
 import Seasonings from "./Seasonings";
+import { defaultIngredientUnit } from "./domain/ingredientStandards";
 import { ingredientCategory } from "./domain/ingredientCategory";
 import categoryRules from "./domain/ingredientCategories.json";
 import { supplies, isSeasoning } from "./domain/seasonings";
@@ -41,7 +47,9 @@ export function ItemForm({
   const { state, update, mutate, persistent, busy, today } = useDemo();
   const [name, setName] = useState(item?.name ?? "");
   const [quantity, setQuantity] = useState(item?.quantity ?? 100);
+  const [quantityChosen, setQuantityChosen] = useState(!!item);
   const [unit, setUnit] = useState(item?.unit ?? "g");
+  const [unitChosen, setUnitChosen] = useState(!!item);
   const [category, setCategory] = useState<Category>(
     item?.category ?? "自动分类",
   );
@@ -149,7 +157,15 @@ export function ItemForm({
             required
             maxLength={120}
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (!unitChosen) {
+                const suggested = defaultIngredientUnit(e.target.value) ?? "g";
+                setUnit(suggested);
+                if (!quantityChosen)
+                  setQuantity(["个", "片", "盒"].includes(suggested) ? 1 : 100);
+              }
+            }}
             placeholder="例如：新鲜罗勒叶"
           />
         </label>
@@ -163,7 +179,10 @@ export function ItemForm({
               max="100000"
               step="0.000001"
               value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value))}
+              onChange={(e) => {
+                setQuantity(Number(e.target.value));
+                setQuantityChosen(true);
+              }}
             />
           </label>
           <label>
@@ -171,7 +190,10 @@ export function ItemForm({
             <select
               aria-label="单位"
               value={unit}
-              onChange={(e) => setUnit(e.target.value)}
+              onChange={(e) => {
+                setUnit(e.target.value);
+                setUnitChosen(true);
+              }}
             >
               {["g", "ml", "个", "片", "盒"].map((u) => (
                 <option key={u}>{u}</option>
@@ -307,6 +329,7 @@ function LotEditor({
   const [quantity, setQuantity] = useState(
     lot.quantityText ?? String(lot.quantity),
   );
+  const [unit, setUnit] = useState(lot.unit);
   const [location, setLocation] = useState(lot.location);
   const [received, setReceived] = useState(lot.received);
   const [expires, setExpires] = useState(lot.expires ?? "");
@@ -314,6 +337,7 @@ function LotEditor({
   const [category, setCategory] = useState(ingredient.category);
   const changed =
     Number(quantity) !== lot.quantity ||
+    unit !== lot.unit ||
     location !== lot.location ||
     received !== lot.received ||
     (expires || null) !== lot.expires ||
@@ -334,7 +358,7 @@ function LotEditor({
             expected_version: lot.version ?? 1,
             draft: {
               quantity,
-              unit: lot.unit,
+              unit,
               location,
               received,
               expires: expires || null,
@@ -361,6 +385,7 @@ function LotEditor({
                     ...l,
                     quantity: Number(quantity),
                     quantityText: quantity,
+                    unit,
                     location,
                     received,
                     expires: expires || null,
@@ -377,7 +402,7 @@ function LotEditor({
       <fieldset disabled={busy} className="lot-fields">
         <div className="form-row">
           <label>
-            剩余数量（{lot.unit}）
+            剩余数量（{unit}）
             <input
               type="number"
               min="0"
@@ -388,6 +413,25 @@ function LotEditor({
               onChange={(e) => setQuantity(e.target.value)}
             />
           </label>
+          <label>
+            单位
+            <select
+              aria-label="库存单位"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+            >
+              {["g", "ml", "个", "片", "盒"].map((u) => (
+                <option key={u}>{u}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {unit !== lot.unit && (
+          <p className="hint">
+            单位修正会按填写的数量保存；请同时核对剩余数量，不会自动换算或改写历史记录。
+          </p>
+        )}
+        <div className="form-row">
           <label>
             储存位置
             <select
@@ -489,11 +533,15 @@ export function LotDetail({
                 setImageBusy(true);
                 setImageError("");
                 try {
-                  await invoke("kitchen_ingredient_images", {
-                    ingredientId: ingredient.id,
-                    instruction:
-                      "换一张不同的图片，食材本体清楚、背景干净，不要包装",
-                  });
+                  const result = await invoke<{ updated: number }>(
+                    "kitchen_ingredient_images",
+                    {
+                      ingredientId: ingredient.id,
+                      instruction:
+                        "换一张不同的图片，食材本体清楚、背景干净，不要包装",
+                    },
+                  );
+                  if (result.updated) rememberIngredientPhoto(ingredient.name);
                   window.dispatchEvent(new Event("chefish:sync-data"));
                   window.dispatchEvent(new Event("chefish:sync-wake"));
                 } catch (error) {
@@ -514,7 +562,8 @@ export function LotDetail({
           {imageError}
         </p>
       )}
-      {ingredient.image && (
+      <IngredientAvatarCredit ingredient={ingredient} />
+      {ingredient.image && usesIngredientPhoto(ingredient) && (
         <p className="ingredient-image-credit">
           图片：{ingredient.image.author} · {ingredient.image.license} · 已缩放
           {persistent && (
@@ -605,12 +654,12 @@ export function LotDetail({
                   {event.kind === "move"
                     ? `${event.beforeLocation} → ${event.afterLocation}`
                     : event.kind === "use" || event.kind === "discard"
-                      ? `${amount(Number(event.before) - Number(event.after), lot.unit)} · 剩余 ${event.after} ${lot.unit}`
+                      ? `${amount(Number(event.before) - Number(event.after), event.afterUnit ?? lot.unit)} · 剩余 ${event.after} ${event.afterUnit ?? lot.unit}`
                       : event.kind === "receive"
-                        ? `${event.after} ${lot.unit} · ${event.afterLocation}`
+                        ? `${event.after} ${event.afterUnit ?? lot.unit} · ${event.afterLocation}`
                         : event.kind === "reverse"
-                          ? `恢复为 ${event.after} ${lot.unit} · ${event.afterLocation}`
-                          : `${event.before} → ${event.after} ${lot.unit}`}
+                          ? `恢复为 ${event.after} ${event.afterUnit ?? lot.unit} · ${event.afterLocation}`
+                          : `${event.before} ${event.beforeUnit ?? lot.unit} → ${event.after} ${event.afterUnit ?? lot.unit}`}
                 </p>
                 {event.reason &&
                   !["撤销上次操作", "手动购买"].includes(event.reason) && (
@@ -832,7 +881,7 @@ export default function Inventory({
   const [add, setAdd] = useState(false);
   const [categories, setCategories] = useState(false);
   const [showEmpty, setShowEmpty] = useState(false);
-  const [attentionOnly, setAttentionOnly] = useState(false);
+
   const foodLots = state.lots.filter((l) => {
     const name =
       state.ingredients.find((i) => i.id === l.ingredientId)?.name ?? "";
@@ -842,11 +891,11 @@ export default function Inventory({
     (l) => l.quantity > 0 && !!l.expires && daysLeft(l.expires, today) <= 3,
   );
   alerts.sort((a, b) => (a.expires ?? "").localeCompare(b.expires ?? ""));
+  const attention = useHorizontalCarousel(alerts.map((l) => l.id).join("|"));
   const filtered = [...foodLots]
     .sort((a, b) => Number(a.quantity === 0) - Number(b.quantity === 0))
     .filter(
       (l) =>
-        (!attentionOnly || alerts.some((alert) => alert.id === l.id)) &&
         (showEmpty || l.quantity > 0) &&
         state.ingredients
           .find((i) => i.id === l.ingredientId)!
@@ -861,7 +910,6 @@ export default function Inventory({
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">LESS WASTE, MORE GOOD FOOD</div>
           <h1>
             食材库存<span className="heading-dot">.</span>
           </h1>
@@ -901,20 +949,12 @@ export default function Inventory({
                     </span>
                   )}
                 </div>
-                <button
-                  type="button"
-                  className="text-button"
-                  aria-pressed={attentionOnly}
-                  onClick={() => setAttentionOnly(!attentionOnly)}
-                >
-                  {attentionOnly
-                    ? "显示全部库存"
-                    : `在列表查看 ${alerts.length} 项`}
-                  <ArrowUpRight size={13} />
-                </button>
+                <CarouselButtons carousel={attention} label="临期食材" />
               </div>
               <div
                 className="attention-items"
+                ref={attention.ref}
+                onScroll={attention.measure}
                 aria-label="临期食材，可横向滚动"
               >
                 {alerts.map((l) => {
@@ -961,10 +1001,7 @@ export default function Inventory({
                   种
                 </Badge>
               </h2>
-              <span className="hint">直接调整数量与库位</span>
-            </div>
-            <div className="inventory-toolbar">
-              <div className="search">
+              <div className="search inventory-search">
                 <Search size={17} />
                 <input
                   value={query}
@@ -973,58 +1010,65 @@ export default function Inventory({
                   aria-label="搜索库存"
                 />
               </div>
-              <label className="check-label inventory-empty-filter">
-                <input
-                  type="checkbox"
-                  checked={showEmpty}
-                  onChange={(e) => setShowEmpty(e.target.checked)}
-                />
-                显示已用完
-              </label>
-              <button onClick={() => setCategories(true)}>管理分类</button>
-              <button
-                disabled={busy}
-                onClick={() =>
-                  void mutate(
-                    {
-                      type: "classify_inventory",
-                      expected_revision: state.dataRevision ?? "0",
-                    },
-                    (s) => {
-                      const ingredients = s.ingredients.map((i) =>
-                        i.category === "未分类"
-                          ? { ...i, category: ingredientCategory(i.name) }
-                          : i,
-                      );
-                      return {
-                        ...s,
-                        ingredients,
-                        ingredientCategories: [
-                          ...new Set([
-                            ...s.ingredientCategories,
-                            ...ingredients.map((i) => i.category),
-                          ]),
-                        ],
-                      };
-                    },
-                    "未分类食材已自动分类",
-                  )
-                }
-              >
-                自动分类
-              </button>
-              <button
-                className="text-button"
-                onClick={() => {
-                  setLocations([]);
-                  setSelectedCategories([]);
-                  setQuery("");
-                  setShowEmpty(false);
-                  setAttentionOnly(false);
-                }}
-              >
-                清除筛选
-              </button>
+              <div className="inventory-toolbar">
+                <label className="check-label inventory-empty-filter">
+                  <input
+                    type="checkbox"
+                    checked={showEmpty}
+                    onChange={(e) => setShowEmpty(e.target.checked)}
+                  />
+                  显示已用完
+                </label>
+                <button
+                  className="inventory-category-button"
+                  onClick={() => setCategories(true)}
+                >
+                  <span>管理分类</span>
+                </button>
+                <button
+                  className="inventory-category-button"
+                  disabled={busy}
+                  onClick={() =>
+                    void mutate(
+                      {
+                        type: "classify_inventory",
+                        expected_revision: state.dataRevision ?? "0",
+                      },
+                      (s) => {
+                        const ingredients = s.ingredients.map((i) =>
+                          i.category === "未分类"
+                            ? { ...i, category: ingredientCategory(i.name) }
+                            : i,
+                        );
+                        return {
+                          ...s,
+                          ingredients,
+                          ingredientCategories: [
+                            ...new Set([
+                              ...s.ingredientCategories,
+                              ...ingredients.map((i) => i.category),
+                            ]),
+                          ],
+                        };
+                      },
+                      "未分类食材已自动分类",
+                    )
+                  }
+                >
+                  <span>自动分类</span>
+                </button>
+                <button
+                  className="text-button"
+                  onClick={() => {
+                    setLocations([]);
+                    setSelectedCategories([]);
+                    setQuery("");
+                    setShowEmpty(false);
+                  }}
+                >
+                  清除筛选
+                </button>
+              </div>
             </div>
             <div className="inventory-filter-tags">
               <FilterTags

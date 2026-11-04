@@ -1,0 +1,1201 @@
+{
+  "version": "0.2.0",
+  "reviewedAt": "2026-11-02",
+  "status": "implemented",
+  "groups": [
+    {
+      "id": "cuisine",
+      "label": "菜系"
+    },
+    {
+      "id": "trait",
+      "label": "菜品特性"
+    },
+    {
+      "id": "method",
+      "label": "烹饪方法"
+    },
+    {
+      "id": "custom",
+      "label": "自定义"
+    }
+  ],
+  "notes": [
+    "人工整理的产品检索词表，不声称是世界菜系的完整或唯一分类。",
+    "broaderIds 表示检索扩展，可多归属，不代表排他的文化谱系。",
+    "defaultEnabled 只影响初始可见性，不表示用户喜好或自动选中菜谱。",
+    "分类词来源交叉参考；默认开关、组别、别名及层级由本产品设计。"
+  ],
+  "sources": [
+    {
+      "id": "msc",
+      "title": "美食天下：菜谱分类",
+      "url": "https://m.meishichina.com/recipe/",
+      "scope": "常用中文分类与中外菜系名称参考"
+    },
+    {
+      "id": "xcf",
+      "title": "下厨房：分类浏览",
+      "url": "https://m.xiachufang.com/category/",
+      "scope": "日常属性、场景与厨具分离的参考"
+    },
+    {
+      "id": "eight",
+      "title": "China.org.cn：Eight major cuisines of China",
+      "url": "https://www.china.org.cn/m/english/china_key_words/2024-08/29/content_117393720.html",
+      "scope": "八大菜系与淮扬相关层级；检索摘要可读，原页打开超时"
+    },
+    {
+      "id": "goodfood",
+      "title": "Good Food：Cuisine recipe ideas",
+      "url": "https://www.bbcgoodfood.com/recipes/category/cuisine-collections",
+      "scope": "国际菜系命名与浏览集合参考"
+    },
+    {
+      "id": "gbc",
+      "title": "Great British Chefs：How to Cook",
+      "url": "https://www.greatbritishchefs.com/how-to-cook",
+      "scope": "烹调方法与进阶技法参考"
+    },
+    {
+      "id": "sousvide",
+      "title": "Great British Chefs：Sous vide essential guide",
+      "url": "https://www.greatbritishchefs.com/features/sous-vide-the-essential-guide",
+      "scope": "低温慢煮术语"
+    },
+    {
+      "id": "age",
+      "title": "DRY AGER：FAQ",
+      "url": "https://www.dry-ager.com/en/faq/",
+      "scope": "熟成术语与低温慢煮区分"
+    },
+    {
+      "id": "jue",
+      "title": "新华网：啫啫煲行业报道",
+      "url": "https://www.xinhuanet.com/food/20250807/d8eb8d8ec30c413e8058861f8a11f338/c.html",
+      "scope": "啫啫作为专门用户检索词的依据"
+    }
+  ],
+  "tags": [
+    {
+      "id": "cuisine.chinese",
+      "group": "cuisine",
+      "label": "中餐",
+      "section": "常用入口",
+      "broaderIds": [],
+      "aliases": ["中式", "中国菜", "中华料理"],
+      "defaultEnabled": true,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.western",
+      "group": "cuisine",
+      "label": "西餐",
+      "section": "常用入口",
+      "broaderIds": [],
+      "aliases": ["西式", "Western"],
+      "defaultEnabled": true,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.international",
+      "group": "cuisine",
+      "label": "异国风味",
+      "section": "常用入口",
+      "broaderIds": [],
+      "aliases": [],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.sichuan",
+      "group": "cuisine",
+      "label": "川菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["四川菜", "Sichuan"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.cantonese",
+      "group": "cuisine",
+      "label": "粤菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["广东菜", "Cantonese"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.shandong",
+      "group": "cuisine",
+      "label": "鲁菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["山东菜"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.jiangsu",
+      "group": "cuisine",
+      "label": "苏菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese", "cuisine.jiangzhe"],
+      "aliases": ["江苏菜"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.zhejiang",
+      "group": "cuisine",
+      "label": "浙菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese", "cuisine.jiangzhe"],
+      "aliases": ["浙江菜"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.fujian",
+      "group": "cuisine",
+      "label": "闽菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["福建菜"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.hunan",
+      "group": "cuisine",
+      "label": "湘菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["湖南菜"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.huizhou",
+      "group": "cuisine",
+      "label": "徽菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["徽州菜"],
+      "defaultEnabled": false,
+      "description": "不把整个安徽地方饮食都等同于徽州菜。",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.jiangzhe",
+      "group": "cuisine",
+      "label": "江浙菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["江浙沪风味"],
+      "defaultEnabled": false,
+      "description": "便于检索的区域集合，与具体菜系可交叉，不是严格学术谱系。",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.shanghai",
+      "group": "cuisine",
+      "label": "本帮菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese", "cuisine.jiangzhe"],
+      "aliases": ["上海本帮菜"],
+      "defaultEnabled": false,
+      "description": "上海菜可作为宽泛搜索词，不与本帮菜强制完全等同。",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.hakka",
+      "group": "cuisine",
+      "label": "客家菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["客家风味"],
+      "defaultEnabled": false,
+      "description": "跨地区饮食传统，不只限定为广东。",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.hk",
+      "group": "cuisine",
+      "label": "港式料理",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["港式", "茶餐厅风味"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.beijing",
+      "group": "cuisine",
+      "label": "京菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["北京菜"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.northeast",
+      "group": "cuisine",
+      "label": "东北菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["东北风味"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.shaanxi",
+      "group": "cuisine",
+      "label": "陕菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["陕西菜", "秦菜"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.hubei",
+      "group": "cuisine",
+      "label": "鄂菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["湖北菜", "楚菜"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.yunnan",
+      "group": "cuisine",
+      "label": "滇菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["云南菜"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.guizhou",
+      "group": "cuisine",
+      "label": "黔菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["贵州菜"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.xinjiang",
+      "group": "cuisine",
+      "label": "新疆菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["新疆风味"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.taiwan",
+      "group": "cuisine",
+      "label": "台湾菜",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["台式料理", "台菜"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.chongqing",
+      "group": "cuisine",
+      "label": "重庆风味",
+      "section": "中国地方风味",
+      "broaderIds": ["cuisine.chinese"],
+      "aliases": ["渝味"],
+      "defaultEnabled": false,
+      "description": "保留独立检索入口，不据此断言与川菜互斥。",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.japanese",
+      "group": "cuisine",
+      "label": "日本料理",
+      "section": "亚洲与中东",
+      "broaderIds": ["cuisine.international"],
+      "aliases": ["日料", "日式料理", "Japanese"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.korean",
+      "group": "cuisine",
+      "label": "韩国料理",
+      "section": "亚洲与中东",
+      "broaderIds": ["cuisine.international"],
+      "aliases": ["韩餐", "韩式料理", "Korean"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.southeast-asian",
+      "group": "cuisine",
+      "label": "东南亚菜",
+      "section": "亚洲与中东",
+      "broaderIds": ["cuisine.international"],
+      "aliases": ["东南亚风味"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.indian",
+      "group": "cuisine",
+      "label": "印度菜",
+      "section": "亚洲与中东",
+      "broaderIds": ["cuisine.international"],
+      "aliases": ["印度料理", "Indian"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.middle-eastern",
+      "group": "cuisine",
+      "label": "中东料理",
+      "section": "亚洲与中东",
+      "broaderIds": ["cuisine.international"],
+      "aliases": ["中东菜", "Middle Eastern"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.turkish",
+      "group": "cuisine",
+      "label": "土耳其菜",
+      "section": "亚洲与中东",
+      "broaderIds": ["cuisine.international"],
+      "aliases": ["土式", "Turkish"],
+      "defaultEnabled": false,
+      "description": "跨区域传统，产品中单独展示，避免强行单一归属。",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.italian",
+      "group": "cuisine",
+      "label": "意大利菜",
+      "section": "欧洲与北美",
+      "broaderIds": ["cuisine.western"],
+      "aliases": ["意餐", "意式", "Italian"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.french",
+      "group": "cuisine",
+      "label": "法国菜",
+      "section": "欧洲与北美",
+      "broaderIds": ["cuisine.western"],
+      "aliases": ["法餐", "法式", "French"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.spanish",
+      "group": "cuisine",
+      "label": "西班牙菜",
+      "section": "欧洲与北美",
+      "broaderIds": ["cuisine.western"],
+      "aliases": ["西班牙风味", "Spanish"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.british",
+      "group": "cuisine",
+      "label": "英国菜",
+      "section": "欧洲与北美",
+      "broaderIds": ["cuisine.western"],
+      "aliases": ["英式", "British"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.german",
+      "group": "cuisine",
+      "label": "德国菜",
+      "section": "欧洲与北美",
+      "broaderIds": ["cuisine.western"],
+      "aliases": ["德式", "German"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.greek",
+      "group": "cuisine",
+      "label": "希腊菜",
+      "section": "欧洲与北美",
+      "broaderIds": ["cuisine.western"],
+      "aliases": ["希腊风味", "Greek"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.russian",
+      "group": "cuisine",
+      "label": "俄罗斯菜",
+      "section": "欧洲与北美",
+      "broaderIds": ["cuisine.western"],
+      "aliases": ["俄餐", "俄式", "Russian"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.american",
+      "group": "cuisine",
+      "label": "美式料理",
+      "section": "欧洲与北美",
+      "broaderIds": ["cuisine.western"],
+      "aliases": ["美国菜", "美式", "American"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.mediterranean",
+      "group": "cuisine",
+      "label": "地中海风味",
+      "section": "欧洲与北美",
+      "broaderIds": ["cuisine.international"],
+      "aliases": ["Mediterranean"],
+      "defaultEnabled": false,
+      "description": "跨国家风味集合，不等于地中海饮食健康认证。",
+      "provenance": "curated"
+    },
+    {
+      "id": "cuisine.mexican",
+      "group": "cuisine",
+      "label": "墨西哥菜",
+      "section": "拉美、加勒比与非洲",
+      "broaderIds": ["cuisine.international"],
+      "aliases": ["墨餐", "墨西哥风味", "Mexican"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "trait.home",
+      "group": "trait",
+      "label": "家常菜",
+      "section": "日常属性",
+      "broaderIds": [],
+      "aliases": ["家常"],
+      "defaultEnabled": true,
+      "description": "适合家庭日常制作，不据此推断菜系。",
+      "provenance": "curated"
+    },
+    {
+      "id": "trait.quick",
+      "group": "trait",
+      "label": "快手菜",
+      "section": "日常属性",
+      "broaderIds": [],
+      "aliases": ["快手"],
+      "defaultEnabled": true,
+      "description": "初版建议总时长不超过30分钟；时长不明不自动赋值。",
+      "provenance": "curated"
+    },
+    {
+      "id": "trait.rice-friendly",
+      "group": "trait",
+      "label": "下饭菜",
+      "section": "日常属性",
+      "broaderIds": [],
+      "aliases": ["下饭"],
+      "defaultEnabled": true,
+      "description": "偏向配米饭食用的主观使用特征。",
+      "provenance": "curated"
+    },
+    {
+      "id": "trait.one-pot",
+      "group": "trait",
+      "label": "一锅出",
+      "section": "日常属性",
+      "broaderIds": [],
+      "aliases": ["一锅料理"],
+      "defaultEnabled": true,
+      "description": "主要烹调在同一锅具完成；不是所有炖菜都自动符合。",
+      "provenance": "curated"
+    },
+    {
+      "id": "trait.few-ingredients",
+      "group": "trait",
+      "label": "少食材",
+      "section": "日常属性",
+      "broaderIds": [],
+      "aliases": ["简约用料"],
+      "defaultEnabled": true,
+      "description": "建议主要食材不超过5种，水与基础调料不计。",
+      "provenance": "curated"
+    },
+    {
+      "id": "trait.make-ahead",
+      "group": "trait",
+      "label": "可提前准备",
+      "section": "日常属性",
+      "broaderIds": [],
+      "aliases": ["提前备菜"],
+      "defaultEnabled": true,
+      "description": "菜谱明确支持提前处理或预制，不凭空推断保存时限。",
+      "provenance": "curated"
+    },
+    {
+      "id": "trait.elaborate",
+      "group": "trait",
+      "label": "功夫菜",
+      "section": "日常属性",
+      "broaderIds": [],
+      "aliases": ["慢工菜"],
+      "defaultEnabled": true,
+      "description": "步骤、技法或准备明显较多；不只按总时长判断。",
+      "provenance": "curated"
+    },
+    {
+      "id": "trait.creative",
+      "group": "trait",
+      "label": "创新菜",
+      "section": "日常属性",
+      "broaderIds": [],
+      "aliases": ["创意菜"],
+      "defaultEnabled": true,
+      "description": "对经典配方或呈现进行明确创新，不自动等于融合菜。",
+      "provenance": "curated"
+    },
+    {
+      "id": "trait.fusion",
+      "group": "trait",
+      "label": "融合菜",
+      "section": "按需属性",
+      "broaderIds": [],
+      "aliases": ["跨菜系融合"],
+      "defaultEnabled": false,
+      "description": "可同时标记不同菜系；风格跨界须有配方依据。",
+      "provenance": "curated"
+    },
+    {
+      "id": "trait.classic",
+      "group": "trait",
+      "label": "传统经典",
+      "section": "按需属性",
+      "broaderIds": [],
+      "aliases": ["经典菜"],
+      "defaultEnabled": false,
+      "description": "来源或配方明确体现传统做法，避免仅凭菜名断言。",
+      "provenance": "curated"
+    },
+    {
+      "id": "trait.freezer-friendly",
+      "group": "trait",
+      "label": "适合冷冻备餐",
+      "section": "按需属性",
+      "broaderIds": [],
+      "aliases": ["冷冻备餐"],
+      "defaultEnabled": false,
+      "description": "仅当配方明确支持；不是食用安全或保存期限保证。",
+      "provenance": "curated"
+    },
+    {
+      "id": "trait.molecular",
+      "group": "trait",
+      "label": "分子料理",
+      "section": "按需属性",
+      "broaderIds": [],
+      "aliases": ["分子烹饪"],
+      "defaultEnabled": false,
+      "description": "采用相关现代料理理念或技术，不把所有低温慢煮都归入此类。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.stir-fry",
+      "group": "method",
+      "label": "炒",
+      "section": "常用烹调",
+      "broaderIds": [],
+      "aliases": ["翻炒", "stir-fry"],
+      "defaultEnabled": true,
+      "description": "以主要成菜过程为准，爆香蒜末不代表整道菜必须贴炒标签。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.pan-fry",
+      "group": "method",
+      "label": "煎",
+      "section": "常用烹调",
+      "broaderIds": [],
+      "aliases": ["香煎", "pan-fry"],
+      "defaultEnabled": true,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.deep-fry",
+      "group": "method",
+      "label": "炸",
+      "section": "常用烹调",
+      "broaderIds": [],
+      "aliases": ["油炸", "deep-fry"],
+      "defaultEnabled": true,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.steam",
+      "group": "method",
+      "label": "蒸",
+      "section": "常用烹调",
+      "broaderIds": [],
+      "aliases": ["清蒸", "steam"],
+      "defaultEnabled": true,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.boil",
+      "group": "method",
+      "label": "煮",
+      "section": "常用烹调",
+      "broaderIds": [],
+      "aliases": ["boil"],
+      "defaultEnabled": true,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.stew",
+      "group": "method",
+      "label": "炖",
+      "section": "常用烹调",
+      "broaderIds": [],
+      "aliases": ["慢炖", "stew"],
+      "defaultEnabled": true,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.braise-covered",
+      "group": "method",
+      "label": "焖",
+      "section": "常用烹调",
+      "broaderIds": [],
+      "aliases": ["焖制"],
+      "defaultEnabled": true,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.braise",
+      "group": "method",
+      "label": "烧",
+      "section": "常用烹调",
+      "broaderIds": [],
+      "aliases": ["红烧", "braise"],
+      "defaultEnabled": true,
+      "description": "红烧可作为更具体的可选子标签。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.roast",
+      "group": "method",
+      "label": "烤",
+      "section": "常用烹调",
+      "broaderIds": [],
+      "aliases": ["烘烤", "roast", "grill"],
+      "defaultEnabled": true,
+      "description": "烤箱、炭火等设备信息不另开顶层标签组。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.bake-gratin",
+      "group": "method",
+      "label": "焗",
+      "section": "常用烹调",
+      "broaderIds": [],
+      "aliases": ["焗烤", "gratin"],
+      "defaultEnabled": true,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.cold-mix",
+      "group": "method",
+      "label": "凉拌",
+      "section": "常用烹调",
+      "broaderIds": [],
+      "aliases": ["拌", "拌菜"],
+      "defaultEnabled": true,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.lu",
+      "group": "method",
+      "label": "卤",
+      "section": "常用烹调",
+      "broaderIds": [],
+      "aliases": ["卤制"],
+      "defaultEnabled": true,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.soup",
+      "group": "method",
+      "label": "煲汤",
+      "section": "常用烹调",
+      "broaderIds": [],
+      "aliases": ["熬汤", "煲"],
+      "defaultEnabled": true,
+      "description": "用于汤品的慢煮；啫啫不与煲汤合并。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.air-fry",
+      "group": "method",
+      "label": "空气炸锅",
+      "section": "常用烹调",
+      "broaderIds": [],
+      "aliases": ["空气炸锅"],
+      "defaultEnabled": true,
+      "description": "面向用户常用做法的入口，虽含设备含义仍放在烹饪方法中。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.bao",
+      "group": "method",
+      "label": "爆",
+      "section": "中式细分",
+      "broaderIds": ["method.stir-fry"],
+      "aliases": ["爆炒", "油爆"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.bian",
+      "group": "method",
+      "label": "煸",
+      "section": "中式细分",
+      "broaderIds": ["method.stir-fry"],
+      "aliases": ["煸炒"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.liu",
+      "group": "method",
+      "label": "熘",
+      "section": "中式细分",
+      "broaderIds": [],
+      "aliases": ["溜", "滑熘"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.hui",
+      "group": "method",
+      "label": "烩",
+      "section": "中式细分",
+      "broaderIds": [],
+      "aliases": ["烩制"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.shuan",
+      "group": "method",
+      "label": "涮",
+      "section": "中式细分",
+      "broaderIds": [],
+      "aliases": ["涮煮"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.poach",
+      "group": "method",
+      "label": "汆",
+      "section": "中式细分",
+      "broaderIds": [],
+      "aliases": ["汆烫", "氽"],
+      "defaultEnabled": false,
+      "description": "汆不与入油的氽字形误用直接混同；实际以步骤判断。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.wei",
+      "group": "method",
+      "label": "煨",
+      "section": "中式细分",
+      "broaderIds": [],
+      "aliases": ["煨制"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.zheng-kou",
+      "group": "method",
+      "label": "扣蒸",
+      "section": "中式细分",
+      "broaderIds": ["method.steam"],
+      "aliases": ["蒸扣"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.fen-zheng",
+      "group": "method",
+      "label": "粉蒸",
+      "section": "中式细分",
+      "broaderIds": ["method.steam"],
+      "aliases": ["粉蒸菜"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.red-braise",
+      "group": "method",
+      "label": "红烧",
+      "section": "中式细分",
+      "broaderIds": ["method.braise"],
+      "aliases": [],
+      "defaultEnabled": false,
+      "description": "保留可选细分，别名检索可命中“烧”，赋值优先选已开启最具体项。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.dry-pot",
+      "group": "method",
+      "label": "干锅",
+      "section": "中式细分",
+      "broaderIds": [],
+      "aliases": ["干锅炒制"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.jue",
+      "group": "method",
+      "label": "啫啫煲",
+      "section": "中式细分",
+      "broaderIds": [],
+      "aliases": ["啫啫煲", "生啫"],
+      "defaultEnabled": false,
+      "description": "作为专门技法入口，不与所有砂锅菜或炖煮菜混为一类。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.salt-bake",
+      "group": "method",
+      "label": "盐焗",
+      "section": "中式细分",
+      "broaderIds": ["method.bake-gratin"],
+      "aliases": ["盐焗法"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.smoke",
+      "group": "method",
+      "label": "熏",
+      "section": "中式细分",
+      "broaderIds": [],
+      "aliases": ["烟熏", "smoking"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.yan",
+      "group": "method",
+      "label": "腌制",
+      "section": "中式细分",
+      "broaderIds": [],
+      "aliases": ["腌", "腌渍"],
+      "defaultEnabled": false,
+      "description": "仅将腌制本身为主要制法时贴标，普通腌肉准备步骤不必贴。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.pickling",
+      "group": "method",
+      "label": "泡渍",
+      "section": "中式细分",
+      "broaderIds": [],
+      "aliases": ["泡", "醋渍", "pickling"],
+      "defaultEnabled": false,
+      "description": "不自动认定为发酵。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.jiang",
+      "group": "method",
+      "label": "酱制",
+      "section": "中式细分",
+      "broaderIds": [],
+      "aliases": ["酱", "酱卤"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.sugar-coat",
+      "group": "method",
+      "label": "拔丝",
+      "section": "中式细分",
+      "broaderIds": [],
+      "aliases": ["糖拔丝"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.sous-vide",
+      "group": "method",
+      "label": "低温慢煮",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": [],
+      "aliases": ["舒肥", "sous vide", "sous-vide"],
+      "defaultEnabled": false,
+      "description": "控温烹调；与冷藏条件下的熟成分别标记。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.slow-cook",
+      "group": "method",
+      "label": "慢煮",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": [],
+      "aliases": ["slow cooking"],
+      "defaultEnabled": false,
+      "description": "不必然是真空低温慢煮。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.confit",
+      "group": "method",
+      "label": "油封",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": [],
+      "aliases": ["confit"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.sear",
+      "group": "method",
+      "label": "炙烤",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": [],
+      "aliases": ["炙", "炙烧", "sear"],
+      "defaultEnabled": false,
+      "description": "包括表面炙烧的用户检索入口，按步骤确认。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.bbq",
+      "group": "method",
+      "label": "烧烤",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": ["method.roast"],
+      "aliases": ["炭烤", "BBQ", "barbecue"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.bain-marie",
+      "group": "method",
+      "label": "隔水烘烤",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": ["method.roast"],
+      "aliases": ["水浴烘烤", "bain-marie"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.pressure",
+      "group": "method",
+      "label": "压力烹调",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": [],
+      "aliases": ["高压锅", "压力锅"],
+      "defaultEnabled": false,
+      "description": "做法入口，不独立增设设备标签组。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.microwave",
+      "group": "method",
+      "label": "微波",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": [],
+      "aliases": ["微波炉"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.no-bake",
+      "group": "method",
+      "label": "免烤",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": [],
+      "aliases": ["免烘烤", "no-bake"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.ferment",
+      "group": "method",
+      "label": "发酵",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": [],
+      "aliases": ["fermentation"],
+      "defaultEnabled": false,
+      "description": "描述制备工艺，不包含医学或食品安全承诺。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.dry",
+      "group": "method",
+      "label": "风干",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": [],
+      "aliases": ["干燥", "脱水", "dehydrate"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.dry-age",
+      "group": "method",
+      "label": "干式熟成",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": ["method.age"],
+      "aliases": ["干式陈化", "dry aging"],
+      "defaultEnabled": false,
+      "description": "熟成是前处理；不是低温慢煮。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.wet-age",
+      "group": "method",
+      "label": "湿式熟成",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": ["method.age"],
+      "aliases": ["湿式陈化", "wet aging"],
+      "defaultEnabled": false,
+      "description": "熟成是前处理；不是低温慢煮。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.age",
+      "group": "method",
+      "label": "低温熟成",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": [],
+      "aliases": ["冷藏熟成"],
+      "defaultEnabled": false,
+      "description": "宽泛工艺标签，已知干式或湿式时可选择更具体项。",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.spherify",
+      "group": "method",
+      "label": "球化",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": [],
+      "aliases": ["晶球化", "spherification"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.foam",
+      "group": "method",
+      "label": "泡沫化",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": [],
+      "aliases": ["料理泡沫", "foaming"],
+      "defaultEnabled": false,
+      "description": "",
+      "provenance": "curated"
+    },
+    {
+      "id": "method.emulsify",
+      "group": "method",
+      "label": "乳化",
+      "section": "西式、烘焙与现代方法",
+      "broaderIds": [],
+      "aliases": ["emulsification"],
+      "defaultEnabled": false,
+      "description": "作为核心成菜技法时使用，不因普通沙拉酱必然贴标。",
+      "provenance": "curated"
+    }
+  ],
+  "retiredPresets": {
+    "cuisine.huaiyang": "cuisine.jiangsu",
+    "cuisine.chaozhou": "cuisine.cantonese",
+    "cuisine.thai": "cuisine.southeast-asian",
+    "cuisine.vietnamese": "cuisine.southeast-asian",
+    "cuisine.malaysian": "cuisine.southeast-asian",
+    "cuisine.singaporean": "cuisine.southeast-asian",
+    "cuisine.indonesian": "cuisine.southeast-asian"
+  }
+}

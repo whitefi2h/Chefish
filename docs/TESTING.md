@@ -1,5 +1,7 @@
 # 测试与验收
 
+2026-10-29 视觉升级的实现范围、浏览器与 Windows 隔离验证、已有测试失败及本地成品路径，见 [UI_REFRESH.md](UI_REFRESH.md)。
+
 在 Windows 项目根目录运行：
 
 ```powershell
@@ -101,3 +103,39 @@ v1.0.0 检查见 [验收记录](release-v1.0.0.json)。此前逐阶段材料已�
 
 
 2026-10-29 烹饪实际用量优先级修复：Rust 常规 150 passed / 10 ignored，烹饪界面 6 passed。使用真实配置模型和合成库存复测5次：原句“韭菜和鸡蛋全部用完”连续3次均返回韭菜125g、鸡蛋3个，未受菜谱50g/75g预估限制；另外两次分别验证鸡蛋用2个剩1个，以及韭菜一半/鸡蛋没用。不相关大蒜均未扣减。模型输出必须注明用量意图，全部用完却返回菜谱份量的结果会被后端拒绝并重试。真实模型重复通过是本次证据，不保证所有未来模型输出绝不出错；实际写入仍走用户确认与原有库存校验。本次没有操作个人厨房库存。
+
+
+### 2026-10-31 周菜单餐次显示
+
+通用设置新增早餐、午餐和晚餐三个显示开关，默认隐藏早餐、显示午餐及晚餐。旧设置通过前端默认值与原生 serde 默认值兼容；只筛选周历行，不修改计划数据、餐次表单选项或采购计算。显示设置按设备保存，云端恢复保留本机选择。
+
+类型检查、ESLint、35 项前端单元测试通过（13 项外部服务测试按条件跳过）；原生偏好设置持久化与数据不变测试 2 项通过。设置、周历持久化与通用界面回归共 23 项通过，包含餐次默认值、独立开关、重启恢复、全部隐藏提示和菜单保留。采购转义测试更新为仅检查对应输入行，避免将已有合法食材图标误判为 HTML 注入。界面检查为隔离浏览器模拟数据，不是个人厨房的 Windows WebView2 实测。Windows EXE 与 NSIS 安装包已成功构建。
+
+
+### 2026-11-01 菜谱统一标签
+
+实现与验证记录见 [RECIPE_TAG_IMPLEMENTATION_20261101.md](RECIPE_TAG_IMPLEMENTATION_20261101.md)。`npx playwright test tests/recipe-tags.spec.ts tests/library-polish.spec.ts` 覆盖标签目录、开关、层级筛选、旧分类整理、撤销、顶部保存及响应式界面。`cargo test --manifest-path src-tauri/Cargo.toml recipe_tag` 覆盖原生迁移、关联、用户优先、目录校验及跨库同步重放；`cloud_snapshot::tests` 验证云快照清理和恢复会保留标签。云规则仅本地模拟器通过，尚未部署新规则。
+
+### 2026-11-02 标签精简与每周灵感
+
+见 [TAGS_REFINEMENT_20261102.md](TAGS_REFINEMENT_20261102.md)。重点回归命令：`npx playwright test tests/recipe-tags.spec.ts tests/weekly-inspiration.spec.ts tests/weeks.spec.ts`；原生迁移测试 `cargo test --manifest-path src-tauri/Cargo.toml version_sixteen_cleanup`，周隔离／重启／撤销测试 `cargo test --manifest-path src-tauri/Cargo.toml weeks_are_independent`，同步测试 `cargo test --manifest-path src-tauri/Cargo.toml recipe_tag_definitions_links_merge`。本轮云规则上限更新为 schema 17，仅本地模拟器验证，未部署。
+
+后续菜系精简、自定义类别与自动开启标签见 [TAGS_CATALOG18_20261102.md](TAGS_CATALOG18_20261102.md)。新增原生测试：`refined_presets_migrate_old_links_and_keep_user_tags`、`maintenance_auto_enables_tags_only_when_opted_in_and_undo_restores_switch`。云规则本地支持版本上限现为 18，线上未部署。
+
+四类标签配色及卡片比例见 [TAG_COLORS_20261102.md](TAG_COLORS_20261102.md)。浏览器标签／菜谱回归 12 项通过，末次底部对齐后四种宽度回归再次通过；`four tag groups use consistent distinct colors across picker cards and detail` 核对四类颜色互异且跨组件一致。仅展示层修改，未重跑无关后端测试。
+
+菜谱文字区进一步收紧、导入标签默认折叠见 [COMPACT_CARDS_IMPORT_20261102.md](COMPACT_CARDS_IMPORT_20261102.md)。浏览器回归 19/20 通过；剩余旧导入用例的食材标准化断言不一致，已在记录中说明，未修改业务规则或放宽断言。Windows EXE 与 NSIS 已重建。
+
+2026-11-03 设置页分组、卡片人份对齐及首页元数据微调见 [SETTINGS_VISUAL_POLISH_20261103.md](SETTINGS_VISUAL_POLISH_20261103.md)。20 个不同浏览器回归用例通过，TypeScript、ESLint、Windows EXE 与 NSIS 构建通过；截图为隔离演示数据，未操作个人厨房数据。
+
+## 2026-11-03 初始化与数量显示
+
+新增可跳过、可从通用设置重进的初始化流程，并统一采购数量最多一位小数。浏览器合成服务交互共 28 个不同用例通过，领域测试 14 项、Rust 草稿校验 1 项通过。独立 `com.chefish.onboardingqa` Windows WebView2 已验证偏好与菜系实际写入、步骤恢复和完成持久化；未操作个人厨房，真实云注册和模型提取不计为联网通过。详见 [实施与交付记录](ONBOARDING_IMPLEMENTATION_20261103.md)。
+
+初始化第二轮紧凑重设计：相关 9 项交互回归通过（初始化 4、模型设置 1、设置 2、管家 2），TypeScript、ESLint、Release EXE 和 NSIS 构建通过。全部阶段覆盖 571×400 到 1920×1080 五种 CSS 视口；原生 WebView2 另检查 DPR 1.71875 下的 854×534 普通窗口与 1490×789 最大化窗口，欢迎、管家和完成页保持完整底部操作。偏好长内容只滚动正文。详见 [第二轮设计与检阅](ONBOARDING_REDESIGN_20261103.md)，浏览器动效录像与 Windows 截图分开标注。
+
+固定外框与偏好分步后，初始化 5 项及模型设置 1 项不同浏览器用例通过，新增逐步外框宽高一致的断言，覆盖五种视口及描述/核对两个子页。此轮视觉证据为浏览器合成数据，记录见 [固定外框与偏好分步](ONBOARDING_FIXED_FRAME_20261103.md)。
+
+2026-11-04 初始化动效与启动页：7 项初始化浏览器回归通过（含加载失败重试、减少动态效果和键盘切页），五种尺寸外框检查通过；TypeScript、ESLint、正式生产 identifier 的 Windows Release EXE 与 NSIS 构建通过。Windows 隔离检阅版检查与浏览器合成服务证据分别记录，见 [动效与启动页](ONBOARDING_MOTION_20261104.md)。
+
+同日后续修正初始化进入与切页闪回：新增回归确认旧页淡出动画只在新内容提交后取消（旧实现可复现失败）；初始化 8 项、共享弹窗相关 3 项回归通过。标题焦点边框修正后，闪回与动效录像 2 项重查通过。正式 Windows EXE/NSIS 构建成功，原生布局与浏览器动画证据边界见上述动效记录的后续修正部分。

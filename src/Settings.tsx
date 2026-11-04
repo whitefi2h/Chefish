@@ -18,6 +18,7 @@ import Backup from "./Backup";
 import { nativeMode } from "./services/kitchenClient";
 import { type AppPreferences } from "./domain/preferences";
 import { version } from "../package.json";
+import { IngredientIconLicenses } from "./IngredientAvatar";
 const CloudBackup = lazy(() => import("./CloudBackup"));
 
 const sections = [
@@ -69,9 +70,11 @@ export type SettingsTab = (typeof sections)[number]["id"];
 export default function Settings({
   initialTab = "preferences",
   onClose,
+  onStartOnboarding,
 }: {
   initialTab?: SettingsTab;
   onClose: () => void;
+  onStartOnboarding?: () => void;
 }) {
   const { preferences, savePreferences, busy, persistent, reload } = useDemo();
   const [tab, setTab] = useState<SettingsTab>(initialTab);
@@ -318,6 +321,53 @@ export default function Settings({
             )}
             {tab === "general" && (
               <fieldset disabled={busy} className="settings-fields">
+                {onStartOnboarding && (
+                  <div className="settings-row">
+                    <div>
+                      <strong>初始化设置</strong>
+                      <p>重新介绍你的饮食习惯，已保存的厨房数据会保留。</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (
+                          !dirty ||
+                          window.confirm(
+                            "当前设置有未保存的修改，仍要打开初始化吗？",
+                          )
+                        )
+                          onStartOnboarding();
+                      }}
+                    >
+                      重新开始初始化
+                    </button>
+                  </div>
+                )}
+                <div className="settings-row">
+                  <div>
+                    <strong>周菜单显示餐次</strong>
+                    <p>隐藏餐次只影响周历展示，已安排的菜单会保留。</p>
+                  </div>
+                  <div className="actions">
+                    {(
+                      [
+                        ["showBreakfast", "显示早餐"],
+                        ["showLunch", "显示午餐"],
+                        ["showDinner", "显示晚餐"],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <label key={key}>
+                        <input
+                          type="checkbox"
+                          checked={draft[key]}
+                          onChange={(e) =>
+                            setDraft({ ...draft, [key]: e.target.checked })
+                          }
+                        />{" "}
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <div className="settings-row">
                   <div>
                     <label htmlFor="startup-page">启动页面</label>
@@ -442,8 +492,19 @@ export default function Settings({
                   />
                 </div>
                 <h3>Chefish</h3>
+                <p className="hint">
+                  本应用使用思源黑体（Source Han Sans CN） ·{" "}
+                  <a
+                    href="/fonts/SourceHanSans-License.txt"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    字体许可
+                  </a>
+                </p>
                 <p>日常的好滋味</p>
                 <span className="settings-version">版本 {version}</span>
+                <IngredientIconLicenses />
                 <dl>
                   <div>
                     <dt>数据保存</dt>

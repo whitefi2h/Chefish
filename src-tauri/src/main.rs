@@ -9,6 +9,7 @@ mod cooking_ai;
 mod db;
 mod ingredient_images;
 mod ingredient_resolver;
+mod onboarding;
 mod recipe_images;
 mod recipe_import;
 mod site_access;
@@ -447,7 +448,6 @@ fn main() {
             steward::kitchen_steward_rebase,
             steward::kitchen_steward_undo,
             steward::kitchen_steward_rule,
-            steward::kitchen_steward_tags,
             steward::kitchen_steward_review_date,
             ingredient_images::kitchen_ingredient_images,
             ingredient_images::kitchen_open_image_source,
@@ -469,6 +469,7 @@ fn main() {
             sync_commands::sync_acknowledge,
             sync_commands::sync_resolve_cloud,
             kitchen_preferences_save,
+            kitchen_onboarding_interpret,
             kitchen_backup_status,
             kitchen_backup_open_folder,
             kitchen_execute,
@@ -560,6 +561,24 @@ async fn ai_block<T: Send + 'static>(
 #[tauri::command]
 async fn kitchen_ai_settings() -> db::Result<serde_json::Value> {
     ai_block(ai::status).await
+}
+#[tauri::command]
+async fn kitchen_onboarding_interpret(
+    database: tauri::State<'_, Database>,
+    description: String,
+) -> db::Result<onboarding::PreferenceDraft> {
+    let catalog = {
+        let guard = database.0.lock().map_err(|_| db::ApiError {
+            code: "DATABASE_ERROR".into(),
+            message: "数据库暂不可用".into(),
+        })?;
+        let conn = guard.as_ref().ok_or_else(|| db::ApiError {
+            code: "BOOTSTRAP_FAILED".into(),
+            message: database.1.clone(),
+        })?;
+        db::recipe_tags::ai_catalog(conn)?
+    };
+    ai_block(move || onboarding::interpret(description, catalog)).await
 }
 #[tauri::command]
 async fn kitchen_ai_save_settings(
@@ -810,11 +829,23 @@ async fn kitchen_ai_search(query: String, limit: Option<usize>) -> db::Result<se
 }
 #[tauri::command]
 async fn kitchen_ai_organize(
+    database: tauri::State<'_, Database>,
     content: String,
     url: String,
     categories: Vec<String>,
 ) -> db::Result<serde_json::Value> {
-    ai_block(move || ai::organize(content, url, categories)).await
+    let tags = {
+        let guard = database.0.lock().map_err(|_| db::ApiError {
+            code: "DATABASE_BUSY".into(),
+            message: "数据库暂不可用".into(),
+        })?;
+        let c = guard.as_ref().ok_or_else(|| db::ApiError {
+            code: "DATABASE_ERROR".into(),
+            message: "厨房未打开".into(),
+        })?;
+        db::recipe_tags::ai_catalog(c)?
+    };
+    ai_block(move || ai::organize(content, url, categories, tags)).await
 }
 
 #[tauri::command]

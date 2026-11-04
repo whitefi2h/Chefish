@@ -1,10 +1,11 @@
 import { test, expect } from "@playwright/test";
 for (const [width, height] of [
+  [1000, 800],
   [1280, 800],
   [1440, 900],
   [1920, 1080],
 ]) {
-  test(`recipe cards categories and three columns ${width}`, async ({
+  test(`recipe cards categories and responsive columns ${width}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height });
@@ -15,43 +16,41 @@ for (const [width, height] of [
       .click();
     const first = page.locator(".recipe-card").first();
     const photo = await first.locator(".recipe-photo").boundingBox();
-    const tag = await first.locator(".recipe-category-tag").boundingBox();
-    expect(tag!.y).toBeGreaterThan(photo!.y + photo!.height / 2);
-    expect(tag!.y + tag!.height).toBeLessThan(photo!.y + photo!.height);
+    const tag = await first.locator(".recipe-tag-badges").boundingBox();
+    expect(tag!.y).toBeGreaterThanOrEqual(photo!.y + photo!.height);
     const titleBox = await first.locator(".recipe-title").boundingBox();
     const actionBox = await first.locator(".inspiration-button").boundingBox();
-    expect(Math.abs(titleBox!.y - actionBox!.y)).toBeLessThan(3);
+    expect(
+      Math.abs(
+        titleBox!.y +
+          titleBox!.height / 2 -
+          actionBox!.y -
+          actionBox!.height / 2,
+      ),
+    ).toBeLessThan(2);
+    expect(actionBox!.x).toBeGreaterThan(titleBox!.x);
+    expect(
+      await first
+        .locator(".inspiration-button")
+        .evaluate((el) => getComputedStyle(el).backgroundColor),
+    ).toBe("rgb(237, 243, 232)");
+    const columns = await page
+      .locator(".recipe-grid")
+      .evaluate(
+        (el) => getComputedStyle(el).gridTemplateColumns.split(" ").length,
+      );
+    expect(columns).toBe(width >= 1700 ? 4 : 3);
     await page.screenshot({
       path: `docs/screenshots/library-polish/${width}-cards.png`,
     });
-    await page.getByRole("button", { name: "管理分类", exact: true }).click();
-    const handles = page.locator(".category-grip");
-    const from = await handles.nth(0).boundingBox();
-    const to = await handles.nth(1).boundingBox();
-    const original = await page
-      .locator(".category-row input")
-      .nth(1)
-      .inputValue();
-    await page.mouse.move(from!.x + 15, from!.y + 15);
-    await page.mouse.down();
-    await page.mouse.move(to!.x + 15, to!.y + 20, { steps: 15 });
-    await expect(page.locator(".category-drag-preview")).toBeVisible();
-    await expect(page.locator(".category-row.insert-before")).toHaveCount(1);
+    await page.getByRole("button", { name: "管理标签", exact: true }).click();
+    await expect(
+      page.getByRole("dialog", { name: "管理菜谱标签" }),
+    ).toBeVisible();
     await page.screenshot({
-      path: `docs/screenshots/library-polish/${width}-dragging.png`,
+      path: `docs/screenshots/library-polish/${width}-tags.png`,
     });
-    await page.mouse.up();
-    await expect(page.locator(".category-row input").first()).toHaveValue(
-      original,
-    );
-    await page.getByLabel("新分类名称").fill("试做清单");
-    await page.getByRole("button", { name: "添加分类", exact: true }).click();
-    await page.screenshot({
-      path: `docs/screenshots/library-polish/${width}-categories.png`,
-    });
-    await page.getByRole("button", { name: "保存分类", exact: true }).click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(page.locator(".toast")).toHaveCount(0);
+    await page.getByRole("button", { name: "关闭面板" }).click();
     await first.locator(".recipe-title").click();
     const ingredients = await page.locator(".ingredients-panel").boundingBox();
     const steps = await page.locator(".steps-panel").boundingBox();
@@ -104,7 +103,7 @@ for (const [width, height] of [
     await expect(edited).toHaveCount(0);
   });
 }
-for (const section of ["我的菜谱", "食材库存"])
+for (const section of ["食材库存"])
   test(`category drag multi-row cancel and outside ${section}`, async ({
     page,
   }) => {

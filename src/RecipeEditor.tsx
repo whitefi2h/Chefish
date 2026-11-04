@@ -3,11 +3,14 @@ import { isSeasoning, supplies } from "./domain/seasonings";
 import WebRecipeImport from "./WebRecipeImport";
 import RecipeMediaEditor from "./RecipeMediaEditor";
 import { canonicalRecipeUrl } from "./domain/recipeImport";
-import { useState } from "react";
+import { useState, useId, useRef } from "react";
+import { RecipeTagPicker } from "./RecipeTags";
+import { tagsOf, recipeTagIds, legacyTagId } from "./domain/recipeTags";
 import { Modal, Badge } from "./components";
 import { useDemo } from "./store";
 import type { DemoState, Recipe, RecipeMedia } from "./model";
 export interface RecipeDraft {
+  tagIds?: string[];
   ingredientKinds?: Record<string, boolean>;
   media?: RecipeMedia;
   textIngredients?: { name: string; amountText: string }[];
@@ -133,6 +136,12 @@ export function parseRecipe(text: string): RecipeDraft {
     )
       throw new Error("来源作者或原始用量格式不正确");
   }
+  if (
+    d.tagIds !== undefined &&
+    (!Array.isArray(d.tagIds) ||
+      !d.tagIds.every((v: unknown) => typeof v === "string"))
+  )
+    throw new Error("菜谱标签格式不正确");
   return {
     ...d,
     name: d.name.trim(),
@@ -166,6 +175,8 @@ export function addRecipe(
     revisionNumber: (previous?.revisionNumber ?? (previous ? 1 : 0)) + 1,
     name: d.name,
     category: d.category,
+    tagIds: d.tagIds ?? previous?.tagIds,
+    tagOrigin: d.tagIds ? "user" : previous?.tagOrigin,
     minutes: d.minutes,
     servings: d.servings,
     subtitle: d.subtitle,
@@ -239,12 +250,22 @@ export default function RecipeEditor({
     initialDraft?.media ?? source?.media,
   );
   const [mediaBusy, setMediaBusy] = useState(false);
-  const [category, setCategory] = useState(
-    initialDraft?.category ??
-      recipe?.category ??
-      state.recipeCategories[0] ??
-      "未分类",
+  const category =
+    initialDraft?.category ?? source?.category ?? recipe?.category ?? "未分类";
+  const [tagIds, setTagIds] = useState<string[]>(
+    () =>
+      initialDraft?.tagIds ??
+      (source
+        ? recipeTagIds(source, tagsOf(state))
+        : recipe
+          ? recipeTagIds(recipe, tagsOf(state))
+          : (() => {
+              const id = legacyTagId(category, tagsOf(state));
+              return id ? [id] : [];
+            })()),
   );
+  const formId = useId();
+  const errorRef = useRef<HTMLParagraphElement>(null);
   const [minutes, setMinutes] = useState(
     initialDraft?.minutes ?? source?.minutes ?? 20,
   );
@@ -345,9 +366,28 @@ export default function RecipeEditor({
               : "导入菜谱"
       }
       onClose={onClose}
+      headerActions={
+        mode !== "import" && (
+          <button
+            type="submit"
+            form={formId}
+            className="primary"
+            disabled={busy || mediaBusy}
+          >
+            {mode === "review"
+              ? "确认导入"
+              : recipe
+                ? "保存修改"
+                : persistent
+                  ? "保存菜谱"
+                  : "创建演示菜谱"}
+          </button>
+        )
+      }
     >
       {mode !== "import" ? (
         <form
+          id={formId}
           className="form-stack"
           onSubmit={async (e) => {
             e.preventDefault();
@@ -356,6 +396,7 @@ export default function RecipeEditor({
                 JSON.stringify({
                   name,
                   category,
+                  tagIds,
                   minutes,
                   servings,
                   steps: steps.map((v) => v.body.trim()),
@@ -401,6 +442,12 @@ export default function RecipeEditor({
               if (saved) onClose();
             } catch (e) {
               setError(e instanceof Error ? e.message : "请核对输入");
+              requestAnimationFrame(() =>
+                errorRef.current?.scrollIntoView({
+                  block: "center",
+                  behavior: "auto",
+                }),
+              );
             }
           }}
         >
@@ -437,20 +484,15 @@ export default function RecipeEditor({
               onChange={(e) => setSubtitle(e.target.value)}
             />
           </label>
+          <section className="form-stack">
+            <strong>菜谱标签</strong>
+            <RecipeTagPicker
+              value={tagIds}
+              onChange={setTagIds}
+              collapsed={mode === "review"}
+            />
+          </section>
           <div className="form-row">
-            <label>
-              菜谱分类
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                {[...new Set([...state.recipeCategories, category])].map(
-                  (c) => (
-                    <option key={c}>{c}</option>
-                  ),
-                )}
-              </select>
-            </label>
             <label>
               用时（分钟）
               <input
@@ -662,19 +704,10 @@ export default function RecipeEditor({
             </button>
           </div>
           {error && (
-            <p role="alert" className="error">
+            <p ref={errorRef} role="alert" className="error">
               {error}
             </p>
           )}
-          <button className="primary" disabled={busy || mediaBusy}>
-            {mode === "review"
-              ? "确认导入"
-              : recipe
-                ? "保存修改"
-                : persistent
-                  ? "保存菜谱"
-                  : "创建演示菜谱"}
-          </button>
         </form>
       ) : (
         <div className="form-stack">

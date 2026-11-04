@@ -11,7 +11,10 @@ test("week navigation preserves future and past meals and scopes shopping", asyn
   await expect(page.locator('[data-slot="2026-10-20|晚餐"]')).toContainText(
     "香煎黑椒芦笋牛排",
   );
-  await page.getByRole("button", { name: "采购预览", exact: false }).click();
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "采购清单", exact: false })
+    .click();
   await expect(page.locator(".page:visible")).toContainText("2026 / 10 / 19");
   await expect(
     page.locator(".shopping-row").filter({ hasText: "牛肉" }),
@@ -21,7 +24,7 @@ test("week navigation preserves future and past meals and scopes shopping", asyn
     .getByRole("button", { name: "每周菜单" })
     .click();
   await page.getByRole("button", { name: "返回本周" }).click();
-  await expect(page.locator(".calendar .planned-card")).toHaveCount(5);
+  await expect(page.locator(".calendar .planned-card")).toHaveCount(4);
   await page.getByRole("button", { name: "上一周", exact: true }).click();
   await page.getByRole("button", { name: "安排一餐", exact: true }).click();
   await page.getByLabel("日期", { exact: true }).selectOption("2026-10-06");
@@ -38,9 +41,7 @@ test("week navigation preserves future and past meals and scopes shopping", asyn
   await expect(page.locator('[data-slot="2027-01-03|晚餐"]')).toBeVisible();
   await expect(page.locator(".week-toolbar")).toContainText("2026 / 12 / 28");
 });
-test("repeated non-inventory updates stay silent", async ({
-  page,
-}) => {
+test("repeated non-inventory updates stay silent", async ({ page }) => {
   await page.clock.install();
   await page.goto("/");
   await page
@@ -91,10 +92,12 @@ for (const [width, height] of [
     await expect
       .poll(() => body.evaluate((el) => el.scrollTop))
       .toBeGreaterThan(0);
-    expect((await dialog.locator(":scope > header").boundingBox())!.y).toBe(header!.y);
+    expect((await dialog.locator(":scope > header").boundingBox())!.y).toBe(
+      header!.y,
+    );
     await page.screenshot({ path: `docs/screenshots/${width}-长表单弹窗.png` });
     await page.getByRole("button", { name: "关闭面板" }).click();
-    for (const name of ["导入菜谱", "管理分类"]) {
+    for (const name of ["导入菜谱", "管理标签"]) {
       await page.getByRole("button", { name, exact: true }).click();
       await expect(page.getByRole("dialog")).toHaveCSS("overflow", "hidden");
       await page.getByRole("button", { name: "关闭面板" }).click();

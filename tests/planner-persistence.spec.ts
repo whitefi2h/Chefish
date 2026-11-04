@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { initialState } from "../src/fixtures/demo";
+import { defaultPreferences } from "../src/domain/preferences";
 async function plannerIPC(
   page: Page,
   fail = false,
@@ -7,6 +8,8 @@ async function plannerIPC(
   delay = 0,
 ) {
   const state = initialState();
+  state.inspirationWeeks = { "2026-12-28": state.inspiration };
+  state.preferences = { ...defaultPreferences, showBreakfast: true };
   state.plans = [];
   state.recipes = state.recipes.map((r) => ({
     ...r,
@@ -52,10 +55,10 @@ async function plannerIPC(
             },
           ) => {
             if (name === "kitchen_execute") {
-              if (fail)
-                throw { code: "DATABASE_BUSY", message: "测试：菜单保存失败" };
               if (delay)
                 await new Promise((resolve) => setTimeout(resolve, delay));
+              if (fail)
+                throw { code: "DATABASE_BUSY", message: "测试：菜单保存失败" };
               const c = args.command;
               const index = snapshot.plans.findIndex(
                 (p: { id: string }) => p.id === c.plan_id,
@@ -175,7 +178,7 @@ for (const [width, height] of [
 test("native planner failed save retains draft and failed drag keeps original card", async ({
   page,
 }) => {
-  await plannerIPC(page, true, true);
+  await plannerIPC(page, true, true, 1600);
   await addCustom(page, "保留这份草稿");
   await expect(page.locator(".toast")).toContainText("菜单保存失败");
   await expect(page.getByLabel("菜名", { exact: true })).toHaveValue(
@@ -192,6 +195,10 @@ test("native planner failed save retains draft and failed drag keeps original ca
   await page.mouse.down();
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 15 });
   await page.mouse.up();
+  await expect(dest.locator(".planned-card")).toHaveCount(1, { timeout: 600 });
+  await expect(
+    page.locator('[data-slot="2026-12-28|早餐"] .planned-card'),
+  ).toHaveCount(0);
   await expect(page.locator(".toast")).toContainText("菜单保存失败");
   await expect(page.locator(".planned-card")).toHaveCount(1);
   await expect(
@@ -203,7 +210,7 @@ test("native planner failed save retains draft and failed drag keeps original ca
 test("native pointer drop appends to occupied meal and moves one dish durably", async ({
   page,
 }) => {
-  await plannerIPC(page, false, true, 150);
+  await plannerIPC(page, false, true, 1600);
   const slot = page.locator('[data-slot="2026-12-28|早餐"]');
   const origin = page.locator(".pool-card .draggable").first();
   const a = (await origin.boundingBox())!;
@@ -218,7 +225,11 @@ test("native pointer drop appends to occupied meal and moves one dish durably", 
   await page.mouse.up();
   // Check immediately: waiting for disappearance would hide the return animation.
   expect(await page.locator(".drag-preview").count()).toBe(0);
-  await expect(slot.locator(".planned-card")).toHaveCount(2);
+  await expect(slot.locator(".planned-card")).toHaveCount(2, { timeout: 600 });
+  await expect(slot.locator('.planned-card[aria-busy="true"]')).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "安排一餐", exact: true }),
+  ).toBeEnabled();
   const card = slot.locator(".draggable").last();
   const target = page.locator('[data-slot="2026-12-29|早餐"]');
   await card.scrollIntoViewIfNeeded();
@@ -234,7 +245,12 @@ test("native pointer drop appends to occupied meal and moves one dish durably", 
   await page.mouse.up();
   expect(await page.locator(".drag-preview").count()).toBe(0);
   await expect(slot.locator(".planned-card")).toHaveCount(1);
-  await expect(target.locator(".planned-card")).toHaveCount(1);
+  await expect(target.locator(".planned-card")).toHaveCount(1, {
+    timeout: 600,
+  });
+  await expect(
+    page.getByRole("button", { name: "安排一餐", exact: true }),
+  ).toBeEnabled();
   await page.screenshot({
     path: "docs/screenshots/planner-m3/drop-without-return.png",
   });

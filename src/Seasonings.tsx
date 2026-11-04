@@ -4,14 +4,20 @@ import { useDemo } from "./store";
 import { Badge } from "./components";
 import { supplies, setSupply } from "./domain/seasonings";
 import IngredientAvatar from "./IngredientAvatar";
+import {
+  rememberIngredientPhoto,
+  usesIngredientPhoto,
+} from "./services/ingredientAvatars";
 import { invoke } from "@tauri-apps/api/core";
 import { errorMessage } from "./services/kitchenClient";
 
 export default function Seasonings({
   reminder = false,
+  embedded = false,
   onOpen,
 }: {
   reminder?: boolean;
+  embedded?: boolean;
   onOpen?: () => void;
 }) {
   const { state, mutate, busy, persistent, notify } = useDemo();
@@ -34,7 +40,7 @@ export default function Seasonings({
   }
   return (
     <section
-      className={`panel seasoning-panel ${reminder ? "seasoning-reminder" : ""}`}
+      className={`${embedded ? "seasoning-embedded" : "panel"} seasoning-panel ${reminder ? "seasoning-reminder" : ""}`}
       aria-label={reminder ? "调料采购提醒" : "调料区"}
     >
       <div className="section-heading">
@@ -56,12 +62,12 @@ export default function Seasonings({
                   className="seasoning-avatar"
                   aria-label={`让 AI 更换${s.name}图片`}
                   title={
-                    s.image
+                    usesIngredientPhoto(s) && s.image
                       ? `图片：${s.image.author} · ${s.image.license}。点击换图，右键查看来源与许可`
                       : "让 AI 换张图片"
                   }
                   onContextMenu={
-                    s.image
+                    usesIngredientPhoto(s) && s.image
                       ? (e) => {
                           e.preventDefault();
                           void invoke("kitchen_open_image_source", {
@@ -74,10 +80,14 @@ export default function Seasonings({
                   onClick={async () => {
                     setReplacing(s.id);
                     try {
-                      await invoke("kitchen_ingredient_images", {
-                        ingredientId: `seasoning:${s.name}`,
-                        instruction: "换张不同的调料图片，主体清楚、背景干净",
-                      });
+                      const result = await invoke<{ updated: number }>(
+                        "kitchen_ingredient_images",
+                        {
+                          ingredientId: `seasoning:${s.name}`,
+                          instruction: "换张不同的调料图片，主体清楚、背景干净",
+                        },
+                      );
+                      if (result.updated) rememberIngredientPhoto(s.name);
                       window.dispatchEvent(new Event("chefish:sync-data"));
                       window.dispatchEvent(new Event("chefish:sync-wake"));
                     } catch (error) {

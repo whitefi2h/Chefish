@@ -11,6 +11,11 @@ pub fn status(conn: &Connection) -> Result<Value> {
 }
 fn label(kind: &str) -> &str {
     match kind {
+        "save_recipe_tag_definitions"
+        | "set_recipe_tags"
+        | "reset_recipe_tag_visibility"
+        | "merge_recipe_tags"
+        | "resolve_legacy_recipe_tag" => "调整菜谱标签",
         "create_recipe" => "创建菜谱",
         "revise_recipe" => "编辑菜谱",
         "delete_recipe" | "archive_recipe" => "删除菜谱",

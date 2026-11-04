@@ -1,3 +1,4 @@
+import { useWindowLayout } from "./useWindowLayout";
 import { supplies } from "./domain/seasonings";
 import KitchenAssistant from "./KitchenAssistant";
 import { shoppingPending } from "./domain/shopping";
@@ -26,6 +27,8 @@ import Recipes from "./Recipes";
 import Dashboard from "./Dashboard";
 import Settings, { type SettingsTab } from "./Settings";
 import SyncIndicator from "./SyncIndicator";
+import Onboarding, { onboardingProgress } from "./Onboarding";
+import StartupScreen from "./StartupScreen";
 import { useSteward } from "./services/steward";
 import { NavigationProvider, useNavigation } from "./navigation";
 const pages = [
@@ -118,6 +121,7 @@ function Assistant({
   );
 }
 function Shell() {
+  const windowLayout = useWindowLayout();
   const stewardState = useSteward();
   const {
     state,
@@ -138,6 +142,30 @@ function Shell() {
   const { route, navigate: setPage, back, canBack, reset } = useNavigation();
   const page = route.page;
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
+  const [onboardingStep, setOnboardingStep] = useState<number | null>(null);
+  const onboardingChecked = useRef(false);
+  useEffect(() => {
+    if (!persistent || !ready || loadError || onboardingChecked.current) return;
+    onboardingChecked.current = true;
+    const progress = onboardingProgress();
+    if (progress?.status === "active") setOnboardingStep(progress.step);
+    else if (
+      !progress &&
+      !state.recipes.length &&
+      !state.ingredients.length &&
+      !state.plans.length &&
+      !state.logs.length
+    )
+      setOnboardingStep(0);
+  }, [
+    persistent,
+    ready,
+    loadError,
+    state.recipes.length,
+    state.ingredients.length,
+    state.plans.length,
+    state.logs.length,
+  ]);
   const startupApplied = useRef(false);
   useEffect(() => {
     if (ready && !startupApplied.current) {
@@ -177,17 +205,7 @@ function Shell() {
         .length;
   if (persistent && !ready)
     return (
-      <main className="page">
-        <section className="panel">
-          <h1>正在打开我的厨房</h1>
-          <p role="alert">{loadError || "正在读取本机数据库…"}</p>
-          {loadError && (
-            <button className="primary" onClick={() => void reload()}>
-              重试加载
-            </button>
-          )}
-        </section>
-      </main>
+      <StartupScreen error={loadError} onRetry={reload} />
     );
   return (
     <div className="app" aria-busy={busy}>
@@ -319,9 +337,7 @@ function Shell() {
                 stewardState.items.some(
                   (i) => i.unread && i.status === "open",
                 ) && (
-                  <small aria-label="管家未读消息">
-                    {" "}
-                    ·{" "}
+                  <small className="assistant-unread" aria-label="管家未读消息">
                     {
                       stewardState.items.filter(
                         (i) => i.unread && i.status === "open",
@@ -344,6 +360,8 @@ function Shell() {
               key={p.id}
               hidden={page !== p.id}
               className="page module-frame"
+              data-page={p.id}
+              data-window-state={windowLayout}
             >
               {p.id === "home" ? (
                 <Dashboard navigate={setPage} />
@@ -383,6 +401,16 @@ function Shell() {
         <Settings
           initialTab={settingsTab}
           onClose={() => setSettingsTab(null)}
+          onStartOnboarding={() => {
+            setSettingsTab(null);
+            setOnboardingStep(0);
+          }}
+        />
+      )}
+      {onboardingStep !== null && (
+        <Onboarding
+          initialStep={onboardingStep}
+          onClose={() => setOnboardingStep(null)}
         />
       )}
       {panel?.kind === "lot" && (
