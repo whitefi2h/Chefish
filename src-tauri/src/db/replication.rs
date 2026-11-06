@@ -52,6 +52,8 @@ pub struct State {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Payload {
+    #[serde(skip)]
+    rollback: Option<Replay>,
     #[serde(default)]
     undo: bool,
     format_version: i64,
@@ -63,19 +65,24 @@ struct Payload {
     rows: Vec<RowChange>,
     settings: Vec<SettingChange>,
 }
-#[derive(Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RowChange {
     table: String,
     before: Value,
     after: Value,
 }
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SettingChange {
     key: String,
     before: Value,
     after: Value,
+}
+#[derive(Serialize, Deserialize)]
+struct Replay {
+    rows: Vec<RowChange>,
+    settings: Vec<SettingChange>,
 }
 
 pub fn digest(bytes: &[u8]) -> String {
@@ -145,6 +152,7 @@ pub fn bind(
         [watermark],
     )?;
     tx.execute("DELETE FROM local_sync_applied", [])?;
+    tx.execute("DELETE FROM app_settings WHERE key GLOB 'local_sync_replay:*' AND substr(key,19) NOT IN (SELECT operation_id FROM local_sync_outbox)", [])?;
     tx.execute("INSERT INTO local_sync_binding(singleton,uid,email,space_id,cursor,enabled,conflict) VALUES(1,?1,?2,?3,0,1,NULL) ON CONFLICT(singleton) DO UPDATE SET uid=excluded.uid,email=excluded.email,space_id=excluded.space_id,cursor=0,enabled=1,conflict=NULL",params![uid,email,space])?;
     tx.commit()?;
     Ok(())
@@ -154,6 +162,14 @@ pub fn pause(conn: &Connection, uid: &str, enabled: bool) -> Result<()> {
     conn.execute(
         "UPDATE local_sync_binding SET enabled=?1 WHERE singleton=1",
         [enabled],
+    )?;
+    Ok(())
+}
+pub fn retry(conn: &Connection, uid: &str) -> Result<()> {
+    assert_owner(conn, uid, false)?;
+    conn.execute(
+        "UPDATE local_sync_binding SET conflict=NULL WHERE singleton=1",
+        [],
     )?;
     Ok(())
 }
@@ -290,7 +306,7 @@ fn immutable(table: &str) -> bool {
             | "cooking_undos"
     )
 }
-fn patch_row(conn: &Connection, row: &RowChange, inverse: bool, remote: bool) -> Result<()> {
+fn patch_row(conn: &Connection, row: &RowChange, inverse: bool, remote: bool) -> Result<RowChange> {
     if !sync::TABLES.contains(&row.table.as_str()) {
         return Err(error("SYNC_INVALID", "同步操作包含不允许的数据表"));
     }
@@ -367,18 +383,29 @@ fn patch_row(conn: &Connection, row: &RowChange, inverse: bool, remote: bool) ->
         .transpose()
         .map_err(|_| error("SYNC_INVALID", "本机行无法解析"))?
         .unwrap_or(Value::Null);
-    if &current != before {
+    if &current != before && inverse {
         return Err(error(
             "SYNC_CONFLICT",
             "另一台设备与本机修改了同一条厨房记录，已暂停同步",
         ));
     }
+    // Apply only changed fields to a surviving record. A later edit can also
+    // recreate a deleted record; the cloud sequence determines the winner.
+    let mut merged = after.clone();
+    if !inverse && !before.is_null() && !after.is_null() && !current.is_null() {
+        for (name, _) in &columns {
+            if before[name] == after[name] {
+                merged[name] = current[name].clone();
+            }
+        }
+    }
+    let after = &merged;
     if after.is_null() {
         conn.execute(
             &format!("DELETE FROM {} WHERE {condition}", quote(&row.table)),
             params_from_iter(args.iter()),
         )?;
-    } else if before.is_null() {
+    } else if current.is_null() {
         let values = columns
             .iter()
             .map(|(n, _)| sql_value(&after[n]))
@@ -415,9 +442,17 @@ fn patch_row(conn: &Connection, row: &RowChange, inverse: bool, remote: bool) ->
             params_from_iter(values.iter()),
         )?;
     }
-    Ok(())
+    Ok(RowChange {
+        table: row.table.clone(),
+        before: current,
+        after: merged,
+    })
 }
-fn patch_setting(conn: &Connection, change: &SettingChange, inverse: bool) -> Result<()> {
+fn patch_setting(
+    conn: &Connection,
+    change: &SettingChange,
+    inverse: bool,
+) -> Result<SettingChange> {
     if change.key != "preferences_v1"
         && change.key != "shopping_memo"
         && !change.key.starts_with("seasoning_hidden:")
@@ -444,10 +479,42 @@ fn patch_setting(conn: &Connection, change: &SettingChange, inverse: bool) -> Re
     };
     let values = sync::settings(conn)?;
     let current = values.get(&change.key).unwrap_or(&Value::Null);
-    if current != before {
+    // Preference fields are independent. The cloud sequence orders changes to
+    // the same field; pending local edits are replayed after incoming changes.
+    let merged;
+    let after = if change.key == "preferences_v1" && !inverse {
+        let mut map = current
+            .as_object()
+            .cloned()
+            .ok_or_else(|| error("SYNC_INVALID", "用餐偏好无效"))?;
+        let old = before
+            .as_object()
+            .ok_or_else(|| error("SYNC_INVALID", "用餐偏好无效"))?;
+        let new = after
+            .as_object()
+            .ok_or_else(|| error("SYNC_INVALID", "用餐偏好无效"))?;
+        if old.len() != 4
+            || new.len() != 4
+            || !["defaultServings", "taste", "restrictions", "equipment"]
+                .iter()
+                .all(|key| old.contains_key(*key) && new.contains_key(*key))
+        {
+            return Err(error("SYNC_INVALID", "同步偏好包含不允许的字段"));
+        }
+        for (key, value) in new {
+            if old.get(key) != Some(value) {
+                map.insert(key.clone(), value.clone());
+            }
+        }
+        merged = Value::Object(map);
+        &merged
+    } else {
+        after
+    };
+    if current != before && inverse {
         return Err(error(
             "SYNC_CONFLICT",
-            "两台设备修改了同一项厨房偏好，已暂停同步",
+            "两台设备修改了同一项厨房设置，已暂停同步",
         ));
     }
     if change.key == "preferences_v1" {
@@ -487,25 +554,38 @@ fn patch_setting(conn: &Connection, change: &SettingChange, inverse: bool) -> Re
             .ok_or_else(|| error("SYNC_INVALID", "设置值无效"))?;
         conn.execute("INSERT INTO app_settings(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![change.key,value])?;
     }
-    Ok(())
+    Ok(SettingChange {
+        key: change.key.clone(),
+        before: current.clone(),
+        after: after.clone(),
+    })
 }
-fn patch(conn: &Connection, p: &Payload, inverse: bool, remote: bool) -> Result<()> {
+fn patch(conn: &Connection, p: &Payload, inverse: bool, remote: bool) -> Result<Replay> {
+    let mut replay = Replay {
+        rows: Vec::new(),
+        settings: Vec::new(),
+    };
     if inverse {
-        for setting in p.settings.iter().rev() {
+        let settings = p.rollback.as_ref().map_or(&p.settings, |r| &r.settings);
+        let rows = p.rollback.as_ref().map_or(&p.rows, |r| &r.rows);
+        for setting in settings.iter().rev() {
             patch_setting(conn, setting, true)?;
         }
-        for row in p.rows.iter().rev() {
+        for row in rows.iter().rev() {
             patch_row(conn, row, true, false)?;
         }
     } else {
         for row in &p.rows {
-            patch_row(conn, row, false, remote && !p.undo)?;
+            let applied = patch_row(conn, row, false, remote && !p.undo)?;
+            if !applied.before.is_null() || !applied.after.is_null() {
+                replay.rows.push(applied);
+            }
         }
         for setting in &p.settings {
-            patch_setting(conn, setting, false)?;
+            replay.settings.push(patch_setting(conn, setting, false)?);
         }
     }
-    Ok(())
+    Ok(replay)
 }
 // Only immutable-history triggers are suspended, inside the same transaction.
 // Remote payloads are separately forbidden from updating/deleting those rows.
@@ -550,6 +630,30 @@ fn pending(conn: &Connection) -> Result<Vec<(String, String, Payload)>> {
             let p = decode(&bytes)?;
             if p.operation_id != id {
                 return Err(error("SYNC_INVALID", "本机操作标识不匹配"));
+            }
+            let mut p = p;
+            // Keep the uploaded operation immutable. Only the local rollback
+            // baseline changes when incoming edits are merged.
+            let replay: Option<String> = conn
+                .query_row(
+                    "SELECT value FROM app_settings WHERE key=?1",
+                    [format!("local_sync_replay:{id}")],
+                    |r| r.get(0),
+                )
+                .optional()?;
+            if let Some(replay) = replay {
+                // v2.2.1 stored settings only. Read that baseline too, while
+                // preserving original forward edits for every later replay.
+                p.rollback = Some(if replay.trim_start().starts_with('[') {
+                    Replay {
+                        rows: p.rows.clone(),
+                        settings: serde_json::from_str(&replay)
+                            .map_err(|_| error("SYNC_INVALID", "本机同步恢复记录损坏"))?,
+                    }
+                } else {
+                    serde_json::from_str(&replay)
+                        .map_err(|_| error("SYNC_INVALID", "本机同步恢复记录损坏"))?
+                });
             }
             Ok((id, sha, p))
         })
@@ -603,7 +707,9 @@ pub fn accept(conn: &mut Connection, uid: &str, op: &Operation, bytes: &[u8]) ->
         patch(&tx, &payload, false, true)?;
         for (id, _, p) in &waiting {
             if id != &op.id {
-                patch(&tx, p, false, false)?;
+                let replay = patch(&tx, p, false, false)?;
+                tx.execute("INSERT INTO app_settings(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                        params![format!("local_sync_replay:{id}"), serde_json::to_string(&replay).map_err(|_| error("SYNC_INVALID", "无法记录同步恢复状态"))?])?;
             }
         }
         for trigger in triggers {
@@ -612,6 +718,10 @@ pub fn accept(conn: &mut Connection, uid: &str, op: &Operation, bytes: &[u8]) ->
         tx.execute(
             "DELETE FROM local_sync_outbox WHERE operation_id=?1",
             [&op.id],
+        )?;
+        tx.execute(
+            "DELETE FROM app_settings WHERE key=?1",
+            [format!("local_sync_replay:{}", op.id)],
         )?;
         tx.execute(
             "INSERT INTO local_sync_applied(sequence,operation_id,sha256) VALUES(?1,?2,?3)",
@@ -669,6 +779,10 @@ pub fn discard_pending(conn: &mut Connection, uid: &str) -> Result<()> {
         tx.execute_batch(&trigger)?;
     }
     tx.execute("DELETE FROM local_sync_outbox", [])?;
+    tx.execute(
+        "DELETE FROM app_settings WHERE key GLOB 'local_sync_replay:*'",
+        [],
+    )?;
     tx.execute(
         "UPDATE local_sync_binding SET conflict=NULL,enabled=1 WHERE singleton=1",
         [],

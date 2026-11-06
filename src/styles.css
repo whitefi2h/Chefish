@@ -4219,6 +4219,24 @@ td button > svg {
   color: var(--muted);
 }
 .assistant-header-actions svg { flex-shrink: 0; }
+.assistant-inbox-trigger { position: relative; }
+.assistant-header-actions .assistant-inbox-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #c94736;
+  color: white;
+  font: 600 10px/1 var(--font-body);
+  box-shadow: 0 0 0 2px var(--canvas);
+  pointer-events: none;
+}
+.task-unread-dot { display: inline-block; width: 6px; height: 6px; margin-right: 6px; vertical-align: middle; border-radius: 50%; background: #c94736; }
 .assistant-dialog .dialog-head button:hover {
   background: var(--hover);
   color: var(--ink);

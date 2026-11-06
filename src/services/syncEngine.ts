@@ -22,7 +22,7 @@ export class SyncEngine {
     const head = await this.repo.head();
     this.assertSession();
     if (!head || head.spaceId !== binding.spaceId)
-      throw new Error("云端厨房与本机连接不一致，请重新连接。");
+      throw new Error("云端同步版本已被替换。请在账户与云端中选择“以云端版本替换本机”，或明确选择以本机版本替换云端。");
     for (let rounds = 0; rounds < 20; rounds++) {
       this.assertSession();
       local = await this.native.state();

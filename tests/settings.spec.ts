@@ -14,6 +14,7 @@ async function fixture(page: Page) {
         isTauri: boolean;
         settingsCalls: string[];
         __TAURI_INTERNALS__: {
+          transformCallback: () => number;
           invoke: (
             name: string,
             args: Record<string, unknown>,
@@ -30,8 +31,45 @@ async function fixture(page: Page) {
         pasted: "",
       };
       target.__TAURI_INTERNALS__ = {
+        transformCallback: () => 1,
         invoke: async (name, args) => {
           target.settingsCalls.push(name);
+          if (name === "app_latest_release") {
+            const mode = localStorage.getItem("updates-test-mode");
+            if (mode === "error") throw "暂时无法连接 GitHub";
+            return mode
+              ? {
+                  version: "9.0.0",
+                  notes: "改进日常厨房体验。\n修复同步与界面问题。",
+                  canInstall: mode === "signed",
+                }
+              : null;
+          }
+          if (name === "app_open_project" || name === "plugin:resources|close")
+            return null;
+          if (name === "plugin:updater|check")
+            return {
+              rid: 1,
+              version: "9.0.0",
+              currentVersion: "2.3.0",
+              body: "更新说明",
+            };
+          if (name === "plugin:updater|download") {
+            const channel = args.onEvent as {
+              onmessage: (event: unknown) => void;
+            };
+            channel.onmessage({
+              event: "Started",
+              data: { contentLength: 100 },
+            });
+            channel.onmessage({
+              event: "Progress",
+              data: { chunkLength: 100 },
+            });
+            channel.onmessage({ event: "Finished" });
+            return 2;
+          }
+          if (name === "plugin:updater|install") return null;
           if (name === "kitchen_bootstrap") return state;
           if (name === "sync_state")
             return {
@@ -429,7 +467,8 @@ async function syncUiFixture(page: Page, hasHead = false) {
       subscribe:next=>{listeners.add(next);return()=>listeners.delete(next);},snapshot:()=>view,start:()=>()=>{},inspect:async()=>{},retry:async()=>{},
       create:async()=>{window.syncUiCalls.push('create');set({phase:'synced',local:{...view.local,binding}});},
       pause:async enabled=>{window.syncUiCalls.push(enabled?'resume':'pause');set({phase:enabled?'synced':'paused',local:{...view.local,binding:{...binding,enabled}}});},
-      resolveCloud:async()=>{window.syncUiCalls.push('resolveCloud');set({phase:'synced',local:{...view.local,queuedOperations:0,binding}});},
+      forceCloud:async()=>{window.syncUiCalls.push('forceCloud');set({phase:'synced',local:{...view.local,queuedOperations:0,binding}});},
+      forceLocal:async()=>{window.syncUiCalls.push('forceLocal');set({phase:'synced',local:{...view.local,queuedOperations:0,binding}});},
       prepareJoin:async()=>({head:view.head,preview:{token:'join-preview',recipes:2,inventoryLots:3,plannedMeals:4,cookingSessions:1}}),
       connect:async()=>{window.syncUiCalls.push('connect');set({phase:'synced',local:{...view.local,binding}});}
     };
@@ -465,28 +504,42 @@ test("automatic sync requires explicit binding and conflict recovery, and can pa
     .getByRole("button", { name: "继续自动同步", exact: true })
     .click();
   await page.evaluate(() => window.syncUiConflict());
-  await expect(dialog).toContainText("两边修改了同一条记录");
+  await expect(dialog).toContainText("同步未能完成");
   page.once("dialog", (prompt) => prompt.dismiss());
   await dialog
-    .getByRole("button", { name: "备份本机并保留云端", exact: true })
+    .getByRole("button", { name: "以云端版本替换本机", exact: true })
     .click();
   expect(await page.evaluate(() => window.syncUiCalls)).not.toContain(
-    "resolveCloud",
+    "forceCloud",
+  );
+  page.once("dialog", (prompt) => prompt.dismiss());
+  await dialog
+    .getByRole("button", { name: "以本机版本替换云端", exact: true })
+    .click();
+  expect(await page.evaluate(() => window.syncUiCalls)).not.toContain(
+    "forceLocal",
   );
   await page.screenshot({
     path: "docs/screenshots/settings/sync-conflict-fixture.png",
   });
   page.once("dialog", (prompt) => prompt.accept());
   await dialog
-    .getByRole("button", { name: "备份本机并保留云端", exact: true })
+    .getByRole("button", { name: "以云端版本替换本机", exact: true })
     .click();
   await expect(dialog).toContainText("厨房已同步");
   expect(await page.evaluate(() => window.syncUiCalls)).toEqual([
     "create",
     "pause",
     "resume",
-    "resolveCloud",
+    "forceCloud",
   ]);
+  await page.evaluate(() => window.syncUiConflict());
+  page.once("dialog", (prompt) => prompt.accept());
+  await dialog
+    .getByRole("button", { name: "以本机版本替换云端", exact: true })
+    .click();
+  await expect(dialog).toContainText("厨房已同步");
+  expect(await page.evaluate(() => window.syncUiCalls)).toContain("forceLocal");
 });
 
 test("joining a cloud kitchen keeps manual restore locked until confirmation or cancellation", async ({
@@ -567,4 +620,111 @@ test("meal visibility defaults, saves across restart and preserves hidden plans"
   await page.screenshot({
     path: "docs/screenshots/planner-meal-visibility/default.png",
   });
+});
+
+test("software updates share settings layout, persist switches, download automatically and install only after confirmation", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await page.addInitScript(() => {
+    localStorage.setItem("updates-test-mode", "signed");
+    if (!localStorage.getItem("chefish:update-options"))
+      localStorage.setItem(
+        "chefish:update-options",
+        JSON.stringify({ autoCheck: false, autoUpdate: false }),
+      );
+  });
+  await fixture(page);
+  const dialog = await openSettings(page);
+  await dialog.getByRole("tab", { name: "关于 Chefish" }).click();
+  const updates = dialog.getByRole("region", { name: "软件更新" });
+  await expect(
+    updates.getByRole("switch", { name: "新版本提示" }),
+  ).not.toBeChecked();
+  await updates.getByRole("button", { name: "检查更新", exact: true }).click();
+  await expect(updates.getByText("发现新版本 9.0.0")).toBeVisible();
+  await updates.getByRole("switch", { name: "自动更新", exact: true }).check();
+  await expect(updates.getByText("更新已下载，准备安装")).toBeVisible();
+  await expect(
+    updates.getByRole("switch", { name: "新版本提示" }),
+  ).toBeChecked();
+  expect(
+    await page.evaluate(() =>
+      (window as unknown as { settingsCalls: string[] }).settingsCalls.includes(
+        "plugin:updater|install",
+      ),
+    ),
+  ).toBe(false);
+  await page.screenshot({
+    path: "docs/screenshots/settings/app-updates-ready.png",
+  });
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await updates.getByRole("button", { name: "重启并安装" }).click();
+  expect(
+    await page.evaluate(() =>
+      (window as unknown as { settingsCalls: string[] }).settingsCalls.includes(
+        "plugin:updater|install",
+      ),
+    ),
+  ).toBe(false);
+  await updates.getByRole("button", { name: "GitHub 项目主页" }).click();
+  expect(
+    await page.evaluate(() =>
+      (window as unknown as { settingsCalls: string[] }).settingsCalls.includes(
+        "app_open_project",
+      ),
+    ),
+  ).toBe(true);
+  page.once("dialog", (dialog) => dialog.accept());
+  await updates.getByRole("button", { name: "重启并安装" }).click();
+  expect(
+    await page.evaluate(() =>
+      (window as unknown as { settingsCalls: string[] }).settingsCalls.includes(
+        "plugin:updater|install",
+      ),
+    ),
+  ).toBe(true);
+  await page.reload();
+  const reopened = await openSettings(page);
+  await reopened.getByRole("tab", { name: "关于 Chefish" }).click();
+  await expect(
+    reopened.getByRole("switch", { name: "自动更新", exact: true }),
+  ).toBeChecked();
+  await page.setViewportSize({ width: 1000, height: 700 });
+  await expect(
+    reopened.getByRole("button", { name: "保存设置", exact: true }),
+  ).toBeInViewport();
+  const overflow = await reopened.evaluate(
+    (el) => el.scrollWidth > el.clientWidth + 1,
+  );
+  expect(overflow).toBe(false);
+});
+
+test("manual update reports network failures and offers a release-page fallback for unsigned versions", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("updates-test-mode", "error");
+    localStorage.setItem(
+      "chefish:update-options",
+      JSON.stringify({ autoCheck: false, autoUpdate: false }),
+    );
+  });
+  await fixture(page);
+  const dialog = await openSettings(page);
+  await dialog.getByRole("tab", { name: "关于 Chefish" }).click();
+  const updates = dialog.getByRole("region", { name: "软件更新" });
+  await updates.getByRole("button", { name: "检查更新", exact: true }).click();
+  await expect(updates.getByRole("alert")).toHaveText("暂时无法连接 GitHub");
+  await page.evaluate(() =>
+    localStorage.setItem("updates-test-mode", "unsigned"),
+  );
+  await updates.getByRole("button", { name: "检查更新", exact: true }).click();
+  await expect(
+    updates.getByText("此版本提供手动安装，请前往版本发布页下载。"),
+  ).toBeVisible();
+  await expect(
+    updates.getByRole("button", { name: "下载更新", exact: true }),
+  ).toHaveCount(0);
+  await updates.getByRole("button", { name: "版本发布页" }).click();
 });

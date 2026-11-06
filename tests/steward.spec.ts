@@ -51,6 +51,7 @@ async function setup(page: Page, conflict = false, empty = false) {
       };
       let confirmed = false;
       const taskStatuses: Record<string, string> = {};
+      const readTasks = new Set<string>();
       const forecast = {
         weekStart: "2026-11-02",
         asOf: "2026-10-28",
@@ -106,10 +107,18 @@ async function setup(page: Page, conflict = false, empty = false) {
               items: empty
                 ? []
                 : [
-                    ...["one", "two"].map((id) => ({
+                    ...(localStorage.getItem("inbox-many")
+                      ? ["one", "two", "three", "four", "five"]
+                      : ["one", "two"]
+                    ).map((id) => ({
                       id,
                       kind: id === "one" ? "maintenance" : "recommendations",
-                      title: id === "one" ? "厨房整理已完成" : "新菜谱与灵感",
+                      title:
+                        id === "one"
+                          ? "厨房整理已完成"
+                          : id === "two"
+                            ? "新菜谱与灵感"
+                            : `新菜谱与灵感 ${id}`,
                       body: "已自动整理食材信息。",
                       payload:
                         id === "one"
@@ -141,7 +150,7 @@ async function setup(page: Page, conflict = false, empty = false) {
                               ],
                             },
                       status: taskStatuses[id] ?? "open",
-                      unread: true,
+                      unread: !readTasks.has(id),
                       createdAt: "2026-10-28",
                     })),
                     {
@@ -151,12 +160,13 @@ async function setup(page: Page, conflict = false, empty = false) {
                       body: "冰箱里还有蘑菇和鸡肉，下周有没有特别想吃的？",
                       payload: { weekStart: "2026-11-02", draftId: "draft-1" },
                       status: confirmed ? "done" : "open",
-                      unread: true,
+                      unread: !readTasks.has("weekly-1"),
                       createdAt: "2026-10-28",
                     },
                   ],
             };
           if (name === "kitchen_steward_mark") {
+            readTasks.add(String(args.id));
             if (args.status !== "read")
               taskStatuses[String(args.id)] = String(args.status);
             return null;
@@ -258,6 +268,12 @@ async function setup(page: Page, conflict = false, empty = false) {
 async function openInbox(page: Page) {
   await page.getByRole("button", { name: "厨房助手", exact: false }).click();
   await expect(page.getByRole("button", { name: /管家消息/ })).toHaveCount(0);
+  if (
+    !(await page
+      .getByRole("button", { name: "下周菜单规划，查看任务" })
+      .count())
+  )
+    await page.getByRole("button", { name: "主动消息", exact: true }).click();
   await page.getByRole("button", { name: "下周菜单规划，查看任务" }).click();
 }
 test("weekly discussion survives reload and requires preview before confirmation", async ({
@@ -453,6 +469,8 @@ test("banners, history and task chat retain a fixed compact composer", async ({
   await page.setViewportSize({ width: 1440, height: 900 });
   await setup(page);
   await page.getByRole("button", { name: "厨房助手", exact: false }).click();
+  await expect(page.locator(".task-banner")).toHaveCount(0);
+  await page.getByRole("button", { name: "主动消息", exact: true }).click();
   await expect(page.locator(".task-banner")).toHaveCount(3);
   for (const banner of await page.locator(".task-banner").all()) {
     expect((await banner.boundingBox())!.height).toBeLessThan(85);
@@ -467,6 +485,12 @@ test("banners, history and task chat retain a fixed compact composer", async ({
   await expect(
     page.getByRole("navigation", { name: "历史任务会话" }),
   ).toBeVisible();
+  if (
+    !(await page
+      .getByRole("button", { name: "下周菜单规划，查看任务" })
+      .count())
+  )
+    await page.getByRole("button", { name: "主动消息", exact: true }).click();
   await page.getByRole("button", { name: "下周菜单规划，查看任务" }).click();
   await page
     .getByLabel("告诉管家这周怎么安排")
@@ -490,6 +514,7 @@ test("handled tasks leave banners and remain in history, drawer reaches viewport
   expect(
     Math.abs(bounds.x + bounds.width - viewport.width),
   ).toBeLessThanOrEqual(1);
+  await page.getByRole("button", { name: "主动消息", exact: true }).click();
   await page.getByRole("button", { name: "厨房整理已完成，查看任务" }).click();
   await page.getByLabel("对厨房助手说").fill("已经补充完成，谢谢");
   await page.getByRole("button", { name: "发送", exact: true }).click();
@@ -607,4 +632,69 @@ test("other kitchen operations in a weekly conversation still require explicit c
   await expect(page.getByRole("region", { name: "厨房操作提案" })).toHaveCount(
     0,
   );
+});
+
+test("proactive inbox stays reachable in long chats, shows every pending item and preserves scroll and unread state", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => {
+    localStorage.setItem("inbox-many", "1");
+    localStorage.setItem(
+      "chat:main",
+      JSON.stringify({
+        messages: Array.from({ length: 40 }, (_, i) => ({
+          role: i % 2 ? "assistant" : "user",
+          content: `这是长会话的第 ${i + 1} 条消息，用来确认消息入口不随聊天滚动。`,
+        })),
+        candidates: [],
+        input: "保留我的输入草稿",
+      }),
+    );
+  });
+  await setup(page);
+  await page.getByRole("button", { name: "厨房助手", exact: false }).click();
+  const inbox = page.getByRole("button", { name: "主动消息", exact: true });
+  await expect(inbox).toBeInViewport();
+  await expect(inbox.getByLabel("6 条未读主动消息")).toHaveText("6");
+  const scroll = page.locator(
+    ".assistant-dialog > .dialog-body > .assistant-scroll",
+  );
+  await expect(
+    page.getByText("这是长会话的第 40 条消息，用来确认消息入口不随聊天滚动。"),
+  ).toBeVisible();
+  const position = await scroll.evaluate((el) => el.scrollTop);
+  expect(position).toBeGreaterThan(300);
+  await expect(page.locator(".steward-banners")).toHaveCount(0);
+  await page.screenshot({
+    path: "docs/screenshots/assistant-redesign/proactive-long-chat.png",
+  });
+  await inbox.click();
+  const panel = page.getByRole("complementary", { name: "主动消息" });
+  await expect(panel.locator(".task-banner")).toHaveCount(6);
+  await expect(inbox.getByLabel("6 条未读主动消息")).toBeVisible();
+  await page.screenshot({
+    path: "docs/screenshots/assistant-redesign/proactive-inbox.png",
+  });
+  await page.keyboard.press("Escape");
+  await expect(panel).not.toBeVisible();
+  expect(await scroll.evaluate((el) => el.scrollTop)).toBe(position);
+  await expect(page.getByLabel("对厨房助手说")).toHaveValue("保留我的输入草稿");
+  await inbox.click();
+  await panel.getByRole("button", { name: "下周菜单规划，查看任务" }).click();
+  await expect(inbox.getByLabel("5 条未读主动消息")).toBeVisible();
+  await inbox.click();
+  await expect(
+    panel.getByRole("button", { name: "下周菜单规划，查看任务" }),
+  ).toBeVisible();
+  await expect(
+    panel
+      .getByRole("button", { name: "下周菜单规划，查看任务" })
+      .getByLabel("未读", { exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "历史会话", exact: true }).click();
+  await expect(panel).not.toBeVisible();
+  await expect(
+    page.getByRole("complementary", { name: "历史会话" }),
+  ).toBeVisible();
 });

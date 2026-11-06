@@ -127,7 +127,7 @@ pub fn prepare(conn: &Connection, root: &Path) -> Result<PreparedSnapshot> {
     backup::create(conn, &path)?;
     let mut snapshot = Connection::open(&path)?;
     // Scrub the clone, then VACUUM so deleted chat/token bytes cannot remain in free pages.
-    snapshot.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA secure_delete=ON; DELETE FROM app_settings WHERE key NOT IN ('data_revision','shopping_memo','preferences_v1') AND key NOT GLOB 'seasoning_hidden:*' AND key NOT GLOB 'inventory_expiry_before:*' AND key NOT GLOB 'inventory_deleted:*' AND key NOT GLOB 'inventory_properties_before:*' AND key NOT GLOB 'ingredient_image:*' AND key NOT GLOB 'seasoning_image:*' AND key NOT GLOB 'cooking_record:*' AND key NOT GLOB 'ingredient_resolution:*' AND key NOT GLOB 'inspiration_week:*' AND key NOT GLOB 'recipe_tag_def:*' AND key NOT GLOB 'recipe_tag_links:*' AND key NOT GLOB 'steward_meta:*' AND key NOT GLOB 'ingredient_rule:*';")?;
+    snapshot.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA secure_delete=ON; DELETE FROM app_settings WHERE key NOT IN ('data_revision','shopping_memo','preferences_v1') AND key NOT GLOB 'seasoning_hidden:*' AND key NOT GLOB 'inventory_expiry_before:*' AND key NOT GLOB 'inventory_deleted:*' AND key NOT GLOB 'inventory_properties_before:*' AND key NOT GLOB 'inventory_units:*' AND key NOT GLOB 'ingredient_image:*' AND key NOT GLOB 'seasoning_image:*' AND key NOT GLOB 'cooking_record:*' AND key NOT GLOB 'ingredient_resolution:*' AND key NOT GLOB 'inspiration_week:*' AND key NOT GLOB 'recipe_tag_def:*' AND key NOT GLOB 'recipe_tag_links:*' AND key NOT GLOB 'steward_meta:*' AND key NOT GLOB 'ingredient_rule:*';")?;
     let mut preferences = crate::db::preferences::load(&snapshot)?;
     let defaults = crate::db::preferences::Preferences::default();
     preferences.start_page = defaults.start_page;
@@ -317,7 +317,7 @@ pub fn preserve_local_settings(live: &Connection, path: &Path) -> Result<()> {
         )?;
     }
     // Even a backup uploaded by an older client cannot import unknown session settings.
-    staged.execute("DELETE FROM app_settings WHERE key NOT IN ('data_revision','shopping_memo','preferences_v1','assistant_history_v1') AND key NOT GLOB 'seasoning_hidden:*' AND key NOT GLOB 'inventory_expiry_before:*' AND key NOT GLOB 'inventory_deleted:*' AND key NOT GLOB 'inventory_properties_before:*' AND key NOT GLOB 'ingredient_image:*' AND key NOT GLOB 'seasoning_image:*' AND key NOT GLOB 'cooking_record:*' AND key NOT GLOB 'ingredient_resolution:*' AND key NOT GLOB 'inspiration_week:*' AND key NOT GLOB 'recipe_tag_def:*' AND key NOT GLOB 'recipe_tag_links:*' AND key NOT GLOB 'steward_meta:*' AND key NOT GLOB 'ingredient_rule:*'", [])?;
+    staged.execute("DELETE FROM app_settings WHERE key NOT IN ('data_revision','shopping_memo','preferences_v1','assistant_history_v1') AND key NOT GLOB 'seasoning_hidden:*' AND key NOT GLOB 'inventory_expiry_before:*' AND key NOT GLOB 'inventory_deleted:*' AND key NOT GLOB 'inventory_properties_before:*' AND key NOT GLOB 'inventory_units:*' AND key NOT GLOB 'ingredient_image:*' AND key NOT GLOB 'seasoning_image:*' AND key NOT GLOB 'cooking_record:*' AND key NOT GLOB 'ingredient_resolution:*' AND key NOT GLOB 'inspiration_week:*' AND key NOT GLOB 'recipe_tag_def:*' AND key NOT GLOB 'recipe_tag_links:*' AND key NOT GLOB 'steward_meta:*' AND key NOT GLOB 'ingredient_rule:*'", [])?;
     Ok(())
 }
 
@@ -349,6 +349,11 @@ mod tests {
         let before = crate::db::snapshot(&live).unwrap();
         let replica = crate::db::sync::status(&live).unwrap();
         assert_eq!(replica.queued_operations, 1);
+        live.execute(
+            "INSERT INTO app_settings(key,value) VALUES('inventory_units:fixture','枚')",
+            [],
+        )
+        .unwrap();
         let prepared = prepare(&live, &root.join("cache")).unwrap();
         let raw = fs::read(prepared.scratch.0.join("snapshot.sqlite3")).unwrap();
         assert!(!raw
@@ -368,6 +373,16 @@ mod tests {
                     .get::<_, i64>(0))
                 .unwrap(),
             0
+        );
+        assert_eq!(
+            sanitized
+                .query_row(
+                    "SELECT value FROM app_settings WHERE key='inventory_units:fixture'",
+                    [],
+                    |r| r.get::<_, String>(0)
+                )
+                .unwrap(),
+            "枚"
         );
         drop(sanitized);
         assert!(!raw

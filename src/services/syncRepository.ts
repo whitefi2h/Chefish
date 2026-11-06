@@ -14,6 +14,7 @@ export interface SyncHead {
   formatVersion: 1;
   spaceId: string;
   baselineId: string;
+  baselineSequence?: number;
   sequence: number;
   lastOperationId: string;
 }
@@ -69,7 +70,11 @@ export class SyncRepository {
       !Number.isSafeInteger(value.sequence) ||
       value.sequence < 0 ||
       typeof value.spaceId !== "string" ||
-      typeof value.baselineId !== "string"
+      typeof value.baselineId !== "string" ||
+      (value.baselineSequence !== undefined &&
+        (!Number.isSafeInteger(value.baselineSequence) ||
+          value.baselineSequence < 0 ||
+          value.baselineSequence > value.sequence))
     )
       throw new Error("云端同步状态无效，请更新程序。");
     return value;
@@ -111,6 +116,43 @@ export class SyncRepository {
     return rows.docs.map(
       (row) => ({ ...row.data(), id: row.id }) as SyncOperation,
     );
+  }
+  async replace(baselineId: string, expected: SyncHead): Promise<SyncHead> {
+    const head: SyncHead = {
+      formatVersion: 1,
+      spaceId: crypto.randomUUID(),
+      baselineId,
+      baselineSequence: expected.sequence,
+      sequence: expected.sequence,
+      lastOperationId: "",
+    };
+    const ref = doc(this.db, "users", this.uid, "sync", "head");
+    const result = await runTransaction(
+      this.db,
+      async (tx) => {
+        const current = (await tx.get(ref)).data() as SyncHead | undefined;
+        this.assertSession();
+        if (current?.baselineId === baselineId) return current;
+        if (
+          !current ||
+          current.spaceId !== expected.spaceId ||
+          current.baselineId !== expected.baselineId ||
+          current.sequence !== expected.sequence
+        )
+          throw new Error(
+            "云端版本在准备期间已变化，未执行替换。请重新检查后再试。",
+          );
+        tx.set(
+          doc(this.db, "users", this.uid, "sync_versions", head.spaceId),
+          current,
+        );
+        tx.set(ref, head);
+        return head;
+      },
+      { maxAttempts: 3 },
+    );
+    this.assertSession();
+    return result;
   }
   async uploadChunks(
     operation: SyncOperation,

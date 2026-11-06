@@ -73,6 +73,7 @@ export class NativeReplica {
     });
   }
   async close() {
+    if (this.process.exitCode !== null || this.process.signalCode !== null) return;
     await this.ready;
     this.process.stdin.write("quit\n");
     await new Promise<void>((done) => this.process.once("exit", () => done()));
@@ -82,13 +83,15 @@ export class NativeReplica {
       state: () => this.call<NativeSyncState>("state"),
       pause: (uid, enabled) => this.call("pause", { uid, enabled }),
       prepareBaseline: (uid) => this.call<Baseline>("baseline", { uid }),
+      prepareReplacement: (uid) =>
+        this.call<Baseline>("baseline", { uid, replacement: true }),
       baselineChunk: (token, index) =>
         this.call<string>("baselineChunk", { token, index }),
       releaseBaseline: async () => {},
-      bindBaseline: (uid, token, spaceId) =>
-        this.call("bindBaseline", { uid, token, spaceId }),
-      connect: (uid, _email, spaceId, token) =>
-        this.call("connect", { uid, spaceId, token }),
+      bindBaseline: (uid, token, spaceId, baselineSequence = 0) =>
+        this.call("bindBaseline", { uid, token, spaceId, baselineSequence }),
+      connect: (uid, _email, spaceId, token, baselineSequence = 0) =>
+        this.call("connect", { uid, spaceId, token, baselineSequence }),
       outgoing: (uid) => this.call("outgoing", { uid }),
       outgoingChunk: (uid, operationId, index) =>
         this.call("outgoingChunk", { uid, operationId, index }),
@@ -103,6 +106,7 @@ export class NativeReplica {
       acknowledge: (uid, operation) =>
         this.call("acknowledge", { uid, operation }),
       resolveCloud: (uid) => this.call("resolveCloud", { uid }),
+      retry: (uid) => this.call("retry", { uid }),
     };
   }
   download(): SnapshotBridge {

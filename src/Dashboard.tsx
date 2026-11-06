@@ -1,7 +1,8 @@
 import IngredientAvatar from "./IngredientAvatar";
 import { quantityText } from "./domain/quantity";
 import { shoppingPending } from "./domain/shopping";
-import { isSeasoning, supplies } from "./domain/seasonings";
+import { supplies } from "./domain/seasonings";
+import { foodInventoryLots, expiringInventoryLots } from "./domain/inventory";
 import {
   ArrowRight,
   Leaf,
@@ -45,15 +46,7 @@ export default function Dashboard({
   );
   const next = dishes[0];
   const recipe = next ? recipeForPlan(state, next) : undefined;
-  const alerts = state.lots.filter(
-    (l) =>
-      !isSeasoning(
-        state.ingredients.find((i) => i.id === l.ingredientId)?.name ?? "",
-      ) &&
-      l.quantity > 0 &&
-      !!l.expires &&
-      daysLeft(l.expires, today) <= 3,
-  );
+  const alerts = expiringInventoryLots(foodInventoryLots(state), today);
   const pending = (persistent ? [] : pendingItems(state)).filter(
     (i) => i.status === "pending",
   );

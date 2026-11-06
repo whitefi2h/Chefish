@@ -78,6 +78,10 @@ pub fn strip_local_metadata(conn: &Connection) -> Result<()> {
     strip_sync_metadata(conn)
 }
 fn strip_sync_metadata(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "DELETE FROM app_settings WHERE key GLOB 'local_sync_replay:*'",
+        [],
+    )?;
     if conn.query_row(
         "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='local_sync_binding')",
         [],

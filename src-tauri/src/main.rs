@@ -17,6 +17,7 @@ mod site_search;
 mod steward;
 mod sync_commands;
 mod sync_transfer;
+mod updates;
 use std::sync::Mutex;
 use tauri::Manager;
 struct Database(Mutex<Option<rusqlite::Connection>>, String);
@@ -320,6 +321,7 @@ fn main() {
             show_main_window(app);
         }))
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_autostart::Builder::new()
                 .args(["--background"])
@@ -437,6 +439,8 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            updates::app_latest_release,
+            updates::app_open_project,
             steward::kitchen_steward_state,
             steward::kitchen_steward_settings,
             steward::kitchen_steward_mark,
@@ -455,6 +459,7 @@ fn main() {
             kitchen_sync_status,
             sync_commands::sync_state,
             sync_commands::sync_pause,
+            sync_commands::sync_retry,
             sync_commands::sync_prepare_baseline,
             sync_commands::sync_baseline_chunk,
             sync_commands::sync_baseline_release,

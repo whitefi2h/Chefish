@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-05",
+  "version": "2.2.2",
+  "schemaVersion": 18,
+  "behavior": {
+    "records": "Merge changed fields; the later cloud-sequence operation wins on the same field.",
+    "settings": "All synchronized keys use ordered replacement; dietary preferences merge by field.",
+    "queue": "Preserve immutable upload bytes and original forward intent; persist actual row and setting rollback baselines; read v2.2.1 settings-array baselines."
+  },
+  "checks": {
+    "rustReplication": {
+      "uniquePassed": 19,
+      "ignoredBridge": 1,
+      "note": "Targeted suite plus successful corrected-test reruns; full Rust suite not rerun."
+    },
+    "queueRegression": {
+      "queuedSettings": 135,
+      "restart": true,
+      "oldBaselineCompatibility": true
+    },
+    "firestoreEmulator": {
+      "passed": 12,
+      "nativeReplicas": 2
+    },
+    "runtimeUnit": {
+      "passed": 5
+    },
+    "browserSettings": {
+      "passed": 10
+    },
+    "typecheck": true,
+    "lint": true,
+    "releaseBuild": true,
+    "nsisBuild": true,
+    "productionFirebase": {
+      "status": "timeout",
+      "timeoutSeconds": 120,
+      "cleanupVerified": false,
+      "note": "Not counted as a pass. Separate CLI authentication probe succeeded."
+    }
+  },
+  "artifacts": {
+    "exe": "src-tauri/target/release/chefish.exe",
+    "installer": "src-tauri/target/release/bundle/nsis/Chefish_2.2.2_x64-setup.exe"
+  },
+  "limits": [
+    "No personal kitchen or personal sync queue accessed.",
+    "No installed upgrade or personal two-device acceptance.",
+    "No production rules change, commit, push or GitHub release.",
+    "Database relational constraints and immutable-history checks still apply."
+  ]
+}

@@ -450,7 +450,7 @@ fn replicas_replay_real_ids_and_offline_disjoint_changes_without_echo() {
     assert_eq!(state(&a).unwrap().binding.unwrap().cursor, 2);
 }
 #[test]
-fn same_row_conflict_rolls_back_then_explicit_cloud_choice_restores_convergence() {
+fn same_row_edits_merge_keep_queue_and_converge_after_restart() {
     let (_a, mut a, broot, mut b) = pair();
     for (c, amount) in [(&mut a, "1"), (&mut b, "2")] {
         let lot = lots(c)[0].clone();
@@ -459,37 +459,173 @@ fn same_row_conflict_rolls_back_then_explicit_cloud_choice_restores_convergence(
             json!({"type":"change_lot","lot_id":lot["id"],"expected_version":lot["version"],"operation":"use","quantity":amount,"location":null,"reason":""}),
         );
     }
-    let op = outgoing(&a, "alice").unwrap().unwrap();
-    let raw = bytes(&a, &op);
-    let before = super::super::snapshot(&b).unwrap();
-    assert_eq!(
-        accept(&mut b, "alice", &op, &raw).unwrap_err().code,
-        "SYNC_CONFLICT"
-    );
-    assert_eq!(super::super::snapshot(&b).unwrap(), before);
-    assert_eq!(state(&b).unwrap().binding.unwrap().cursor, 0);
-    assert!(state(&b).unwrap().binding.unwrap().conflict.is_some());
-    sync_transfer::safety(&b, &broot.root, "before-sync-conflict").unwrap();
-    discard_pending(&mut b, "alice").unwrap();
-    accept(&mut b, "alice", &op, &raw).unwrap();
-    acknowledge(&mut a, "alice", &op).unwrap();
+    let original = outgoing(&b, "alice").unwrap().unwrap();
+    let raw = bytes(&b, &original);
+    transfer(&mut a, &mut b);
+    assert_eq!(state(&b).unwrap().queued_operations, 1);
+    assert_eq!(bytes(&b, &original), raw);
+    drop(b);
+    let mut b = broot.open();
+    transfer(&mut b, &mut a);
     assert_eq!(lots(&a), lots(&b));
-    let history = b
-        .query_row("SELECT id FROM inventory_events LIMIT 1", [], |r| {
-            r.get::<_, String>(0)
+    assert_eq!(lots(&a)[0]["quantity"], "3");
+    assert_eq!(state(&b).unwrap().queued_operations, 0);
+    assert!(state(&b).unwrap().binding.unwrap().conflict.is_none());
+}
+#[test]
+fn different_fields_on_same_record_survive_merge_and_cloud_restore_uses_rebased_rows() {
+    let (_a, mut a, broot, mut b) = pair();
+    fn edit(c: &mut Connection, sql: &str) {
+        let tx = c.transaction().unwrap();
+        let capture = sync::Capture::begin(&tx).unwrap().unwrap();
+        tx.execute(sql, []).unwrap();
+        capture.finish(&Uuid::new_v4().to_string(), "test").unwrap();
+        tx.commit().unwrap();
+    }
+    edit(&mut a, "UPDATE inventory_lots SET amount_decimal='4'");
+    edit(&mut b, "UPDATE inventory_lots SET expires_on='2026-11-10'");
+    transfer(&mut a, &mut b);
+    drop(b);
+    let mut b = broot.open();
+    transfer(&mut b, &mut a);
+    let read = |c: &Connection| {
+        c.query_row(
+            "SELECT amount_decimal,expires_on FROM inventory_lots LIMIT 1",
+            [],
+            |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
+        )
+        .unwrap()
+    };
+    assert_eq!(read(&a), ("4".into(), "2026-11-10".into()));
+    assert_eq!(read(&a), read(&b));
+    edit(&mut a, "UPDATE inventory_lots SET amount_decimal='2'");
+    edit(&mut b, "UPDATE inventory_lots SET amount_decimal='3'");
+    transfer(&mut a, &mut b);
+    discard_pending(&mut b, "alice").unwrap();
+    assert_eq!(read(&a), read(&b));
+}
+#[test]
+fn concurrent_settings_keep_original_intent_across_repeated_merges_and_restart() {
+    let (_a, mut a, broot, mut b) = pair();
+    fn memo(c: &mut Connection, text: &str) {
+        let tx = c.transaction().unwrap();
+        let capture = sync::Capture::begin(&tx).unwrap().unwrap();
+        tx.execute("INSERT INTO app_settings(key,value) VALUES('shopping_memo',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [text]).unwrap();
+        capture.finish(&Uuid::new_v4().to_string(), "test").unwrap();
+        tx.commit().unwrap();
+    }
+    memo(&mut a, "same");
+    for i in 0..135 {
+        memo(&mut b, &format!("local-{i}"));
+    }
+    let op = outgoing(&b, "alice").unwrap().unwrap();
+    let original = bytes(&b, &op);
+    transfer(&mut a, &mut b);
+    // v2.2.1 persisted a settings array rather than a complete replay object.
+    let key = format!("local_sync_replay:{}", op.id);
+    let saved: String = b
+        .query_row("SELECT value FROM app_settings WHERE key=?1", [&key], |r| {
+            r.get(0)
         })
         .unwrap();
-    assert!(b
-        .execute("DELETE FROM inventory_events WHERE id=?1", [history])
-        .is_err());
-    let saved = fs::read_dir(broot.root.join("backups"))
-        .unwrap()
-        .next()
-        .unwrap()
-        .unwrap()
-        .path();
-    let safety = super::super::open(&saved).unwrap();
-    assert_eq!(lots(&safety), before["lots"]);
+    let replay: Value = serde_json::from_str(&saved).unwrap();
+    b.execute(
+        "UPDATE app_settings SET value=?1 WHERE key=?2",
+        params![replay["settings"].to_string(), key],
+    )
+    .unwrap();
+    drop(b);
+    let mut b = broot.open();
+    memo(&mut a, "cloud later");
+    transfer(&mut a, &mut b);
+    assert_eq!(sync::settings(&b).unwrap()["shopping_memo"], "local-134");
+    assert_eq!(bytes(&b, &op), original);
+    assert_eq!(state(&b).unwrap().queued_operations, 135);
+    while outgoing(&b, "alice").unwrap().is_some() {
+        transfer(&mut b, &mut a);
+    }
+    assert_eq!(sync::settings(&a).unwrap()["shopping_memo"], "local-134");
+    assert_eq!(sync::settings(&a).unwrap(), sync::settings(&b).unwrap());
+}
+#[test]
+fn concurrent_preferences_keep_large_queue_and_converge_after_restart() {
+    let (_aroot, mut a, broot, mut b) = pair();
+    for i in 0..132 {
+        let mut prefs = preferences::load(&b).unwrap();
+        prefs.taste = format!("本机口味 {i}");
+        preferences::save(&mut b, prefs).unwrap();
+    }
+    let first = outgoing(&b, "alice").unwrap().unwrap();
+    let original = bytes(&b, &first);
+    let mut prefs = preferences::load(&a).unwrap();
+    prefs.restrictions = "不吃香菜".into();
+    preferences::save(&mut a, prefs).unwrap();
+    // Simulate an existing v2.2.0 conflict marker, then an explicit retry.
+    b.execute("UPDATE local_sync_binding SET conflict='旧版偏好冲突'", [])
+        .unwrap();
+    retry(&b, "alice").unwrap();
+    transfer(&mut a, &mut b);
+    assert_eq!(state(&b).unwrap().queued_operations, 132);
+    assert_eq!(bytes(&b, &first), original);
+    assert_eq!(preferences::load(&b).unwrap().taste, "本机口味 131");
+    assert_eq!(preferences::load(&b).unwrap().restrictions, "不吃香菜");
+    drop(b);
+    let mut b = broot.open();
+    while outgoing(&b, "alice").unwrap().is_some() {
+        transfer(&mut b, &mut a);
+    }
+    assert_eq!(preferences::load(&a).unwrap().taste, "本机口味 131");
+    assert_eq!(preferences::load(&a).unwrap().restrictions, "不吃香菜");
+    assert_eq!(state(&b).unwrap().queued_operations, 0);
+}
+#[test]
+fn merged_preferences_preserve_published_bytes_and_cloud_choice_baseline() {
+    let (_aroot, mut a, _broot, mut b) = pair();
+    let mut prefs = preferences::load(&a).unwrap();
+    prefs.equipment = "电炒锅".into();
+    preferences::save(&mut a, prefs).unwrap();
+    let mut prefs = preferences::load(&b).unwrap();
+    prefs.taste = "清淡".into();
+    preferences::save(&mut b, prefs).unwrap();
+    // A lost acknowledgement can leave an already-published operation queued.
+    let mut published = outgoing(&b, "alice").unwrap().unwrap();
+    published.sequence = 2;
+    let published_bytes = bytes(&b, &published);
+    transfer(&mut a, &mut b);
+    accept(&mut a, "alice", &published, &published_bytes).unwrap();
+    accept(&mut b, "alice", &published, &published_bytes).unwrap();
+    assert_eq!(preferences::load(&b).unwrap().equipment, "电炒锅");
+    assert_eq!(state(&b).unwrap().queued_operations, 0);
+
+    let mut prefs = preferences::load(&a).unwrap();
+    prefs.taste = "川味".into();
+    preferences::save(&mut a, prefs).unwrap();
+    let mut prefs = preferences::load(&b).unwrap();
+    prefs.taste = "粤式".into();
+    preferences::save(&mut b, prefs).unwrap();
+    transfer(&mut a, &mut b);
+    assert_eq!(preferences::load(&b).unwrap().taste, "粤式");
+    discard_pending(&mut b, "alice").unwrap();
+    assert_eq!(preferences::load(&b).unwrap().taste, "川味");
+    assert_eq!(preferences::load(&b).unwrap().equipment, "电炒锅");
+}
+#[test]
+fn identical_preference_edits_merge_and_later_cloud_changes_still_converge() {
+    let (_aroot, mut a, _broot, mut b) = pair();
+    for c in [&mut a, &mut b] {
+        let mut prefs = preferences::load(c).unwrap();
+        prefs.default_servings = 3;
+        preferences::save(c, prefs).unwrap();
+    }
+    transfer(&mut a, &mut b);
+    let mut prefs = preferences::load(&a).unwrap();
+    prefs.default_servings = 4;
+    preferences::save(&mut a, prefs).unwrap();
+    transfer(&mut a, &mut b);
+    transfer(&mut b, &mut a);
+    assert_eq!(preferences::load(&a).unwrap().default_servings, 3);
+    assert_eq!(preferences::load(&b).unwrap().default_servings, 3);
+    assert_eq!(state(&b).unwrap().queued_operations, 0);
 }
 #[test]
 fn dietary_preferences_sync_without_overwriting_device_preferences_or_chat() {
@@ -560,7 +696,7 @@ fn baseline_watermark_keeps_edits_created_during_upload_and_restore_is_safe() {
     execute(&mut a, receive("苹果"));
     let space = Uuid::new_v4().to_string();
     transfers
-        .bind_baseline(&mut a, "alice", &baseline.manifest.id, &space)
+        .bind_baseline(&mut a, "alice", &baseline.manifest.id, &space, 0)
         .unwrap();
     assert_eq!(state(&a).unwrap().queued_operations, 1);
     let broot = Kitchen::new();
@@ -584,7 +720,8 @@ fn baseline_watermark_keeps_edits_created_during_upload_and_restore_is_safe() {
         &broot.root,
         "alice",
         &"x".repeat(321),
-        &space
+        &space,
+        0
     )
     .is_err());
     assert_eq!(lots(b.as_ref().unwrap()), before);
@@ -595,6 +732,7 @@ fn baseline_watermark_keeps_edits_created_during_upload_and_restore_is_safe() {
         "alice",
         "a@example.invalid",
         &space,
+        0,
     )
     .unwrap();
     assert_ne!(
@@ -640,6 +778,15 @@ fn bridge() {
             match action {
                 "state" => Ok(serde_json::to_value(state(c)?).unwrap()),
                 "snapshot" => super::super::snapshot(c),
+                "preferences" => {
+                    if request["value"].is_object() {
+                        preferences::save(
+                            c,
+                            serde_json::from_value(request["value"].clone()).unwrap(),
+                        )?;
+                    }
+                    Ok(serde_json::to_value(preferences::load(c)?).unwrap())
+                }
                 "execute" => {
                     super::super::execute(
                         c,
@@ -648,21 +795,41 @@ fn bridge() {
                     )?;
                     Ok(Value::Null)
                 }
-                "baseline" => Ok(serde_json::to_value(transfers.prepare_baseline(
-                    c,
-                    &root.root,
-                    uid,
-                    "synthetic@example.invalid",
-                    false,
-                )?)
-                .unwrap()),
+                "legacyConflict" => {
+                    c.execute("UPDATE app_settings SET value='当前本机完整备忘' WHERE key='shopping_memo'", [])?;
+                    c.execute("UPDATE local_sync_binding SET conflict='两台设备修改了同一项厨房设置，已暂停同步'", [])?;
+                    Ok(Value::Null)
+                }
+                "backupCount" => Ok(json!(fs::read_dir(root.root.join("backups"))
+                    .map(|r| r.count())
+                    .unwrap_or(0))),
+                "baseline" => {
+                    if request["replacement"].as_bool().unwrap_or(false) {
+                        assert_owner(c, uid, false)?;
+                        sync_transfer::safety(c, &root.root, "before-force-local")?;
+                    }
+                    Ok(serde_json::to_value(transfers.prepare_baseline(
+                        c,
+                        &root.root,
+                        uid,
+                        "synthetic@example.invalid",
+                        false,
+                    )?)
+                    .unwrap())
+                }
                 "baselineChunk" => Ok(json!(transfers
                     .snapshot
                     .as_ref()
                     .unwrap()
                     .read_chunk(index)?)),
                 "bindBaseline" => {
-                    transfers.bind_baseline(c, uid, token, request["spaceId"].as_str().unwrap())?;
+                    transfers.bind_baseline(
+                        c,
+                        uid,
+                        token,
+                        request["spaceId"].as_str().unwrap(),
+                        request["baselineSequence"].as_i64().unwrap_or(0),
+                    )?;
                     Ok(Value::Null)
                 }
                 "outgoing" => Ok(serde_json::to_value(outgoing(c, uid)?).unwrap()),
@@ -693,6 +860,10 @@ fn bridge() {
                 )?)),
                 "pause" => {
                     pause(c, uid, request["enabled"].as_bool().unwrap())?;
+                    Ok(Value::Null)
+                }
+                "retry" => {
+                    retry(c, uid)?;
                     Ok(Value::Null)
                 }
                 "resolveCloud" => {
@@ -728,6 +899,7 @@ fn bridge() {
                         uid,
                         "synthetic@example.invalid",
                         request["spaceId"].as_str().unwrap(),
+                        request["baselineSequence"].as_i64().unwrap_or(0),
                     )?;
                     Ok(Value::Null)
                 }

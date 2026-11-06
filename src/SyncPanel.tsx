@@ -81,32 +81,16 @@ export default function SyncPanel({
         <>
           {binding?.conflict || status.phase === "conflict" ? (
             <div className="sync-conflict" role="alert">
-              <strong>两边修改了同一条记录</strong>
+              <strong>同步未能完成</strong>
               <p>{binding?.conflict || status.error}</p>
               <p>
-                当前保留了本机内容，尚未覆盖云端。可以先保存本机备份，或选择保留云端；处理前会自动备份本机全部数据。
+                本机内容和待同步操作均已保留。可以重试自动合并，或在下方直接选择一个完整版本强制替换。
               </p>
-              <button
-                disabled={locked}
-                onClick={() =>
-                  void run(async () => {
-                    if (
-                      !window.confirm(
-                        "将先保存本机安全备份，再撤销这台电脑全部尚未同步的操作并拉取云端内容。继续保留云端版本？",
-                      )
-                    )
-                      return;
-                    await syncRuntime.resolveCloud();
-                  })
-                }
-              >
-                备份本机并保留云端
-              </button>
             </div>
           ) : (
             <p className="settings-note">
               {status.phase === "synced"
-                ? "本机操作已同步。断网时可继续编辑，恢复网络后自动重试。"
+                ? "本机操作已同步。同一字段保留最后同步的修改；断网时可继续编辑，恢复网络后自动重试。"
                 : "聊天、模型密钥和通用设置留在各自电脑。"}
             </p>
           )}
@@ -128,6 +112,59 @@ export default function SyncPanel({
               {binding.enabled ? "暂停自动同步" : "继续自动同步"}
             </button>
           </div>
+          <details
+            className="sync-replace"
+            open={!!binding.conflict || status.phase === "error"}
+          >
+            <summary>强制替换同步版本</summary>
+            <p className="settings-note">
+              不再合并冲突队列，直接采用你选定的完整厨房。替换前自动保存备份；聊天、模型密钥和通用设置保留在各自电脑。
+            </p>
+            <div className="settings-row">
+              <div>
+                <strong>以这台电脑为准</strong>
+                <p>把当前本机完整内容设为云端版本，包含尚未同步的修改。</p>
+              </div>
+              <button
+                disabled={locked}
+                onClick={() =>
+                  void run(async () => {
+                    if (
+                      !window.confirm(
+                        `将先备份本机，再用这台电脑的完整厨房替换云端同步版本，包含当前 ${status.local?.queuedOperations ?? 0} 项待同步操作的结果。云端原版本会保留恢复记录；其他设备需要重新选择版本。确定以本机为准？`,
+                      )
+                    )
+                      return;
+                    await syncRuntime.forceLocal();
+                  })
+                }
+              >
+                以本机版本替换云端
+              </button>
+            </div>
+            <div className="settings-row">
+              <div>
+                <strong>以云端为准</strong>
+                <p>备份后直接重新载入云端厨房，放弃本机尚未同步的修改。</p>
+              </div>
+              <button
+                disabled={locked}
+                onClick={() =>
+                  void run(async () => {
+                    if (
+                      !window.confirm(
+                        `将先下载云端厨房，再备份并替换本机。当前 ${status.local?.queuedOperations ?? 0} 项本机待同步操作将不再上传；恢复不依赖旧队列回退。确定以云端为准？`,
+                      )
+                    )
+                      return;
+                    await syncRuntime.forceCloud();
+                  })
+                }
+              >
+                以云端版本替换本机
+              </button>
+            </div>
+          </details>
         </>
       ) : (
         <>

@@ -19,6 +19,7 @@ import { nativeMode } from "./services/kitchenClient";
 import { type AppPreferences } from "./domain/preferences";
 import { version } from "../package.json";
 import { IngredientIconLicenses } from "./IngredientAvatar";
+import AppUpdates from "./AppUpdates";
 const CloudBackup = lazy(() => import("./CloudBackup"));
 
 const sections = [
@@ -504,6 +505,7 @@ export default function Settings({
                 </p>
                 <p>日常的好滋味</p>
                 <span className="settings-version">版本 {version}</span>
+                <AppUpdates installDisabled={dirty || stewardDirty || busy || backupBusy} />
                 <IngredientIconLicenses />
                 <dl>
                   <div>

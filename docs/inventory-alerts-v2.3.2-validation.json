@@ -1,0 +1,36 @@
+{
+  "date": "2026-11-05",
+  "version": "2.3.2",
+  "problem": "Dashboard excluded default seasonings only; inventory also excluded explicit seasoning supplies. Reminder order also differed. This can show a milk reminder on home while milk is absent from the food inventory.",
+  "change": "Both pages now use domain/inventory.ts for food scope, positive-quantity expiry reminders within three days, and expiry ascending order. Existing inventory scope is preserved.",
+  "checks": {
+    "typecheck": true,
+    "lint": true,
+    "browser": {
+      "passed": 2,
+      "scope": [
+        "Isolated milk-as-common-supply fixture: both pages have six reminders and matching first three items; zeroing onion removes it from both and changes count to five.",
+        "Existing inline inventory quantity response test passed."
+      ]
+    },
+    "visualReview": [
+      "docs/screenshots/inventory/alerts-home-consistent.png",
+      "docs/screenshots/inventory/alerts-inventory-consistent.png"
+    ],
+    "frontendBuild": true,
+    "releaseBuild": true,
+    "nsisBuild": true,
+    "updaterSignatureGenerated": true,
+    "manifestGenerated": true
+  },
+  "artifacts": {
+    "exe": "src-tauri/target/release/chefish.exe",
+    "installer": "src-tauri/target/release/bundle/nsis/Chefish_2.3.2_x64-setup.exe"
+  },
+  "limits": [
+    "Browser tests use isolated native-command fixtures, not personal inventory.",
+    "Personal database and actual sync queue were not accessed or changed.",
+    "No cloud rules or schema changes.",
+    "No commit, push or GitHub release."
+  ]
+}

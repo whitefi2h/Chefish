@@ -27,6 +27,7 @@ import Recipes from "./Recipes";
 import Dashboard from "./Dashboard";
 import Settings, { type SettingsTab } from "./Settings";
 import SyncIndicator from "./SyncIndicator";
+import { UpdateNotice } from "./AppUpdates";
 import Onboarding, { onboardingProgress } from "./Onboarding";
 import StartupScreen from "./StartupScreen";
 import { useSteward } from "./services/steward";
@@ -302,6 +303,7 @@ function Shell() {
             <strong>{pages.find((p) => p.id === page)?.name}</strong>
           </div>
           <div className="actions">
+            <UpdateNotice onOpen={() => setSettingsTab("about")} />
             {persistent && (
               <SyncIndicator onOpen={() => setSettingsTab("cloud")} />
             )}

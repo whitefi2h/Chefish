@@ -5,6 +5,7 @@ import {
   ArrowUp,
   ArrowLeft,
   History,
+  Inbox,
   MoreHorizontal,
   Sparkles,
   ExternalLink,
@@ -29,6 +30,7 @@ import StewardInbox, { StewardTaskBanners } from "./StewardInbox";
 import {
   refreshSteward,
   steward,
+  useSteward,
   type StewardItem,
   type StewardState,
 } from "./services/steward";
@@ -96,6 +98,12 @@ export default function KitchenAssistant({
 }) {
   const { state, weekStart, reload, reloadForecast, preferences } = useDemo();
   const [showHistory, setShowHistory] = useState(false);
+  const [showInbox, setShowInbox] = useState(false);
+  const stewardState = useSteward();
+  const unreadTasks =
+    stewardState?.items.filter((i) => i.status === "open" && i.unread).length ??
+    0;
+  const showTaskPanel = showHistory || showInbox;
   const [showTools, setShowTools] = useState(false);
   const [taskInput, setTaskInput] = useState("");
   const [activeTask, setActiveTask] = useState<StewardItem | null>(null);
@@ -220,18 +228,19 @@ export default function KitchenAssistant({
     if (prefill) setInput(prefill);
   }, [prefill]);
   useEffect(() => {
-    if (!showHistory && !showTools) return;
+    if (!showTaskPanel && !showTools) return;
     function dismiss(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
         setShowHistory(false);
+        setShowInbox(false);
         setShowTools(false);
       }
     }
     window.addEventListener("keydown", dismiss, true);
     return () => window.removeEventListener("keydown", dismiss, true);
-  }, [showHistory, showTools]);
+  }, [showTaskPanel, showTools]);
   async function clearHistory() {
     if (
       !window.confirm(
@@ -742,6 +751,7 @@ export default function KitchenAssistant({
     setTaskInput("");
     setActiveTask(item);
     setShowHistory(false);
+    setShowInbox(false);
     setShowTools(false);
   }
   async function runSteward(kind: string) {
@@ -785,11 +795,33 @@ export default function KitchenAssistant({
   const headerActions = (
     <div className="assistant-header-actions">
       <button
+        className="assistant-inbox-trigger"
+        aria-label="主动消息"
+        title={unreadTasks ? `主动消息 · ${unreadTasks} 条未读` : "主动消息"}
+        aria-expanded={showInbox}
+        onClick={() => {
+          setShowInbox(!showInbox);
+          setShowHistory(false);
+          setShowTools(false);
+        }}
+      >
+        <Inbox size={18} />
+        {unreadTasks > 0 && (
+          <span
+            className="assistant-inbox-count"
+            aria-label={`${unreadTasks} 条未读主动消息`}
+          >
+            {unreadTasks > 99 ? "99+" : unreadTasks}
+          </span>
+        )}
+      </button>
+      <button
         aria-label="历史会话"
         title="历史会话"
         aria-expanded={showHistory}
         onClick={() => {
           setShowHistory(!showHistory);
+          setShowInbox(false);
           setShowTools(false);
         }}
       >
@@ -806,6 +838,7 @@ export default function KitchenAssistant({
           onClick={() => {
             setShowTools(!showTools);
             setShowHistory(false);
+            setShowInbox(false);
           }}
         >
           <MoreHorizontal size={19} />
@@ -886,18 +919,35 @@ export default function KitchenAssistant({
       </div>
     </div>
   );
-  const historyPanel = showHistory && (
-    <aside className="assistant-history" aria-label="历史会话">
+  const historyPanel = showTaskPanel && (
+    <aside
+      className="assistant-history"
+      aria-label={showInbox ? "主动消息" : "历史会话"}
+    >
       <header>
         <div>
-          <h3>历史会话</h3>
-          <p>最近 30 天</p>
+          <h3>{showInbox ? "主动消息" : "历史会话"}</h3>
+          <p>
+            {showInbox
+              ? `${unreadTasks} 条未读 · 待处理任务读后仍会保留`
+              : "最近 30 天"}
+          </p>
         </div>
-        <button aria-label="关闭历史会话" onClick={() => setShowHistory(false)}>
+        <button
+          aria-label={showInbox ? "关闭主动消息" : "关闭历史会话"}
+          onClick={() => {
+            setShowHistory(false);
+            setShowInbox(false);
+          }}
+        >
           <X size={18} />
         </button>
       </header>
-      <StewardTaskBanners history onSelect={selectTask} />
+      <StewardTaskBanners
+        history={!showInbox}
+        inbox={showInbox}
+        onSelect={selectTask}
+      />
     </aside>
   );
   if (activeTask)
@@ -916,8 +966,8 @@ export default function KitchenAssistant({
         )}
         <div
           className="assistant-active-content"
-          inert={showHistory}
-          aria-hidden={showHistory}
+          inert={showTaskPanel}
+          aria-hidden={showTaskPanel}
         >
           {activeTask.kind === "weekly" ? (
             <StewardInbox
@@ -966,15 +1016,9 @@ export default function KitchenAssistant({
       <div
         className={`assistant-scroll ${!messages.length && !conversationId ? "is-empty" : ""}`}
         ref={scrollRef}
-        inert={showHistory}
-        aria-hidden={showHistory}
+        inert={showTaskPanel}
+        aria-hidden={showTaskPanel}
       >
-        {!conversationId && (
-          <StewardTaskBanners
-            onSelect={selectTask}
-            onShowAll={() => setShowHistory(true)}
-          />
-        )}
         {leadingContent}
         {historyError && (
           <div>
@@ -1137,8 +1181,8 @@ export default function KitchenAssistant({
       {
         <form
           className="assistant-compose"
-          inert={showHistory}
-          aria-hidden={showHistory}
+          inert={showTaskPanel}
+          aria-hidden={showTaskPanel}
           onSubmit={(e) => {
             e.preventDefault();
             void send();

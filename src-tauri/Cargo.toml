@@ -1,6 +1,6 @@
 [package]
 name = "chefish"
-version = "2.2.0"
+version = "2.3.3"
 description = "Chefish local kitchen"
 edition = "2021"
 
@@ -28,3 +28,6 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png",
 tauri-plugin-notification = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
+
+tauri-plugin-updater = "2"
+semver = "1"

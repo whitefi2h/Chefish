@@ -79,7 +79,11 @@ impl Transfers {
         uid: &str,
         id: &str,
         space: &str,
+        baseline_sequence: i64,
     ) -> Result<()> {
+        if baseline_sequence < 0 {
+            return Err(fail());
+        }
         let ticket = self
             .baseline
             .as_ref()
@@ -92,6 +96,10 @@ impl Transfers {
             space,
             ticket.watermark,
             &ticket.replica,
+        )?;
+        conn.execute(
+            "UPDATE local_sync_binding SET cursor=?1 WHERE singleton=1",
+            [baseline_sequence],
         )?;
         self.baseline = None;
         Ok(())
@@ -177,10 +185,11 @@ pub fn restore_bind(
     uid: &str,
     email: &str,
     space: &str,
+    baseline_sequence: i64,
 ) -> Result<()> {
     replication::validate_uid(uid)?;
     Uuid::parse_str(space).map_err(|_| fail())?;
-    if email.len() > 320 {
+    if email.len() > 320 || baseline_sequence < 0 {
         return Err(fail());
     }
     let live = current.as_ref().ok_or_else(fail)?;
@@ -194,5 +203,10 @@ pub fn restore_bind(
     )?;
     let conn = current.as_mut().ok_or_else(fail)?;
     let replica = db::sync::status(conn)?.replica_id;
-    replication::bind(conn, uid, email, space, 0, &replica)
+    replication::bind(conn, uid, email, space, 0, &replica)?;
+    conn.execute(
+        "UPDATE local_sync_binding SET cursor=?1 WHERE singleton=1",
+        [baseline_sequence],
+    )?;
+    Ok(())
 }

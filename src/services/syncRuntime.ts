@@ -208,6 +208,19 @@ export const syncRuntime = {
     await inspect(true);
   },
   async retry() {
+    if (account?.verified) {
+      await lock(async (uid) => {
+        const state = await syncNative.state();
+        assert(uid);
+        if (
+          state.binding?.uid === uid &&
+          state.binding.enabled &&
+          state.binding.conflict
+        ) {
+          await syncNative.retry(uid);
+        }
+      });
+    }
     await tick();
   },
   async pause(enabled: boolean) {
@@ -257,7 +270,21 @@ export const syncRuntime = {
   },
   async connect(preview: RestorePreview, head: SyncHead) {
     return lock(async (uid, email) => {
-      await syncNative.connect(uid, email, head.spaceId, preview.token);
+      const latest = await syncRepository(uid).head();
+      assert(uid);
+      if (
+        !latest ||
+        latest.spaceId !== head.spaceId ||
+        latest.baselineId !== head.baselineId
+      )
+        throw new Error("云端版本已变化，请重新下载后连接。");
+      await syncNative.connect(
+        uid,
+        email,
+        head.spaceId,
+        preview.token,
+        head.baselineSequence ?? 0,
+      );
       assert(uid);
       await changed();
       emit({ head });
@@ -268,6 +295,73 @@ export const syncRuntime = {
     return lock(async (uid) => {
       await syncNative.resolveCloud(uid);
       await changed();
+      await inspect();
+    }).then(() => tick());
+  },
+  async forceLocal() {
+    return lock(async (uid, email) => {
+      const local = await syncNative.state();
+      assert(uid);
+      if (local.binding?.uid !== uid)
+        throw new Error("本机厨房与当前账户不一致。");
+      const repo = syncRepository(uid);
+      const expected = await repo.head();
+      if (!expected) throw new Error("没有可替换的云端厨房，请先开启同步。");
+      emit({ progress: "正在备份本机并上传完整版本…" });
+      const baseline = await syncNative.prepareReplacement(uid, email);
+      assert(uid);
+      await repository().upload(
+        baselineBridge(syncNative, baseline, snapshotBridge),
+        (progress) => emit({ progress }),
+      );
+      assert(uid);
+      const head = await repo.replace(baseline.manifest.id, expected);
+      assert(uid);
+      await syncNative.bindBaseline(
+        uid,
+        baseline.manifest.id,
+        head.spaceId,
+        head.baselineSequence ?? 0,
+      );
+      assert(uid);
+      emit({ head });
+      await inspect();
+    }).then(() => tick());
+  },
+  async forceCloud() {
+    return lock(async (uid, email) => {
+      const local = await syncNative.state();
+      assert(uid);
+      if (local.binding?.uid !== uid)
+        throw new Error("本机厨房与当前账户不一致。");
+      const head = await syncRepository(uid).head();
+      if (!head) throw new Error("这个账户尚无云端厨房。");
+      emit({ progress: "正在下载云端完整版本，完成后将备份并替换本机…" });
+      const manifest = await repository().get(head.baselineId);
+      const preview = await repository().download(
+        manifest,
+        snapshotBridge,
+        (progress) => emit({ progress }),
+      );
+      assert(uid);
+      const latest = await syncRepository(uid).head();
+      assert(uid);
+      if (
+        !latest ||
+        latest.spaceId !== head.spaceId ||
+        latest.baselineId !== head.baselineId
+      )
+        throw new Error("云端版本在下载期间已变化，本机未替换，请重试。");
+      await syncNative.connect(
+        uid,
+        email,
+        head.spaceId,
+        preview.token,
+        head.baselineSequence ?? 0,
+      );
+      assert(uid);
+      await changed();
+      emit({ head: latest });
       await inspect();
     }).then(() => tick());
   },

@@ -51,6 +51,7 @@ it.skipIf(process.env.CHEFISH_LIVE_CLOUD_TEST !== "1")(
     const cli = "../node_modules/firebase-tools/lib/";
     const account = require(cli + "auth.js").getGlobalDefaultAccount();
     await require(cli + "requireAuth.js").requireAuth({ project, ...account });
+    console.info("[live-sync] CLI authentication ready");
     const { Client } = require(cli + "apiv2.js");
     const adminAuth = new Client({
       urlPrefix: "https://identitytoolkit.googleapis.com",
@@ -267,6 +268,139 @@ it.skipIf(process.env.CHEFISH_LIVE_CLOUD_TEST !== "1")(
           expect((await an.state()).queuedOperations).toBe(0);
           expect((await bn.state()).queuedOperations).toBe(0);
           expect((await sync.head())?.sequence).toBe(2);
+          await a.call("preferences", {
+            value: { taste: "清淡", equipment: "电炒锅" },
+          });
+          await b.call("preferences", {
+            value: { taste: "家常", restrictions: "不吃香菜" },
+          });
+          for (const native of [an, bn]) {
+            const operation = (await native.outgoing(first.uid))!;
+            documents.push(
+              `users/${first.uid}/sync_operations/${operation.id}`,
+              ...operation.chunks.map(
+                (chunk) => `users/${first.uid}/sync_blobs/${chunk.hash}`,
+              ),
+            );
+          }
+          await ae.pass();
+          await be.pass();
+          await ae.pass();
+          expect(await a.call("preferences")).toEqual(
+            await b.call("preferences"),
+          );
+          expect(await b.call("preferences")).toMatchObject({
+            taste: "家常",
+            equipment: "电炒锅",
+            restrictions: "不吃香菜",
+          });
+          expect((await an.state()).queuedOperations).toBe(0);
+          expect((await bn.state()).queuedOperations).toBe(0);
+          expect((await sync.head())?.sequence).toBe(4);
+          const lot = (await a.snapshot()).lots.find(
+            (item: { quantity: string }) => Number(item.quantity) >= 2,
+          );
+          expect(lot).toBeTruthy();
+          for (const [replica, amount, memo] of [
+            [a, "1", "云端采购备忘"],
+            [b, "2", "后同步的采购备忘"],
+          ] as const) {
+            await replica.execute({
+              type: "change_lot",
+              lot_id: lot.id,
+              expected_version: lot.version,
+              operation: "use",
+              quantity: amount,
+              location: null,
+              reason: "",
+            });
+            await replica.execute({
+              type: "save_shopping_memo",
+              expected_revision: (await replica.snapshot()).dataRevision,
+              memo,
+            });
+          }
+          // Track each generated operation for cleanup as it is published.
+          for (const native of [an, bn]) {
+            const outgoing = native.outgoing.bind(native);
+            native.outgoing = async (uid) => {
+              const operation = await outgoing(uid);
+              if (operation)
+                documents.push(
+                  `users/${first.uid}/sync_operations/${operation.id}`,
+                  ...operation.chunks.map(
+                    (chunk) => `users/${first.uid}/sync_blobs/${chunk.hash}`,
+                  ),
+                );
+              return operation;
+            };
+          }
+          await ae.pass();
+          await b.call("restart");
+          await be.pass();
+          await ae.pass();
+          expect((await a.snapshot()).lots).toEqual((await b.snapshot()).lots);
+          expect((await a.snapshot()).memo).toBe("后同步的采购备忘");
+          expect((await b.snapshot()).memo).toBe("后同步的采购备忘");
+          await b.execute({
+            type: "save_shopping_memo",
+            expected_revision: (await b.snapshot()).dataRevision,
+            memo: "强制替换选择的本机版本",
+          });
+          await b.call("legacyConflict");
+          const beforeReplacement = (await sync.head())!;
+          const replacement = await bn.prepareReplacement(
+            first.uid,
+            first.email!,
+          );
+          documents.push(
+            `users/${first.uid}/backups/${replacement.manifest.id}`,
+            ...replacement.manifest.chunks.map(
+              (chunk) => `users/${first.uid}/chunks/${chunk.hash}`,
+            ),
+          );
+          await makeRepo().upload(
+            baselineBridge(bn, replacement, b.download()),
+            () => {},
+          );
+          const replaced = await sync.replace(
+            replacement.manifest.id,
+            beforeReplacement,
+          );
+          documents.push(
+            `users/${first.uid}/sync_versions/${replaced.spaceId}`,
+          );
+          await bn.bindBaseline(
+            first.uid,
+            replacement.manifest.id,
+            replaced.spaceId,
+            replaced.baselineSequence,
+          );
+          await a.execute({
+            type: "save_shopping_memo",
+            expected_revision: (await a.snapshot()).dataRevision,
+            memo: "另一台设备尚未同步的旧修改",
+          });
+          await expect(ae.pass()).rejects.toThrow("云端同步版本已被替换");
+          const restore = await makeRepo().download(
+            await makeRepo().get(replaced.baselineId),
+            a.download(),
+            () => {},
+          );
+          await an.connect(
+            first.uid,
+            first.email!,
+            replaced.spaceId,
+            restore.token,
+            replaced.baselineSequence,
+          );
+          await ae.pass();
+          expect((await a.snapshot()).memo).toBe("当前本机完整备忘");
+          expect((await a.snapshot()).lots).toEqual((await b.snapshot()).lots);
+          expect((await sync.head())?.baselineId).toBe(replacement.manifest.id);
+
+          expect((await an.state()).queuedOperations).toBe(0);
+          expect((await bn.state()).queuedOperations).toBe(0);
         } finally {
           await Promise.all([a.close(), b.close()]);
         }
@@ -319,5 +453,5 @@ it.skipIf(process.env.CHEFISH_LIVE_CLOUD_TEST !== "1")(
       expect(cleanupErrors).toEqual([]);
     }
   },
-  120000,
+  180000,
 );

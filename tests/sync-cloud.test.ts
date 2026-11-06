@@ -181,8 +181,161 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
         "校验失败",
       );
     });
+    it("replaces a baseline atomically, keeps its recovery record and refuses stale replacements", async () => {
+      const { repo, head, db } = await setup();
+      const seed = baseline();
+      await setDoc(doc(db, "users/alice/backups", seed.id), seed);
+      await assertFails(
+        setDoc(doc(db, "users/alice/sync/head"), {
+          ...head,
+          spaceId: randomUUID(),
+          baselineId: seed.id,
+          baselineSequence: 0,
+        }),
+      );
+      const replacement = await repo.replace(seed.id, head);
+      expect(replacement.sequence).toBe(head.sequence);
+      expect(replacement.baselineSequence).toBe(head.sequence);
+      expect(
+        (
+          await getDocFromServer(
+            doc(db, "users/alice/sync_versions", replacement.spaceId),
+          )
+        ).data(),
+      ).toEqual(head);
+      const nextSeed = baseline();
+      await setDoc(doc(db, "users/alice/backups", nextSeed.id), nextSeed);
+      await expect(repo.replace(nextSeed.id, head)).rejects.toThrow("已变化");
+      await assertFails(
+        deleteDoc(doc(db, "users/alice/sync_versions", replacement.spaceId)),
+      );
+      const op = { ...fixture(), spaceId: replacement.spaceId };
+      await repo.publish(op, replacement.sequence);
+      expect((await repo.head())?.sequence).toBe(replacement.sequence + 1);
+    });
     it.skipIf(process.env.CHEFISH_NATIVE_SYNC_TEST !== "1")(
-      "two isolated native SQLite replicas sync baseline/images, concurrent offline edits, restart, lost acknowledgement and explicit conflict recovery",
+      "full replacement bypasses a stuck 135-operation queue, preserves edits during upload and reconnects another native device",
+      async () => {
+        const a = new NativeReplica(),
+          b = new NativeReplica();
+        await Promise.all([a.ready, b.ready]);
+        try {
+          await a.execute(receive("鸡蛋"));
+          await a.execute(recipe("完整版本中的菜谱图片"));
+          const an = a.bridge(),
+            bn = b.bridge();
+          const db = store();
+          const repo = new SyncRepository(db, "alice", () => {});
+          const backups = new CloudRepository(db, "alice", () => {});
+          const seed = await an.prepareBaseline(
+            "alice",
+            "synthetic@example.invalid",
+            false,
+          );
+          await backups.upload(
+            baselineBridge(an, seed, a.download()),
+            () => {},
+          );
+          const initial = await repo.create(seed.manifest.id);
+          await an.bindBaseline("alice", seed.manifest.id, initial.spaceId);
+          const first = await backups.download(
+            seed.manifest,
+            b.download(),
+            () => {},
+          );
+          await bn.connect(
+            "alice",
+            "synthetic@example.invalid",
+            initial.spaceId,
+            first.token,
+          );
+          const engine = (native: SyncNative) =>
+            new SyncEngine("alice", repo, native, () => {});
+          await a.execute({
+            type: "save_shopping_memo",
+            expected_revision: (await a.snapshot()).dataRevision,
+            memo: "原云端版本",
+          });
+          await engine(an).pass();
+          for (let i = 0; i < 135; i++)
+            await b.execute({
+              type: "save_shopping_memo",
+              expected_revision: (await b.snapshot()).dataRevision,
+              memo: `本机备忘${i}`,
+            });
+          await b.call("legacyConflict");
+          expect((await bn.state()).queuedOperations).toBe(135);
+          // Ordinary retry cannot undo the obsolete local baseline.
+          await bn.retry("alice");
+          await expect(engine(bn).pass()).rejects.toMatchObject({
+            code: "SYNC_CONFLICT",
+          });
+          const expected = (await repo.head())!;
+          const replacement = await bn.prepareReplacement(
+            "alice",
+            "synthetic@example.invalid",
+          );
+          expect(await b.call<number>("backupCount")).toBeGreaterThan(0);
+          await backups.upload(
+            baselineBridge(bn, replacement, b.download()),
+            () => {},
+          );
+          await b.execute(receive("上传期间新增"));
+          const replaced = await repo.replace(
+            replacement.manifest.id,
+            expected,
+          );
+          await bn.bindBaseline(
+            "alice",
+            replacement.manifest.id,
+            replaced.spaceId,
+            replaced.baselineSequence,
+          );
+          expect((await bn.state()).queuedOperations).toBe(1);
+          expect((await bn.state()).binding?.conflict).toBeNull();
+          await a.execute({
+            type: "save_shopping_memo",
+            expected_revision: (await a.snapshot()).dataRevision,
+            memo: "其他设备旧修改",
+          });
+          await a.call("legacyConflict");
+          await an.retry("alice");
+          await expect(engine(an).pass()).rejects.toThrow(
+            "云端同步版本已被替换",
+          );
+          const restore = await backups.download(
+            await backups.get(replaced.baselineId),
+            a.download(),
+            () => {},
+          );
+          await an.connect(
+            "alice",
+            "synthetic@example.invalid",
+            replaced.spaceId,
+            restore.token,
+            replaced.baselineSequence,
+          );
+          expect(await a.call<number>("backupCount")).toBeGreaterThan(0);
+          expect((await an.state()).queuedOperations).toBe(0);
+          expect((await a.snapshot()).memo).toBe("当前本机完整备忘");
+          await engine(bn).pass();
+          await engine(an).pass();
+          expect((await a.snapshot()).lots).toEqual((await b.snapshot()).lots);
+          expect((await a.snapshot()).recipes).toEqual(
+            (await b.snapshot()).recipes,
+          );
+          expect((await an.state()).binding?.cursor).toBe(
+            replaced.sequence + 1,
+          );
+          expect((await bn.state()).queuedOperations).toBe(0);
+        } finally {
+          await Promise.all([a.close(), b.close()]);
+        }
+      },
+      120000,
+    );
+    it.skipIf(process.env.CHEFISH_NATIVE_SYNC_TEST !== "1")(
+      "two isolated native SQLite replicas sync baseline/images, concurrent offline edits, restart, lost acknowledgement and automatic same-record merge",
       async () => {
         const a = new NativeReplica(),
           b = new NativeReplica();
@@ -223,6 +376,25 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
           );
           const engine = (native: SyncNative) =>
             new SyncEngine("alice", repo, native, () => {});
+          await a.call("preferences", {
+            value: { taste: "清淡", equipment: "电炒锅" },
+          });
+          await b.call("preferences", {
+            value: { taste: "家常", restrictions: "不吃香菜" },
+          });
+          await b.execute(receive("偏好合并时仍应保留的库存"));
+          await engine(an).pass();
+          await engine(bn).pass();
+          await engine(an).pass();
+          expect(await a.call("preferences")).toEqual(
+            await b.call("preferences"),
+          );
+          expect(await b.call("preferences")).toMatchObject({
+            taste: "家常",
+            restrictions: "不吃香菜",
+            equipment: "电炒锅",
+          });
+          expect((await a.snapshot()).lots).toEqual((await b.snapshot()).lots);
           await a.execute(recipe("断网新增配方与图片"));
           await b.execute(receive("香蕉"));
           await b.call("restart");
@@ -261,17 +433,13 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
               location: null,
               reason: "",
             });
-          const before = (await b.snapshot()).lots;
           await engine(an).pass();
-          await expect(engine(bn).pass()).rejects.toMatchObject({
-            code: "SYNC_CONFLICT",
-          });
-          expect((await b.snapshot()).lots).toEqual(before);
-          expect((await bn.state()).binding?.conflict).toBeTruthy();
-          await bn.resolveCloud("alice");
           await engine(bn).pass();
+          await b.call("restart");
+          await engine(an).pass();
           expect((await a.snapshot()).lots).toEqual((await b.snapshot()).lots);
           expect((await bn.state()).queuedOperations).toBe(0);
+          expect((await bn.state()).binding?.conflict).toBeNull();
           await expect(bn.outgoing("bob")).rejects.toMatchObject({
             code: "SYNC_ACCOUNT",
           });

@@ -1,0 +1,40 @@
+{
+  "version": "2.3.3",
+  "date": "2026-11-06",
+  "schemaVersion": 18,
+  "delivery": "Windows x64 executable, NSIS installer, updater signature and latest.json",
+  "releaseUrl": "https://github.com/whitefi2h/Chefish/releases/tag/v2.3.3",
+  "checks": {
+    "releaseBuild": true,
+    "nsisBuild": true,
+    "typecheck": true,
+    "lint": true,
+    "releaseTurnUnitTests": {
+      "passed": 13,
+      "scope": "app-updater and sync-runtime"
+    },
+    "priorValidation": [
+      "force-replace-v2.3.1-validation.json",
+      "inventory-alerts-v2.3.2-validation.json",
+      "proactive-inbox-v2.3.3-validation.json"
+    ],
+    "note": "Prior targeted validation retained; no repeated full-suite run for publication."
+  },
+  "cloudRules": {
+    "deployed": true,
+    "evidence": "force-replace-cloud-deployment-validation.json"
+  },
+  "artifacts": {
+    "exe": "chefish.exe",
+    "installer": "Chefish_2.3.3_x64-setup.exe",
+    "signature": "Chefish_2.3.3_x64-setup.exe.sig",
+    "manifest": "latest.json",
+    "exeBytes": 62336512,
+    "installerBytes": 44643160
+  },
+  "limits": [
+    "Installed personal upgrade and physical two-device acceptance not performed.",
+    "Personal data, queue and chats not accessed.",
+    "Full historical test suites not repeated for publication."
+  ]
+}

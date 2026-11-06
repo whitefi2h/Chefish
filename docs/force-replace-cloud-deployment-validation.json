@@ -1,0 +1,9 @@
+{
+  "date": "2026-11-05T02:31:49.427Z",
+  "project": "chefish-kitchen",
+  "release": "projects/chefish-kitchen/releases/cloud.firestore",
+  "ruleset": "projects/chefish-kitchen/rulesets/a7d02eaf-9516-4413-a0fd-c86c4aeb1b57",
+  "updateTime": "2026-11-05T02:31:29.239526Z",
+  "matchesLocal": true,
+  "scope": "firestore rules only: owner-verified atomic baseline replacement with archived prior head; no personal kitchen read or replacement"
+}

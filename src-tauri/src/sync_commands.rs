@@ -24,11 +24,17 @@ pub fn sync_pause(database: State<Database>, uid: String, enabled: bool) -> Resu
     replication::pause(g.as_ref().ok_or_else(fail)?, &uid, enabled)
 }
 #[tauri::command]
+pub fn sync_retry(database: State<Database>, uid: String) -> Result<()> {
+    let g = database.0.lock().map_err(|_| fail())?;
+    replication::retry(g.as_ref().ok_or_else(fail)?, &uid)
+}
+#[tauri::command]
 pub async fn sync_prepare_baseline(
     app: tauri::AppHandle,
     uid: String,
     email: String,
     transfer_owner: bool,
+    replacement: Option<bool>,
 ) -> Result<sync_transfer::Baseline> {
     tauri::async_runtime::spawn_blocking(move || {
         let transfers = app.state::<Transfers>();
@@ -36,6 +42,14 @@ pub async fn sync_prepare_baseline(
         let mut transfers = transfers.0.lock().map_err(|_| fail())?;
         let g = database.0.lock().map_err(|_| fail())?;
         let conn = g.as_ref().ok_or_else(fail)?;
+        if replacement.unwrap_or(false) {
+            replication::assert_owner(conn, &uid, false)?;
+            sync_transfer::safety(
+                conn,
+                &app.path().app_data_dir().map_err(|_| fail())?,
+                "before-force-local",
+            )?;
+        }
         if transfer_owner {
             sync_transfer::safety(
                 conn,
@@ -82,10 +96,17 @@ pub fn sync_bind_baseline(
     uid: String,
     token: String,
     space_id: String,
+    baseline_sequence: Option<i64>,
 ) -> Result<()> {
     let mut t = transfers.0.lock().map_err(|_| fail())?;
     let mut g = database.0.lock().map_err(|_| fail())?;
-    t.bind_baseline(g.as_mut().ok_or_else(fail)?, &uid, &token, &space_id)
+    t.bind_baseline(
+        g.as_mut().ok_or_else(fail)?,
+        &uid,
+        &token,
+        &space_id,
+        baseline_sequence.unwrap_or(0),
+    )
 }
 #[tauri::command]
 pub async fn sync_connect(
@@ -94,6 +115,7 @@ pub async fn sync_connect(
     email: String,
     space_id: String,
     token: String,
+    baseline_sequence: Option<i64>,
 ) -> Result<()> {
     tauri::async_runtime::spawn_blocking(move || {
         let restore = app.state::<RestorePreview>();
@@ -112,6 +134,7 @@ pub async fn sync_connect(
             &uid,
             &email,
             &space_id,
+            baseline_sequence.unwrap_or(0),
         )?;
         if let Some(staged) = r.take() {
             let _ = std::fs::remove_file(staged.path);

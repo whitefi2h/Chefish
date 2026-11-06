@@ -1,5 +1,6 @@
 import { CarouselButtons, useHorizontalCarousel } from "./HorizontalCarousel";
 import IngredientAvatar, { IngredientAvatarCredit } from "./IngredientAvatar";
+import { foodInventoryLots, expiringInventoryLots } from "./domain/inventory";
 import {
   rememberIngredientPhoto,
   usesIngredientPhoto,
@@ -11,7 +12,6 @@ import Seasonings from "./Seasonings";
 import { defaultIngredientUnit } from "./domain/ingredientStandards";
 import { ingredientCategory } from "./domain/ingredientCategory";
 import categoryRules from "./domain/ingredientCategories.json";
-import { supplies, isSeasoning } from "./domain/seasonings";
 import { useEffect, useRef, useState } from "react";
 import {
   Plus,
@@ -882,15 +882,8 @@ export default function Inventory({
   const [categories, setCategories] = useState(false);
   const [showEmpty, setShowEmpty] = useState(false);
 
-  const foodLots = state.lots.filter((l) => {
-    const name =
-      state.ingredients.find((i) => i.id === l.ingredientId)?.name ?? "";
-    return !isSeasoning(name) && !supplies(state).some((s) => s.name === name);
-  });
-  const alerts = foodLots.filter(
-    (l) => l.quantity > 0 && !!l.expires && daysLeft(l.expires, today) <= 3,
-  );
-  alerts.sort((a, b) => (a.expires ?? "").localeCompare(b.expires ?? ""));
+  const foodLots = foodInventoryLots(state);
+  const alerts = expiringInventoryLots(foodLots, today);
   const attention = useHorizontalCarousel(alerts.map((l) => l.id).join("|"));
   const filtered = [...foodLots]
     .sort((a, b) => Number(a.quantity === 0) - Number(b.quantity === 0))

@@ -1,0 +1,47 @@
+{
+  "date": "2026-11-05",
+  "version": "2.3.0",
+  "schemaVersion": 18,
+  "features": [
+    "Settings > About: manual check, download, confirmed restart/install, release notes, GitHub project and releases links.",
+    "New version prompts enabled by default; automatic download disabled by default.",
+    "Options persist locally and do not enter kitchen synchronization.",
+    "Official Tauri signed updates with passive NSIS installation."
+  ],
+  "checks": {
+    "updateRuntimeUnit": {
+      "passed": 5,
+      "scope": "mocked transport and official updater handles; opt-out persistence, deduplication, download failures, explicit installation"
+    },
+    "settingsBrowser": {
+      "uniquePassed": 12,
+      "scope": "browser fixtures, including two new update scenarios; failed cold-load and selector cases corrected/rerun separately",
+      "installExecuted": false
+    },
+    "publicGithubNative": {
+      "passed": 1,
+      "scope": "actual native Rust GitHub latest release request; no kitchen opened"
+    },
+    "typecheck": true,
+    "lint": true,
+    "rustCheck": true,
+    "releaseBuild": true,
+    "nsisBuild": true,
+    "updaterSignatureGenerated": true,
+    "latestManifestGenerated": true,
+    "visualReview": "docs/screenshots/settings/app-updates-ready.png"
+  },
+  "artifacts": {
+    "exe": "src-tauri/target/release/chefish.exe",
+    "installer": "src-tauri/target/release/bundle/nsis/Chefish_2.3.0_x64-setup.exe",
+    "signature": "src-tauri/target/release/bundle/nsis/Chefish_2.3.0_x64-setup.exe.sig",
+    "manifest": "src-tauri/target/release/bundle/nsis/latest.json"
+  },
+  "limits": [
+    "Not committed, pushed or published.",
+    "Signed update download and installed upgrade against a future public release have not been exercised.",
+    "No personal kitchen or actual synchronization queue accessed.",
+    "The browser installation confirmation invokes a fixture, not a real installer.",
+    "Auto update downloads in the current process and waits for explicit restart/install; cached bytes do not survive quitting the process."
+  ]
+}

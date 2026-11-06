@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-05",
+  "version": "2.3.1",
+  "schemaVersion": 18,
+  "features": {
+    "localWins": "Back up local database, upload complete snapshot, atomically archive prior cloud head and replace baseline in a new space; bind at baselineSequence; retain edits created after snapshot watermark.",
+    "cloudWins": "Download validated cloud baseline, safety-backup and replace local database directly; do not undo the stuck local queue; preserve local chat and device settings, then continue cloud log.",
+    "otherDevices": "Stop obsolete-space uploads and require explicit version selection.",
+    "confirmation": "Both directions require UI confirmation; both remain available for bound kitchens, including conflict and paused states."
+  },
+  "checks": {
+    "rustBaselineRestore": {
+      "passed": 1
+    },
+    "rustCloudSnapshot": {
+      "passed": 5
+    },
+    "runtimeUnit": {
+      "passed": 8
+    },
+    "firestoreEmulator": {
+      "passed": 14,
+      "nativeReplicaReplacement": "135 queued settings; deliberately obsolete rollback baseline; retry fails, full replacement succeeds; edits during upload retained; other native device reconnects and converges"
+    },
+    "browserSettingsRecovery": {
+      "passed": 1,
+      "scope": "both cancel and confirm paths for both directions; service fixtures; visual review of docs/screenshots/settings/sync-conflict-fixture.png"
+    },
+    "productionFirebase": {
+      "passed": 1,
+      "temporaryAccounts": true,
+      "nativeReplicas": 2,
+      "forceLocalAndCloudRestore": true,
+      "continuedSync": "SyncEngine ran successfully after reconnect; a newly queued post-replacement upload was additionally covered in the native emulator test.",
+      "accountIsolation": true,
+      "cleanupPassed": true,
+      "personalKitchenAccessed": false
+    },
+    "typecheck": true,
+    "lint": true,
+    "releaseBuild": true,
+    "nsisBuild": true,
+    "updaterSignature": true
+  },
+  "productionRules": {
+    "date": "2026-11-05T02:31:49.427Z",
+    "project": "chefish-kitchen",
+    "release": "projects/chefish-kitchen/releases/cloud.firestore",
+    "ruleset": "projects/chefish-kitchen/rulesets/a7d02eaf-9516-4413-a0fd-c86c4aeb1b57",
+    "updateTime": "2026-11-05T02:31:29.239526Z",
+    "matchesLocal": true,
+    "scope": "firestore rules only: owner-verified atomic baseline replacement with archived prior head; no personal kitchen read or replacement"
+  },
+  "artifacts": {
+    "exe": "src-tauri/target/release/chefish.exe",
+    "installer": "src-tauri/target/release/bundle/nsis/Chefish_2.3.1_x64-setup.exe",
+    "signature": "src-tauri/target/release/bundle/nsis/Chefish_2.3.1_x64-setup.exe.sig",
+    "updaterManifest": "src-tauri/target/release/bundle/nsis/latest.json"
+  },
+  "limits": [
+    "User personal 135-operation queue was not accessed or replaced.",
+    "Installed upgrade and two physical-device acceptance remain user actions.",
+    "Existing account and data access boundaries remain enforced.",
+    "No commit, push or GitHub release in this run."
+  ]
+}

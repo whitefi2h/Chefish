@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-04",
+  "version": "2.2.1",
+  "schemaVersion": 18,
+  "problem": "Whole-object dietary preference comparisons blocked concurrent edits; manual retry returned immediately while a conflict marker existed.",
+  "behavior": {
+    "preferences": "Apply changed fields in cloud sequence order, replay pending local edits, and persist their local rollback baseline without modifying immutable outgoing payloads.",
+    "manualRetry": "Clear only the conflict marker for the verified matching account, then run synchronization again; preserve the queue and data.",
+    "recordConflicts": "Keep transactional rollback and explicit cloud-choice backup; background wakes do not clear conflict markers."
+  },
+  "checks": {
+    "rust": { "passed": 166, "ignored": 12 },
+    "frontendUnit": { "passed": 38, "optionalSkipped": 13 },
+    "firestoreEmulator": { "passed": 12, "nativeReplicas": 2 },
+    "productionFirebase": {
+      "passed": 1,
+      "project": "chefish-kitchen",
+      "scope": "Generated accounts, two isolated native SQLite replicas, backup/images, bidirectional inventory edits, concurrent same-field and disjoint preference edits, account isolation.",
+      "syntheticCleanupPassed": true,
+      "personalKitchenAccessed": false
+    },
+    "browserSettings": { "passed": 10 },
+    "typecheck": true,
+    "lint": true,
+    "frontendBuild": true,
+    "releaseBuild": true,
+    "nsisBuild": true
+  },
+  "regressions": [
+    "132 queued preference edits survive incoming merge, retain their original upload bytes, restart and converge without dropping operations.",
+    "Published operation with lost acknowledgement remains valid after merging an earlier cloud operation.",
+    "Explicit cloud choice after a preference merge restores the latest cloud baseline.",
+    "Identical preference edits and subsequent cloud changes converge.",
+    "Real inventory conflicts still preserve local rows and remain conflicts after retry."
+  ],
+  "artifacts": {
+    "exe": "src-tauri/target/release/chefish.exe",
+    "installer": "src-tauri/target/release/bundle/nsis/Chefish_2.2.1_x64-setup.exe"
+  },
+  "limits": [
+    "No installed-upgrade or personal multi-computer synchronization acceptance in this run.",
+    "The user's existing 132 queued operations were not accessed, discarded or synchronized by tests.",
+    "Local delivery only; GitHub release was not replaced."
+  ]
+}

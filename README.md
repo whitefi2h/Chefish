@@ -6,9 +6,9 @@ Chefish 是一款 Windows 厨房管理应用。把喜欢的做法收进菜谱库
 
 **目前主要面向中文用户，应用界面和 AI 助手以中文为主。**
 
-v2.2.0 更新了整体界面，加入可跳过的个性化初始化、四类菜谱标签和本地彩色食材图标。厨房管家会结合你的偏好规划菜单、整理库存，再找几道值得试的新菜。
+v2.3.3 将助手主动消息收进顶部固定入口，长会话中也能随时查看；同时包含双向强制替换同步版本、软件内更新，以及首页与库存提醒一致性修复。
 
-[下载 v2.2.0](https://github.com/whitefi2h/Chefish/releases/tag/v2.2.0) · [English](#english) · [开发文档](docs/README.md) · [版本记录](CHANGELOG.md)
+[下载 v2.3.3](https://github.com/whitefi2h/Chefish/releases/tag/v2.3.3) · [English](#english) · [开发文档](docs/README.md) · [版本记录](CHANGELOG.md)
 
 ![Chefish 每周菜单与厨房助手](docs/images/assistant-proposal.png)
 
@@ -50,7 +50,7 @@ v2.2.0 更新了整体界面，加入可跳过的个性化初始化、四类菜�
 
 **新菜灵感，按需推荐。** 根据已有菜谱、库存和偏好寻找下厨房做法，排除已有来源与明显重复的菜式。推荐附来源和理由，读取原文、整理并确认后才收进菜谱库。
 
-任务直接显示为助手里的横幅，点击进入独立会话。处理完的任务移入历史，历史会话保留 30 天；未处理的菜单草稿继续保留。各项任务和通知可以分别关闭，免打扰会暂停全部主动任务，手动聊天仍可使用。
+任务收纳在助手顶部的「主动消息」入口，数字红点显示未读条数；点击条目进入独立会话，已读但未完成的任务继续保留。处理完的任务移入历史，历史会话保留 30 天；未处理的菜单草稿继续保留。各项任务和通知可以分别关闭，免打扰会暂停全部主动任务，手动聊天仍可使用。
 
 管家需要程序运行。启用管家或开机自启动后，关闭窗口会留在托盘；双击图标可打开，右键菜单可设置开机自启动或彻底退出。关机、睡眠和程序退出期间不执行任务。
 
@@ -74,15 +74,17 @@ v2.2.0 更新了整体界面，加入可跳过的个性化初始化、四类菜�
 
 ## 下载与使用
 
-1. 下载 [v2.2.0 Windows x64 安装包](https://github.com/whitefi2h/Chefish/releases/download/v2.2.0/Chefish_2.2.0_x64-setup.exe)，运行并按提示安装。系统需要 WebView2 运行环境。
+1. 下载 [v2.3.3 Windows x64 安装包](https://github.com/whitefi2h/Chefish/releases/download/v2.3.3/Chefish_2.3.3_x64-setup.exe)，运行并按提示安装。系统需要 WebView2 运行环境。
 2. 首次使用可以跟随初始化配置模型、饮食偏好、常吃菜系、厨房管家与云账户，每步都可跳过，也能从通用设置重新开启。饮食习惯可以自由描述，让 AI 整理后再核对。
 3. 录入一道菜或记下家里现有的食材，开始安排菜单。后续仍可在「我的厨房」中调整全部设置。
 
-[Release 页面](https://github.com/whitefi2h/Chefish/releases/tag/v2.2.0)也提供独立 EXE。升级前可在「我的厨房 → 数据与备份」保存一份本地备份。
+[Release 页面](https://github.com/whitefi2h/Chefish/releases/tag/v2.3.3)也提供独立 EXE。升级前可在「我的厨房 → 数据与备份」保存一份本地备份。
 
 手动管理菜谱、库存和菜单不需要配置 AI。使用厨房助手时，相关对话和厨房信息会发送到你选择的模型服务；API 密钥保存在 Windows 凭据管理器。菜谱、库存和聊天记录保存在本机。
 
-应用提供可选账户、云备份与多设备同步。菜谱、图片、库存和正式菜单可以同步，聊天、管家任务与未确认草稿留在本机。v2.2.0 使用 schema 18，生产云端兼容规则已于 2026-11-04 部署，并通过隔离账户与两份原生数据库的真实云传输检查。云端状态、首次连接和冲突处理见[同步说明](docs/CLOUD_SYNC.md)。本地功能可独立使用。
+应用提供可选账户、云备份与多设备同步。菜谱、图片、库存和正式菜单可以同步，聊天、管家任务与未确认草稿留在本机。v2.3.3 使用 schema 18，支持自动合并及手动选择本机/云端完整版本强制替换。相关生产规则已部署，强制替换通过隔离账户和两份原生数据库的真实 Firebase 检查。云端状态、首次连接和冲突处理见[同步说明](docs/CLOUD_SYNC.md)。本地功能可独立使用。
+
+在「设置 → 关于 Chefish」检查更新，开关控制新版本提示与自动下载；下载后由你确认重启安装，详见[软件更新说明](docs/APP_UPDATES.md)。从旧版升级时，请先安装本次新版。
 
 想了解后续计划，可以看 [路线图](docs/ROADMAP.md)。
 
@@ -99,7 +101,7 @@ npm run tauri dev
 构建 Windows 安装包：
 
 ```powershell
-npm run tauri build -- --bundles nsis
+npm run release:build
 ```
 
 安装包输出到 `src-tauri/target/release/bundle/nsis/`。只看浏览器演示可运行 `npm run dev`；演示使用独立样例数据，刷新后重置。
@@ -116,9 +118,9 @@ Chefish is a Windows app for keeping recipes, tracking groceries and planning me
 
 **The app interface and AI assistant are Chinese-first.**
 
-[Download v2.2.0](https://github.com/whitefi2h/Chefish/releases/tag/v2.2.0)
+[Download v2.3.3](https://github.com/whitefi2h/Chefish/releases/tag/v2.3.3)
 
-Version 2.2.0 refreshes the interface and adds skippable setup, four groups of recipe tags, and local ingredient icons. Set up your model and food preferences at your own pace; every step can be revisited in settings.
+Version 2.3.3 adds a fixed proactive-message inbox with unread counts. This release also includes explicit cloud/local sync replacement, signed in-app updates, and consistent inventory reminders.
 
 ### Keep your recipes
 
@@ -142,7 +144,7 @@ Add extra groceries as you shop. Confirming a purchase receives it into the pant
 
 Version 2.0.0 adds an opt-in steward for weekly menu planning, routine kitchen data maintenance and new recipe suggestions. Discuss a draft, change individual meals, then review the menu and shopping needs before saving. Unfinished menu drafts survive restarts.
 
-Tasks appear as compact banners, each opening a separate conversation. Completed tasks move to history, retained for 30 days; pending menu drafts remain available. Task schedules and notifications are configurable. Do Not Disturb pauses proactive work while leaving manual chat available.
+Tasks are collected in the fixed inbox button at the top of the assistant, with a numeric unread badge. Each opens a separate conversation; read tasks remain available until handled. Completed tasks move to history, retained for 30 days; pending menu drafts remain available. Task schedules and notifications are configurable. Do Not Disturb pauses proactive work while leaving manual chat available.
 
 The app must be running for scheduled work. With the steward or autostart enabled, closing the window keeps it in the tray. Double-click the tray icon to reopen it; use the context menu to toggle Windows autostart or quit. Enable the steward in the kitchen settings when you are ready to use it.
 
@@ -154,11 +156,11 @@ Chats are saved locally so you can pick up where you left off. DeepSeek, OpenAI 
 
 ### Get started
 
-Download the [Windows x64 installer](https://github.com/whitefi2h/Chefish/releases/download/v2.2.0/Chefish_2.2.0_x64-setup.exe) and follow the setup steps. WebView2 is required. The optional setup flow guides you through model settings, food preferences, cuisines, steward services and your cloud account. Add a recipe or record pantry stock to start planning. The Release page also includes a standalone EXE.
+Download the [Windows x64 installer](https://github.com/whitefi2h/Chefish/releases/download/v2.3.3/Chefish_2.3.3_x64-setup.exe) and follow the setup steps. WebView2 is required. The optional setup flow guides you through model settings, food preferences, cuisines, steward services and your cloud account. Add a recipe or record pantry stock to start planning. The Release page also includes a standalone EXE.
 
 Manual recipe, pantry and planning features work without AI. When using the assistant, relevant conversation and kitchen data are sent to your selected provider. API keys are stored in Windows Credential Manager; kitchen data and chat history stay on your computer.
 
-Optional accounts, cloud backups and multi-device sync are included. Chats, steward tasks and pending drafts stay local. Version 2.2.0 uses schema 18. Production compatibility rules were deployed on November 4, 2026, and verified against real Firebase services using isolated accounts and two native databases. See the [sync documentation](docs/CLOUD_SYNC.md) for status and setup. Local features work independently.
+Optional accounts, cloud backups and multi-device sync are included. Chats, steward tasks and pending drafts stay local. Version 2.3.3 uses schema 18 and supports explicit replacement with a full local or cloud version. Required production rules are deployed, and replacement was verified with isolated accounts and two native databases on real Firebase. See the [sync documentation](docs/CLOUD_SYNC.md) for status and setup. Local features work independently.
 
 ### Build from source
 
@@ -170,6 +172,6 @@ node tools/ingredient-icons/build.mjs fetch
 npm run tauri dev
 ```
 
-Build the installer with `npm run tauri build -- --bundles nsis`. Output goes to `src-tauri/target/release/bundle/nsis/`. For a browser demo with sample data, run `npm run dev`.
+Build the installer with `npm run release:build`. Output goes to `src-tauri/target/release/bundle/nsis/`. For a browser demo with sample data, run `npm run dev`.
 
 [Project docs](docs/README.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)

@@ -580,6 +580,40 @@
 .settings-about {
   padding-top: 10px;
 }
+.app-updates {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.update-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 16px 0;
+  padding: 13px 15px;
+  border-radius: 12px;
+  background: var(--canvas);
+  color: var(--muted);
+  font-size: var(--font-size-support);
+}
+.update-result > svg { flex-shrink: 0; margin-top: 2px; }
+.update-result strong { color: var(--ink); font-weight: 500; }
+.update-result p { margin: 5px 0 0; line-height: 1.6; }
+.update-result small { display: block; margin-top: 6px; font-size: 12px; }
+.update-result.is-ready { background: var(--sage-soft); }
+.update-notes { margin: 14px 0; font-size: var(--font-size-support); }
+.update-notes summary { cursor: pointer; color: var(--muted); }
+.update-notes p { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 200px; overflow-y: auto; line-height: 1.7; }
+.app-updates progress { width: 100%; accent-color: var(--primary); height: 6px; }
+.app-updates > .settings-row:not(:first-child) { margin-top: 20px; }
+.update-notice { color: var(--primary); background: var(--primary-soft); }
+.sync-replace { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 18px; }
+.sync-replace summary { cursor: pointer; font-size: 14px; font-weight: 500; color: var(--ink); }
+.sync-replace .settings-row { margin-top: 18px; }
+.sync-replace .settings-row button { flex-shrink: 0; }
+.update-spinning { animation: update-spin 1.2s linear infinite; }
+@keyframes update-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .update-spinning { animation: none; } }
 .settings-about-mark {
   width: 68px;
   height: 68px;

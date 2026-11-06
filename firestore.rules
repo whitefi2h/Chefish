@@ -63,21 +63,39 @@ service cloud.firestore {
         let value = request.resource.data;
         return id == 'head'
           && value.keys().hasAll(['formatVersion','spaceId','baselineId','sequence','lastOperationId'])
-          && value.keys().hasOnly(['formatVersion','spaceId','baselineId','sequence','lastOperationId'])
+          && value.keys().hasOnly(['formatVersion','spaceId','baselineId','sequence','lastOperationId','baselineSequence'])
           && value.formatVersion == 1 && uuid(value.spaceId) && uuid(value.baselineId)
-          && value.sequence is int && value.sequence >= 0;
+          && value.sequence is int && value.sequence >= 0
+          && value.get('baselineSequence',0) is int
+          && value.get('baselineSequence',0) >= 0 && value.get('baselineSequence',0) <= value.sequence;
       }
       allow read: if owner(uid);
       allow create: if owner(uid) && validHead()
         && request.resource.data.sequence == 0 && request.resource.data.lastOperationId == ''
         && exists(/databases/$(database)/documents/users/$(uid)/backups/$(request.resource.data.baselineId));
-      allow update: if owner(uid) && validHead()
-        && request.resource.data.spaceId == resource.data.spaceId
-        && request.resource.data.baselineId == resource.data.baselineId
-        && request.resource.data.sequence == resource.data.sequence + 1
-        && uuid(request.resource.data.lastOperationId)
-        && getAfter(/databases/$(database)/documents/users/$(uid)/sync_operations/$(request.resource.data.lastOperationId)).data.sequence == request.resource.data.sequence
-        && getAfter(/databases/$(database)/documents/users/$(uid)/sync_operations/$(request.resource.data.lastOperationId)).data.spaceId == resource.data.spaceId;
+      allow update: if owner(uid) && validHead() && (
+        (request.resource.data.spaceId == resource.data.spaceId
+          && request.resource.data.baselineId == resource.data.baselineId
+          && request.resource.data.get('baselineSequence',0) == resource.data.get('baselineSequence',0)
+          && request.resource.data.sequence == resource.data.sequence + 1
+          && uuid(request.resource.data.lastOperationId)
+          && getAfter(/databases/$(database)/documents/users/$(uid)/sync_operations/$(request.resource.data.lastOperationId)).data.sequence == request.resource.data.sequence
+          && getAfter(/databases/$(database)/documents/users/$(uid)/sync_operations/$(request.resource.data.lastOperationId)).data.spaceId == resource.data.spaceId)
+        || (request.resource.data.spaceId != resource.data.spaceId
+          && request.resource.data.baselineId != resource.data.baselineId
+          && request.resource.data.sequence == resource.data.sequence
+          && request.resource.data.get('baselineSequence',-1) == resource.data.sequence
+          && request.resource.data.lastOperationId == ''
+          && exists(/databases/$(database)/documents/users/$(uid)/backups/$(request.resource.data.baselineId))
+          && getAfter(/databases/$(database)/documents/users/$(uid)/sync_versions/$(request.resource.data.spaceId)).data == resource.data)
+      );
+    }
+    match /users/{uid}/sync_versions/{id} {
+      allow read: if owner(uid);
+      allow create: if owner(uid) && uuid(id)
+        && request.resource.data == get(/databases/$(database)/documents/users/$(uid)/sync/head).data
+        && getAfter(/databases/$(database)/documents/users/$(uid)/sync/head).data.spaceId == id
+        && id != request.resource.data.spaceId;
     }
     match /users/{uid}/sync_operations/{id} {
       allow read: if owner(uid);

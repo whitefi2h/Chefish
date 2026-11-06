@@ -32,25 +32,31 @@ function summary(item: StewardItem) {
 export function StewardTaskBanners({
   onSelect,
   history = false,
+  inbox = false,
   onShowAll,
 }: {
   onSelect: (item: StewardItem) => void;
   history?: boolean;
+  inbox?: boolean;
   onShowAll?: () => void;
 }) {
   const state = useSteward();
   const items =
     state?.items.filter((i) => history || i.status === "open") ?? [];
   if (!items.length)
-    return history ? (
-      <p className="assistant-history-empty">最近 30 天没有任务会话</p>
+    return history || inbox ? (
+      <p className="assistant-history-empty">
+        {inbox ? "暂无待处理的主动消息" : "最近 30 天没有任务会话"}
+      </p>
     ) : null;
   return (
     <nav
-      className={history ? "assistant-history-list" : "steward-banners"}
+      className={
+        history || inbox ? "assistant-history-list" : "steward-banners"
+      }
       aria-label={history ? "历史任务会话" : "厨房任务"}
     >
-      {(history ? items : items.slice(0, 3)).map((item) => {
+      {(history || inbox ? items : items.slice(0, 3)).map((item) => {
         const Icon =
           item.kind === "weekly"
             ? CalendarDays
@@ -77,7 +83,12 @@ export function StewardTaskBanners({
               <Icon size={18} strokeWidth={1.6} />
             </span>
             <span className="task-banner-copy">
-              <strong>{item.title}</strong>
+              <strong>
+                {inbox && item.unread && (
+                  <span className="task-unread-dot" aria-label="未读" />
+                )}
+                {item.title}
+              </strong>
               <span>{summary(item)}</span>
             </span>
             <span className={`task-banner-status ${item.status}`}>
@@ -87,7 +98,7 @@ export function StewardTaskBanners({
           </button>
         );
       })}
-      {!history && items.length > 3 && (
+      {!history && !inbox && items.length > 3 && (
         <button className="task-more" onClick={onShowAll}>
           查看其余 {items.length - 3} 项任务 <ChevronRight size={13} />
         </button>

@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-06",
+  "version": "2.3.3",
+  "features": [
+    "Fixed proactive-message inbox button beside history in assistant header.",
+    "Numeric red badge uses open + unread item count; list keeps read-but-open tasks accessible.",
+    "Inbox lists every open task without three-item truncation; main chat no longer renders task banners.",
+    "History/inbox/tools panels are mutually exclusive; close or Escape returns to the preserved conversation scroll and input.",
+    "Entering a task uses the existing native mark/read handling; opening the inbox alone does not mark anything."
+  ],
+  "checks": {
+    "typecheck": true,
+    "lint": true,
+    "browserSteward": {
+      "uniquePassed": 16,
+      "scope": "Existing 15 scenarios plus long-chat inbox test; one card-height issue corrected then focused tests passed.",
+      "longChatMessages": 40,
+      "pendingInboxItems": 6,
+      "scrollAndDraftPreserved": true,
+      "readCountDecrements": true,
+      "readButPendingRemains": true
+    },
+    "visualReview": [
+      "docs/screenshots/assistant-redesign/proactive-inbox.png",
+      "docs/screenshots/assistant-redesign/proactive-long-chat.png"
+    ],
+    "frontendBuild": true,
+    "releaseBuild": true,
+    "nsisBuild": true,
+    "updaterSignatureGenerated": true,
+    "manifestGenerated": true
+  },
+  "artifacts": {
+    "exe": "src-tauri/target/release/chefish.exe",
+    "installer": "src-tauri/target/release/bundle/nsis/Chefish_2.3.3_x64-setup.exe"
+  },
+  "limits": [
+    "UI checks used isolated browser/native-command fixtures.",
+    "No personal conversations, queues or cloud records accessed or modified.",
+    "Native database schema and message generation/processing behavior unchanged.",
+    "No GitHub publish, commit or push."
+  ]
+}

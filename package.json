@@ -1,7 +1,7 @@
 {
   "name": "chefish",
   "private": true,
-  "version": "2.2.0",
+  "version": "2.3.3",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -15,11 +15,13 @@
     "tauri": "tauri",
     "test:cloud": "vitest run tests/firebase-cloud.test.ts",
     "test:cloud:emulator": "firebase emulators:exec --project demo-chefish --only firestore \"npm run test:cloud\"",
-    "test:sync:emulator": "cargo test --manifest-path src-tauri/Cargo.toml -j 1 --no-run && firebase emulators:exec --project demo-chefish --only firestore \"node scripts/test-sync-emulator.mjs\""
+    "test:sync:emulator": "cargo test --manifest-path src-tauri/Cargo.toml -j 1 --no-run && firebase emulators:exec --project demo-chefish --only firestore \"node scripts/test-sync-emulator.mjs\"",
+    "release:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-release.ps1"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-updater": "^2.14.1",
     "firebase": "^12.19.0",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",

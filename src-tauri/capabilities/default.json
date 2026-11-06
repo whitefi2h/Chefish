@@ -1,6 +1,11 @@
 {
   "identifier": "default",
-  "description": "Local demo window; no filesystem or external service access.",
-  "windows": ["main"],
-  "permissions": ["core:default"]
+  "description": "Main kitchen window with signed software updates.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "updater:default"
+  ]
 }
