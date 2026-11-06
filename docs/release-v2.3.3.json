@@ -36,5 +36,34 @@
     "Installed personal upgrade and physical two-device acceptance not performed.",
     "Personal data, queue and chats not accessed.",
     "Full historical test suites not repeated for publication."
-  ]
+  ],
+  "publication": {
+    "status": "published",
+    "publishedAt": "2026-11-06T15:02:24Z",
+    "sourceCommit": "397739e",
+    "latestStable": true,
+    "publicUpdaterManifestVerified": true,
+    "assets": [
+      {
+        "name": "chefish.exe",
+        "bytes": 62336512,
+        "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.3/chefish.exe"
+      },
+      {
+        "name": "Chefish_2.3.3_x64-setup.exe",
+        "bytes": 44643160,
+        "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.3/Chefish_2.3.3_x64-setup.exe"
+      },
+      {
+        "name": "Chefish_2.3.3_x64-setup.exe.sig",
+        "bytes": 436,
+        "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.3/Chefish_2.3.3_x64-setup.exe.sig"
+      },
+      {
+        "name": "latest.json",
+        "bytes": 2553,
+        "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.3/latest.json"
+      }
+    ]
+  }
 }
