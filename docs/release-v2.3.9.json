@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-17",
+  "version": "2.3.9",
+  "sourceCommit": "3cdb4c593479e83878616c12093a3dbd7d169de3",
+  "releaseUrl": "https://github.com/whitefi2h/Chefish/releases/tag/v2.3.9",
+  "publishedAt": "2026-11-17T01:48:04Z",
+  "latestStable": true,
+  "publicUpdaterManifestVerified": true,
+  "assets": [
+    {
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.9/chefish.exe",
+      "bytes": 62370816,
+      "name": "chefish.exe"
+    },
+    {
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.9/Chefish_2.3.9_x64-setup.exe",
+      "bytes": 44633044,
+      "name": "Chefish_2.3.9_x64-setup.exe"
+    },
+    {
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.9/Chefish_2.3.9_x64-setup.exe.sig",
+      "bytes": 436,
+      "name": "Chefish_2.3.9_x64-setup.exe.sig"
+    },
+    {
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.9/latest.json",
+      "bytes": 898,
+      "name": "latest.json"
+    }
+  ],
+  "validation": [
+    "readable-preview-v2.3.9-validation.json",
+    "weekly-preview-v2.3.8-validation.json",
+    "app-dialogs-v2.3.7-validation.json",
+    "nickname-identity-v2.3.6-validation.json"
+  ],
+  "limits": [
+    "No personal installed upgrade acceptance performed.",
+    "Local cleanup receipt and personal configuration excluded from publication."
+  ]
+}
