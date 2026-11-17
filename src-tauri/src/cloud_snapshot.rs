@@ -130,6 +130,7 @@ pub fn prepare(conn: &Connection, root: &Path) -> Result<PreparedSnapshot> {
     snapshot.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA secure_delete=ON; DELETE FROM app_settings WHERE key NOT IN ('data_revision','shopping_memo','preferences_v1') AND key NOT GLOB 'seasoning_hidden:*' AND key NOT GLOB 'inventory_expiry_before:*' AND key NOT GLOB 'inventory_deleted:*' AND key NOT GLOB 'inventory_properties_before:*' AND key NOT GLOB 'inventory_units:*' AND key NOT GLOB 'ingredient_image:*' AND key NOT GLOB 'seasoning_image:*' AND key NOT GLOB 'cooking_record:*' AND key NOT GLOB 'ingredient_resolution:*' AND key NOT GLOB 'inspiration_week:*' AND key NOT GLOB 'recipe_tag_def:*' AND key NOT GLOB 'recipe_tag_links:*' AND key NOT GLOB 'steward_meta:*' AND key NOT GLOB 'ingredient_rule:*';")?;
     let mut preferences = crate::db::preferences::load(&snapshot)?;
     let defaults = crate::db::preferences::Preferences::default();
+    preferences.kitchen_name = defaults.kitchen_name;
     preferences.start_page = defaults.start_page;
     preferences.send_shortcut = defaults.send_shortcut;
     preferences.automatic_backup = defaults.automatic_backup;
@@ -292,6 +293,7 @@ pub fn preserve_local_settings(live: &Connection, path: &Path) -> Result<()> {
     let mut staged = crate::db::open(path)?;
     let device = crate::db::preferences::load(live)?;
     let mut preferences = crate::db::preferences::load(&staged)?;
+    preferences.kitchen_name = device.kitchen_name;
     preferences.start_page = device.start_page;
     preferences.send_shortcut = device.send_shortcut;
     preferences.automatic_backup = device.automatic_backup;
@@ -482,6 +484,7 @@ mod tests {
         let mut cloud_preferences = crate::db::preferences::Preferences::default();
         cloud_preferences.taste = "少盐".into();
         cloud_preferences.start_page = "recipes".into();
+        cloud_preferences.kitchen_name = "云端名称".into();
         crate::db::preferences::save(&mut source, cloud_preferences).unwrap();
         let prepared = prepare(&source, &root.join("cache")).unwrap();
         let mut incoming =
@@ -501,6 +504,7 @@ mod tests {
         let mut local = crate::db::open(&root.join("local.sqlite3")).unwrap();
         let mut device = crate::db::preferences::Preferences::default();
         device.start_page = "pantry".into();
+        device.kitchen_name = "本机厨房昵称".into();
         device.send_shortcut = "ctrlEnter".into();
         device.automatic_backup = false;
         crate::db::preferences::save(&mut local, device).unwrap();
@@ -513,6 +517,7 @@ mod tests {
         let prefs = crate::db::preferences::load(live).unwrap();
         assert_eq!(prefs.taste, "少盐");
         assert_eq!(prefs.start_page, "pantry");
+        assert_eq!(prefs.kitchen_name, "本机厨房昵称");
         assert_eq!(prefs.send_shortcut, "ctrlEnter");
         assert!(!prefs.automatic_backup);
         assert_eq!(

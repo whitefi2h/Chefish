@@ -22,6 +22,37 @@ use std::sync::Mutex;
 use tauri::Manager;
 struct Database(Mutex<Option<rusqlite::Connection>>, String);
 struct AutostartMenu(tauri::menu::CheckMenuItem<tauri::Wry>);
+#[tauri::command]
+fn kitchen_refresh_identity(app: tauri::AppHandle) -> db::Result<()> {
+    let database = app.state::<Database>();
+    let name = {
+        let guard = database.0.lock().map_err(|_| db::ApiError {
+            code: "DATABASE_ERROR".into(),
+            message: "无法读取厨房名称".into(),
+        })?;
+        let conn = guard.as_ref().ok_or_else(|| db::ApiError {
+            code: "DATABASE_ERROR".into(),
+            message: database.1.clone(),
+        })?;
+        db::preferences::load(conn)?.kitchen_name
+    };
+    if let Some(window) = app.get_webview_window("main") {
+        window
+            .set_title(&format!("Chefish · {name}"))
+            .map_err(|_| db::ApiError {
+                code: "WINDOW_TITLE".into(),
+                message: "无法更新窗口标题".into(),
+            })?;
+    }
+    if let Some(tray) = app.tray_by_id("main") {
+        tray.set_tooltip(Some(format!("Chefish · {name}")))
+            .map_err(|_| db::ApiError {
+                code: "WINDOW_TITLE".into(),
+                message: "无法更新托盘提示".into(),
+            })?;
+    }
+    Ok(())
+}
 fn show_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
@@ -384,7 +415,7 @@ fn main() {
             let quiet = MenuItem::with_id(app, "quiet", "切换免打扰", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "退出 Chefish", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &autostart, &quiet, &quit])?;
-            tauri::tray::TrayIconBuilder::new()
+            tauri::tray::TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().unwrap().clone())
                 .tooltip("Chefish 厨房管家")
                 .menu(&menu)
@@ -430,6 +461,7 @@ fn main() {
                     _ => (),
                 })
                 .build(app)?;
+            let _ = kitchen_refresh_identity(app.handle().clone());
             if std::env::args().any(|a| a == "--background") {
                 if let Some(w) = app.get_webview_window("main") {
                     let _ = w.hide();
@@ -439,6 +471,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            kitchen_refresh_identity,
             updates::app_latest_release,
             updates::app_open_project,
             steward::kitchen_steward_state,

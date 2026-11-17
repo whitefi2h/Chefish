@@ -1,3 +1,4 @@
+import { answerAppDialog } from "./helpers/appDialog";
 import { test, expect, type Page } from "@playwright/test";
 import { initialState } from "../src/fixtures/demo";
 import { defaultPreferences } from "../src/domain/preferences";
@@ -70,6 +71,10 @@ async function fixture(page: Page) {
             return 2;
           }
           if (name === "plugin:updater|install") return null;
+          if (name === "kitchen_refresh_identity") {
+            document.documentElement.dataset.nativeTitle = `Chefish · ${state.preferences.kitchenName}`;
+            return null;
+          }
           if (name === "kitchen_bootstrap") return state;
           if (name === "sync_state")
             return {
@@ -252,8 +257,9 @@ test("backup preview, directory access and restore confirmation stay inside sett
   await expect(page.getByRole("region", { name: "恢复预览" })).toContainText(
     "12",
   );
-  page.once("dialog", (prompt) => prompt.accept());
+  const response0 = answerAppDialog(page, true);
   await page.getByRole("button", { name: "确认恢复", exact: true }).click();
+  await response0;
   await expect(
     dialog.getByText("数据已恢复，恢复前的内容也已留存备份。", { exact: true }),
   ).toBeVisible();
@@ -417,8 +423,9 @@ test("cloud verification, upload, preview and confirmed restore keep settings us
   await page.screenshot({
     path: "docs/screenshots/settings/cloud-preview-fixture.png",
   });
-  page.once("dialog", (prompt) => prompt.dismiss());
+  const response1 = answerAppDialog(page, false);
   await preview.getByRole("button", { name: "确认恢复云备份" }).click();
+  await response1;
   expect(
     await page.evaluate(() =>
       (window as unknown as { settingsCalls: string[] }).settingsCalls.filter(
@@ -426,8 +433,9 @@ test("cloud verification, upload, preview and confirmed restore keep settings us
       ),
     ),
   ).toHaveLength(0);
-  page.once("dialog", (prompt) => prompt.accept());
+  const response2 = answerAppDialog(page, true);
   await preview.getByRole("button", { name: "确认恢复云备份" }).click();
+  await response2;
   await expect(dialog.getByRole("status")).toContainText("厨房数据已恢复");
   await dialog.getByRole("button", { name: "退出登录", exact: true }).click();
   await expect(
@@ -486,15 +494,17 @@ test("automatic sync requires explicit binding and conflict recovery, and can pa
 }) => {
   const dialog = await syncUiFixture(page);
   await expect(dialog).toContainText("尚未连接这间厨房");
-  page.once("dialog", (prompt) => prompt.dismiss());
+  const response3 = answerAppDialog(page, false);
   await dialog
     .getByRole("button", { name: "用本机厨房开启同步", exact: true })
     .click();
+  await response3;
   expect(await page.evaluate(() => window.syncUiCalls)).toEqual([]);
-  page.once("dialog", (prompt) => prompt.accept());
+  const response4 = answerAppDialog(page, true);
   await dialog
     .getByRole("button", { name: "用本机厨房开启同步", exact: true })
     .click();
+  await response4;
   await expect(dialog).toContainText("厨房已同步");
   await dialog
     .getByRole("button", { name: "暂停自动同步", exact: true })
@@ -505,27 +515,30 @@ test("automatic sync requires explicit binding and conflict recovery, and can pa
     .click();
   await page.evaluate(() => window.syncUiConflict());
   await expect(dialog).toContainText("同步未能完成");
-  page.once("dialog", (prompt) => prompt.dismiss());
+  const response5 = answerAppDialog(page, false);
   await dialog
     .getByRole("button", { name: "以云端版本替换本机", exact: true })
     .click();
+  await response5;
   expect(await page.evaluate(() => window.syncUiCalls)).not.toContain(
     "forceCloud",
   );
-  page.once("dialog", (prompt) => prompt.dismiss());
+  const response6 = answerAppDialog(page, false);
   await dialog
     .getByRole("button", { name: "以本机版本替换云端", exact: true })
     .click();
+  await response6;
   expect(await page.evaluate(() => window.syncUiCalls)).not.toContain(
     "forceLocal",
   );
   await page.screenshot({
     path: "docs/screenshots/settings/sync-conflict-fixture.png",
   });
-  page.once("dialog", (prompt) => prompt.accept());
+  const response7 = answerAppDialog(page, true);
   await dialog
     .getByRole("button", { name: "以云端版本替换本机", exact: true })
     .click();
+  await response7;
   await expect(dialog).toContainText("厨房已同步");
   expect(await page.evaluate(() => window.syncUiCalls)).toEqual([
     "create",
@@ -534,10 +547,11 @@ test("automatic sync requires explicit binding and conflict recovery, and can pa
     "forceCloud",
   ]);
   await page.evaluate(() => window.syncUiConflict());
-  page.once("dialog", (prompt) => prompt.accept());
+  const response8 = answerAppDialog(page, true);
   await dialog
     .getByRole("button", { name: "以本机版本替换云端", exact: true })
     .click();
+  await response8;
   await expect(dialog).toContainText("厨房已同步");
   expect(await page.evaluate(() => window.syncUiCalls)).toContain("forceLocal");
 });
@@ -565,10 +579,11 @@ test("joining a cloud kitchen keeps manual restore locked until confirmation or 
   await dialog
     .getByRole("button", { name: "连接云端厨房", exact: true })
     .click();
-  page.once("dialog", (prompt) => prompt.accept());
+  const response9 = answerAppDialog(page, true);
   await preview
     .getByRole("button", { name: "确认连接并恢复", exact: true })
     .click();
+  await response9;
   await expect(dialog).toContainText("厨房已同步");
   expect(await page.evaluate(() => window.syncUiCalls)).toEqual(["connect"]);
 });
@@ -658,8 +673,9 @@ test("software updates share settings layout, persist switches, download automat
   await page.screenshot({
     path: "docs/screenshots/settings/app-updates-ready.png",
   });
-  page.once("dialog", (dialog) => dialog.dismiss());
+  const response10 = answerAppDialog(page, false);
   await updates.getByRole("button", { name: "重启并安装" }).click();
+  await response10;
   expect(
     await page.evaluate(() =>
       (window as unknown as { settingsCalls: string[] }).settingsCalls.includes(
@@ -675,8 +691,9 @@ test("software updates share settings layout, persist switches, download automat
       ),
     ),
   ).toBe(true);
-  page.once("dialog", (dialog) => dialog.accept());
+  const response11 = answerAppDialog(page, true);
   await updates.getByRole("button", { name: "重启并安装" }).click();
+  await response11;
   expect(
     await page.evaluate(() =>
       (window as unknown as { settingsCalls: string[] }).settingsCalls.includes(
@@ -727,4 +744,117 @@ test("manual update reports network failures and offers a release-page fallback 
     updates.getByRole("button", { name: "下载更新", exact: true }),
   ).toHaveCount(0);
   await updates.getByRole("button", { name: "版本发布页" }).click();
+});
+
+test("kitchen nickname persists, updates the profile and navigation, truncates long names and resets", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1000, height: 800 });
+  await fixture(page);
+  const profile = page.getByRole("button", {
+    name: "打开厨房设置",
+    exact: true,
+  });
+  await expect(profile).toContainText("我的厨房");
+  let dialog = await openSettings(page);
+  await dialog.getByRole("tab", { name: "通用", exact: true }).click();
+  const name = dialog.getByLabel("厨房名称", { exact: true });
+  await name.fill("小鱼的厨房");
+  await dialog.getByRole("button", { name: "保存设置", exact: true }).click();
+  await expect(profile).toContainText("小鱼的厨房");
+  await expect(page).toHaveTitle("Chefish · 小鱼的厨房");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-native-title",
+    "Chefish · 小鱼的厨房",
+  );
+  await expect(dialog.locator(".settings-kitchen strong")).toHaveText(
+    "小鱼的厨房",
+  );
+  await dialog.getByRole("button", { name: "关闭面板", exact: true }).click();
+  await expect(page.locator(".breadcrumb-kitchen-name")).toHaveText(
+    "小鱼的厨房",
+  );
+  await page.reload();
+  await expect(profile).toContainText("小鱼的厨房");
+  await expect(page).toHaveTitle("Chefish · 小鱼的厨房");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-native-title",
+    "Chefish · 小鱼的厨房",
+  );
+  dialog = await openSettings(page);
+  await dialog.getByRole("tab", { name: "通用", exact: true }).click();
+  const long = "给家里每个人做一顿热腾腾又好吃的饭菜的小鱼厨房";
+  await name.fill(long.slice(0, 24));
+  await dialog.getByRole("button", { name: "保存设置", exact: true }).click();
+  await expect(profile.locator("strong")).toHaveCSS(
+    "text-overflow",
+    "ellipsis",
+  );
+  const bounds = await profile.boundingBox();
+  expect(bounds!.width).toBeLessThan(260);
+  await page.screenshot({
+    path: "docs/screenshots/settings/kitchen-nickname.png",
+  });
+  await dialog.getByRole("button", { name: "恢复默认", exact: true }).click();
+  await dialog.getByRole("button", { name: "保存设置", exact: true }).click();
+  await expect(profile).toContainText("我的厨房");
+  await expect(page).toHaveTitle("Chefish · 我的厨房");
+  await name.fill("   ");
+  await dialog.getByRole("button", { name: "保存设置", exact: true }).click();
+  await expect(profile).toContainText("我的厨房");
+});
+
+test("update confirmation uses the app modal above settings and Escape cancels without installing", async ({
+  page,
+}) => {
+  let nativeDialogs = 0;
+  page.on("dialog", async (dialog) => {
+    nativeDialogs++;
+    await dialog.dismiss();
+  });
+  await page.setViewportSize({ width: 1000, height: 800 });
+  await page.addInitScript(() => {
+    localStorage.setItem("updates-test-mode", "signed");
+    localStorage.setItem(
+      "chefish:update-options",
+      JSON.stringify({ autoCheck: true, autoUpdate: true }),
+    );
+  });
+  await fixture(page);
+  const settings = await openSettings(page);
+  await settings.getByRole("tab", { name: "关于 Chefish" }).click();
+  const update = settings.getByRole("button", {
+    name: "重启并安装",
+    exact: true,
+  });
+  await expect(update).toBeVisible();
+  await update.click();
+  const confirm = page.getByRole("dialog", {
+    name: "重启并安装更新",
+    exact: true,
+  });
+  await expect(confirm).toBeVisible();
+  await expect(
+    confirm.getByRole("button", { name: "取消", exact: true }),
+  ).toBeFocused();
+  await expect(confirm).toHaveCSS("border-radius", "18px");
+  expect((await confirm.boundingBox())!.height).toBeLessThan(300);
+  await expect(
+    confirm.getByRole("button", { name: "重启并安装", exact: true }),
+  ).toBeInViewport();
+  await page.screenshot({
+    path: "docs/screenshots/settings/update-app-confirm.png",
+  });
+  await page.keyboard.press("Escape");
+  await expect(confirm).not.toBeVisible();
+  await expect(settings).toBeVisible();
+  await expect(update).toBeFocused();
+  expect(nativeDialogs).toBe(0);
+  expect(
+    await page.evaluate(() =>
+      (window as unknown as { settingsCalls: string[] }).settingsCalls.includes(
+        "plugin:updater|install",
+      ),
+    ),
+  ).toBe(false);
 });

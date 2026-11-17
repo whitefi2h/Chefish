@@ -1,3 +1,4 @@
+import { confirmAction } from "./services/dialogs";
 import { lazy, Suspense, useEffect, useState } from "react";
 import {
   Utensils,
@@ -100,11 +101,11 @@ export default function Settings({
     setMessage("");
     setError("");
   }
-  function close() {
+  async function close() {
     if (busy || backupBusy) return;
     if (
       (dirty || stewardDirty) &&
-      !window.confirm("设置还未保存，放弃这些修改并关闭？")
+      !(await confirmAction("设置还未保存，放弃这些修改并关闭？"))
     )
       return;
     onClose();
@@ -134,7 +135,9 @@ export default function Settings({
               />
             </span>
             <div>
-              <strong>我的厨房</strong>
+              <strong title={preferences.kitchenName}>
+                {preferences.kitchenName}
+              </strong>
               <small>{persistent ? "在这台电脑上" : "当前演示会话"}</small>
             </div>
           </div>
@@ -142,7 +145,7 @@ export default function Settings({
             aria-label="设置分类"
             role="tablist"
             aria-orientation="vertical"
-            onKeyDown={(e) => {
+            onKeyDown={async (e) => {
               if (
                 backupBusy ||
                 !["ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)
@@ -162,7 +165,7 @@ export default function Settings({
               if (
                 stewardDirty &&
                 tab === "steward" &&
-                !window.confirm("管家设置还未保存，放弃修改并切换？")
+                !(await confirmAction("管家设置还未保存，放弃修改并切换？"))
               )
                 return;
               setTab(sections[next].id);
@@ -181,12 +184,12 @@ export default function Settings({
                 aria-selected={tab === section.id}
                 aria-controls="settings-content"
                 className={tab === section.id ? "selected" : ""}
-                onClick={() => {
+                onClick={async () => {
                   if (
                     stewardDirty &&
                     tab === "steward" &&
                     section.id !== tab &&
-                    !window.confirm("管家设置还未保存，放弃修改并切换？")
+                    !(await confirmAction("管家设置还未保存，放弃修改并切换？"))
                   )
                     return;
                   setTab(section.id);
@@ -322,6 +325,29 @@ export default function Settings({
             )}
             {tab === "general" && (
               <fieldset disabled={busy} className="settings-fields">
+                <div className="settings-text-field kitchen-name-field">
+                  <div>
+                    <label htmlFor="kitchen-name">厨房名称</label>
+                    <button
+                      className="text-button"
+                      onClick={() => change("kitchenName", "我的厨房")}
+                    >
+                      恢复默认
+                    </button>
+                  </div>
+                  <input
+                    id="kitchen-name"
+                    type="text"
+                    maxLength={24}
+                    value={draft.kitchenName}
+                    placeholder="我的厨房"
+                    onChange={(e) => change("kitchenName", e.target.value)}
+                  />
+                  <p className="settings-note">
+                    显示在左下角及厨房导航中，最多 24
+                    个字。名称保存在这台电脑，留空使用“我的厨房”。
+                  </p>
+                </div>
                 {onStartOnboarding && (
                   <div className="settings-row">
                     <div>
@@ -329,12 +355,12 @@ export default function Settings({
                       <p>重新介绍你的饮食习惯，已保存的厨房数据会保留。</p>
                     </div>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (
                           !dirty ||
-                          window.confirm(
+                          (await confirmAction(
                             "当前设置有未保存的修改，仍要打开初始化吗？",
-                          )
+                          ))
                         )
                           onStartOnboarding();
                       }}
@@ -505,7 +531,9 @@ export default function Settings({
                 </p>
                 <p>日常的好滋味</p>
                 <span className="settings-version">版本 {version}</span>
-                <AppUpdates installDisabled={dirty || stewardDirty || busy || backupBusy} />
+                <AppUpdates
+                  installDisabled={dirty || stewardDirty || busy || backupBusy}
+                />
                 <IngredientIconLicenses />
                 <dl>
                   <div>

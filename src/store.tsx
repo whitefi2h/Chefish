@@ -328,6 +328,7 @@ export function DemoProvider({
     notify("已撤销上一步演示变更");
   }
   async function savePreferences(next: AppPreferences) {
+    next = preferencesOf(next);
     if (!client) {
       update((s) => ({ ...s, preferences: next }), "设置已保存到当前演示会话");
       return true;

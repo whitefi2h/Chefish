@@ -1,4 +1,5 @@
 export interface AppPreferences {
+  kitchenName: string;
   defaultServings: number;
   taste: string;
   restrictions: string;
@@ -12,6 +13,7 @@ export interface AppPreferences {
 }
 
 export const defaultPreferences: AppPreferences = {
+  kitchenName: "我的厨房",
   defaultServings: 2,
   taste: "",
   restrictions: "",
@@ -25,5 +27,9 @@ export const defaultPreferences: AppPreferences = {
 };
 
 export function preferencesOf(value?: Partial<AppPreferences>): AppPreferences {
-  return { ...defaultPreferences, ...value };
+  return {
+    ...defaultPreferences,
+    ...value,
+    kitchenName: value?.kitchenName?.trim() || defaultPreferences.kitchenName,
+  };
 }

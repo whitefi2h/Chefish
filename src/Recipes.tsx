@@ -406,7 +406,7 @@ function RecipeDetail({
         <section className="panel cooking-log">
           <h2>
             <NotebookPen size={19} />
-            我的厨房手记
+            {preferences.kitchenName}手记
           </h2>
           <p className="hint">记下这次火候、口味和下次想试的变化。</p>
           <Badge tone="green">{logs.length} 篇手记</Badge>

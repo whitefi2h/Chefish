@@ -1,3 +1,4 @@
+import { confirmAction, requestText } from "./services/dialogs";
 import { invoke } from "@tauri-apps/api/core";
 import type { AssistantProposal } from "./services/aiClient";
 import { useEffect, useRef, useState } from "react";
@@ -127,6 +128,25 @@ export default function StewardInbox({
   const [planChanges, setPlanChanges] = useState<
     { section: string; before: string; after: string }[]
   >([]);
+  const meals = new Map<string, NonNullable<typeof draft>["slots"]>();
+  for (const slot of draft?.slots ?? []) {
+    const key = slot.day + "/" + slot.meal;
+    const group = meals.get(key) ?? [];
+    group.push(slot);
+    meals.set(key, group);
+  }
+  const pendingItems =
+    forecast?.items.filter(
+      (item) => !item.hidden && Number(item.remaining) > 0,
+    ) ?? [];
+  const changeSummary = [
+    ["新增", planChanges.filter((c) => !c.before && c.after).length],
+    ["调整", planChanges.filter((c) => c.before && c.after).length],
+    ["移除", planChanges.filter((c) => c.before && !c.after).length],
+  ]
+    .filter(([, count]) => Number(count) > 0)
+    .map(([label, count]) => `${label} ${count} 项安排`)
+    .join("、");
   const [alias, setAlias] = useState("");
   const [canonical, setCanonical] = useState("");
   const [factor, setFactor] = useState("");
@@ -297,23 +317,39 @@ export default function StewardInbox({
                   </tr>
                 </thead>
                 <tbody>
-                  {draft.slots.map((s, i) => (
-                    <tr key={i}>
-                      <td>
-                        {s.day}
-                        <small>{s.meal}</small>
-                      </td>
-                      <td>
-                        {s.customTitle ??
-                          kitchen.recipes.find(
-                            (r) => r.revisionId === s.recipeRevisionId,
-                          )?.name ??
-                          "原菜谱版本"}
-                        {s.planId && <small>已有安排</small>}
-                      </td>
-                      <td>{s.servings}</td>
-                    </tr>
-                  ))}
+                  {[...meals.entries()]
+                    .sort(
+                      ([, a], [, b]) =>
+                        a[0].day.localeCompare(b[0].day) ||
+                        ["早餐", "午餐", "晚餐"].indexOf(a[0].meal) -
+                          ["早餐", "午餐", "晚餐"].indexOf(b[0].meal),
+                    )
+                    .map(([key, slots]) => (
+                      <tr key={key}>
+                        <td>
+                          {slots[0].day}
+                          <small>{slots[0].meal}</small>
+                        </td>
+                        <td colSpan={2}>
+                          <ul className="steward-meal-dishes">
+                            {slots.map((slot, i) => (
+                              <li key={i}>
+                                <span>
+                                  {slot.customTitle ??
+                                    kitchen.recipes.find(
+                                      (r) =>
+                                        r.revisionId === slot.recipeRevisionId,
+                                    )?.name ??
+                                    "原菜谱版本"}
+                                  {slot.planId && <small>已有安排</small>}
+                                </span>
+                                <span>{slot.servings} 人</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </section>
@@ -321,34 +357,26 @@ export default function StewardInbox({
           {forecast && (
             <section className="steward-menu-preview" aria-label="草稿采购预览">
               <h3>采购需求{draft?.status === "confirmed" ? "" : "预览"}</h3>
-              {planChanges.map((c, i) => (
-                <div key={i}>
-                  <strong>{c.section}</strong>
-                  <p className="hint">原先：{c.before || "无"}</p>
-                  <p>{c.after || "无"}</p>
-                </div>
-              ))}
-              {forecast.items
-                .filter((i) => !i.hidden && Number(i.remaining) > 0)
-                .map((i, n) => (
-                  <div key={n}>
-                    <p>
-                      {i.name} · {quantityText(i.remaining)} {i.unit}
-                      {i.estimated ? " · 含估算" : ""}
-                      {i.review ? " · 待核对" : ""}
-                    </p>
-                    {i.estimates?.map((e, j) => (
-                      <p className="hint" key={j}>
-                        {e}
-                      </p>
-                    ))}
-                  </div>
+              <p className="hint">
+                {pendingItems.length
+                  ? `还需采购 ${pendingItems.length} 种食材`
+                  : "暂无待买食材"}
+              </p>
+              <ul className="steward-shopping-list">
+                {pendingItems.map((item, n) => (
+                  <li key={n}>
+                    <span>{item.name}</span>
+                    <strong>
+                      {item.estimated ? "约 " : ""}
+                      {quantityText(item.remaining)} {item.unit}
+                    </strong>
+                    {item.review && <small>请确认用量</small>}
+                  </li>
                 ))}
-              {forecast.reviewNotes.map((n, i) => (
-                <p className="hint" key={i}>
-                  {n}
-                </p>
-              ))}
+              </ul>
+              {changeSummary && (
+                <p className="hint">确认后将{changeSummary}。</p>
+              )}
             </section>
           )}
           {draft?.status === "confirmed" && (
@@ -502,8 +530,8 @@ export default function StewardInbox({
                 {v.entityKind === "lot" && (
                   <button
                     disabled={busy}
-                    onClick={() => {
-                      const date = window.prompt(
+                    onClick={async () => {
+                      const date = await requestText(
                         "预计复查日期（YYYY-MM-DD），留空清除；不会修改真实到期日",
                         v.metadata?.reviewOn ?? "",
                       );
@@ -549,8 +577,10 @@ export default function StewardInbox({
             <button
               key={op}
               disabled={busy}
-              onClick={() => {
-                if (window.confirm("撤销这批自动整理？后续修改会阻止撤销。"))
+              onClick={async () => {
+                if (
+                  await confirmAction("撤销这批自动整理？后续修改会阻止撤销。")
+                )
                   void act(() => steward.undo(op));
               }}
             >

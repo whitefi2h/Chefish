@@ -244,7 +244,7 @@ export default function RecipeEditor({
   onExisting?: (id: string) => void;
   onClose: () => void;
 }) {
-  const { state, mutate, persistent, busy } = useDemo();
+  const { state, mutate, persistent, busy, preferences } = useDemo();
   const [name, setName] = useState(initialDraft?.name ?? source?.name ?? "");
   const [media, setMedia] = useState<RecipeMedia | undefined>(
     initialDraft?.media ?? source?.media,
@@ -289,7 +289,7 @@ export default function RecipeEditor({
     initialDraft?.seasoning ?? source?.seasoning ?? "",
   );
   const [subtitle, setSubtitle] = useState(
-    initialDraft?.subtitle ?? source?.subtitle ?? "我的厨房手记",
+    initialDraft?.subtitle ?? source?.subtitle ?? `${preferences.kitchenName}手记`,
   );
   const [ingredientRows, setIngredientRows] = useState(() => {
     if (!initialDraft && !source) return [{ name: "", amountText: "100 g" }];

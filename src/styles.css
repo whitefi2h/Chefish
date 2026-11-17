@@ -1524,25 +1524,46 @@ td button > svg {
   line-height: 1.4;
   max-width: 100%;
 }
-[data-tag-group="cuisine"] { --tag-ink:var(--tag-cuisine-ink); --tag-bg:var(--tag-cuisine-bg); --tag-border:var(--tag-cuisine-border); }
-[data-tag-group="trait"] { --tag-ink:var(--tag-trait-ink); --tag-bg:var(--tag-trait-bg); --tag-border:var(--tag-trait-border); }
-[data-tag-group="method"] { --tag-ink:var(--tag-method-ink); --tag-bg:var(--tag-method-bg); --tag-border:var(--tag-method-border); }
-[data-tag-group="custom"] { --tag-ink:var(--tag-custom-ink); --tag-bg:var(--tag-custom-bg); --tag-border:var(--tag-custom-border); }
-.recipe-tag[data-tag-group], .tag-choice[data-tag-group] {
-  color:var(--tag-ink);
-  background:var(--tag-bg);
+[data-tag-group="cuisine"] {
+  --tag-ink: var(--tag-cuisine-ink);
+  --tag-bg: var(--tag-cuisine-bg);
+  --tag-border: var(--tag-cuisine-border);
 }
-.tag-choice[data-tag-group]:hover, .recipe-tag[data-tag-group]:is(button):hover {
-  border-color:var(--tag-border);
-  color:var(--tag-ink);
-  background:var(--tag-bg);
+[data-tag-group="trait"] {
+  --tag-ink: var(--tag-trait-ink);
+  --tag-bg: var(--tag-trait-bg);
+  --tag-border: var(--tag-trait-border);
 }
-.tag-choice[data-tag-group].selected, .tag-manager-tabs > button[data-tag-group].selected {
-  color:var(--tag-ink);
-  background:var(--tag-bg);
-  border-color:var(--tag-border);
+[data-tag-group="method"] {
+  --tag-ink: var(--tag-method-ink);
+  --tag-bg: var(--tag-method-bg);
+  --tag-border: var(--tag-method-border);
 }
-.tag-catalog-row[data-tag-group] .tag-tree-name > strong { color:var(--tag-ink); }
+[data-tag-group="custom"] {
+  --tag-ink: var(--tag-custom-ink);
+  --tag-bg: var(--tag-custom-bg);
+  --tag-border: var(--tag-custom-border);
+}
+.recipe-tag[data-tag-group],
+.tag-choice[data-tag-group] {
+  color: var(--tag-ink);
+  background: var(--tag-bg);
+}
+.tag-choice[data-tag-group]:hover,
+.recipe-tag[data-tag-group]:is(button):hover {
+  border-color: var(--tag-border);
+  color: var(--tag-ink);
+  background: var(--tag-bg);
+}
+.tag-choice[data-tag-group].selected,
+.tag-manager-tabs > button[data-tag-group].selected {
+  color: var(--tag-ink);
+  background: var(--tag-bg);
+  border-color: var(--tag-border);
+}
+.tag-catalog-row[data-tag-group] .tag-tree-name > strong {
+  color: var(--tag-ink);
+}
 .recipe-tag small,
 .tag-choice small {
   font-size: 10px;
@@ -4218,8 +4239,48 @@ td button > svg {
   border-radius: var(--radius-sm);
   color: var(--muted);
 }
-.assistant-header-actions svg { flex-shrink: 0; }
-.assistant-inbox-trigger { position: relative; }
+.assistant-header-actions svg {
+  flex-shrink: 0;
+}
+.dialog.app-confirm-dialog {
+  width: 440px;
+  max-width: calc(100vw - 40px);
+  height: fit-content;
+  min-height: 0;
+  border-radius: 18px;
+}
+.app-confirm-dialog .dialog-head {
+  padding: 19px 22px 14px;
+}
+.app-confirm-dialog .dialog-head h2 {
+  font: 600 17px/1.5 var(--font-body);
+}
+.app-confirm-dialog .dialog-body {
+  flex: 0 1 auto;
+  padding: 0 22px 22px;
+}
+.app-confirm-message {
+  margin: 0 0 22px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.app-confirm-dialog input {
+  width: 100%;
+  margin-bottom: 20px;
+}
+.app-confirm-actions {
+  justify-content: flex-end;
+  gap: 10px;
+}
+.app-confirm-actions button {
+  min-width: 86px;
+}
+.assistant-inbox-trigger {
+  position: relative;
+}
 .assistant-header-actions .assistant-inbox-count {
   position: absolute;
   top: -5px;
@@ -4938,24 +4999,142 @@ td button > svg {
 }
 
 /* Compact tag hierarchy: the name carries meaning; aliases stay in search/edit. */
-.tag-catalog-row { min-height: 48px; padding-block: 8px; }
-.tag-tree-name { display:flex; align-items:center; gap:8px; min-width:0; }
-.tag-tree-name strong { overflow-wrap:anywhere; }
-.tag-tree-name small { margin:0; font-size:11px; }
-.tag-catalog-row .tag-tree-toggle { width:24px; height:26px; min-height:26px; padding:0; border:0; background:transparent; flex-shrink:0; }
-.tag-tree-toggle svg { transform:rotate(-90deg); transition:transform 160ms ease-out; }
-.tag-tree-toggle[aria-expanded="true"] svg { transform:rotate(0); }
-.tag-catalog-row .tag-tree-select { min-height:24px; padding:2px 5px; font-size:11px; border:0; background:transparent; color:var(--muted); }
-.tag-parent-picker { min-width:0; margin:0; padding:0; border:0; display:grid; gap:10px; }
-.tag-parent-picker legend { margin-bottom:8px; font-size:13px; color:var(--muted); }
-.tag-parent-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; max-height:180px; overflow-y:auto; padding:2px; }
-.form-stack .tag-parent-options label { display:flex; flex-direction:row; align-items:center; gap:8px; min-height:32px; padding:4px 6px; font-size:13px; border-radius:6px; }
-.tag-parent-options label:hover { background:var(--side); }
-.tag-parent-options input { width:14px; height:14px; min-height:0; margin:0; accent-color:var(--sage); }
-.tag-parent-picker > input { width:100%; }
-@media (prefers-reduced-motion:reduce){.tag-tree-toggle svg{transition:none}}
+.tag-catalog-row {
+  min-height: 48px;
+  padding-block: 8px;
+}
+.tag-tree-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.tag-tree-name strong {
+  overflow-wrap: anywhere;
+}
+.tag-tree-name small {
+  margin: 0;
+  font-size: 11px;
+}
+.tag-catalog-row .tag-tree-toggle {
+  width: 24px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  flex-shrink: 0;
+}
+.tag-tree-toggle svg {
+  transform: rotate(-90deg);
+  transition: transform 160ms ease-out;
+}
+.tag-tree-toggle[aria-expanded="true"] svg {
+  transform: rotate(0);
+}
+.tag-catalog-row .tag-tree-select {
+  min-height: 24px;
+  padding: 2px 5px;
+  font-size: 11px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.tag-parent-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 10px;
+}
+.tag-parent-picker legend {
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.tag-parent-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.form-stack .tag-parent-options label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 6px;
+  font-size: 13px;
+  border-radius: 6px;
+}
+.tag-parent-options label:hover {
+  background: var(--side);
+}
+.tag-parent-options input {
+  width: 14px;
+  height: 14px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--sage);
+}
+.tag-parent-picker > input {
+  width: 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tag-tree-toggle svg {
+    transition: none;
+  }
+}
 
-.tag-picker-summary { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.tag-picker-summary > .recipe-tag-badges { flex:1; }
-.tag-picker-summary > button { flex-shrink:0; min-height:28px; padding:2px 0; font-size:12px; }
-.tag-picker-summary > button[aria-expanded="true"] svg { transform:rotate(180deg); }
+.tag-picker-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tag-picker-summary > .recipe-tag-badges {
+  flex: 1;
+}
+.tag-picker-summary > button {
+  flex-shrink: 0;
+  min-height: 28px;
+  padding: 2px 0;
+  font-size: 12px;
+}
+.tag-picker-summary > button[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.steward-meal-dishes,
+.steward-shopping-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.steward-meal-dishes li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 5px 0;
+}
+.steward-meal-dishes li > span:last-child {
+  white-space: nowrap;
+  color: var(--muted);
+}
+.steward-shopping-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--sage-border);
+}
+.steward-shopping-list strong {
+  font-weight: 500;
+}
+.steward-shopping-list small {
+  color: var(--muted);
+}

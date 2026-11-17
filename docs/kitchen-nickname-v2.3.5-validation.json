@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-07",
+  "version": "2.3.5",
+  "feature": "Custom local kitchen nickname in General settings; profile, settings card, sidebar caption and breadcrumb update after Save.",
+  "behavior": {
+    "default": "我的厨房",
+    "maxCharacters": 24,
+    "blank": "Restore default after trimming whitespace",
+    "scope": "Local device preference, not incremental kitchen sync; cloud snapshot resets name and cloud restore preserves the destination device name.",
+    "layout": "Long names ellipsize with full title tooltip."
+  },
+  "checks": {
+    "typecheck": true,
+    "lint": true,
+    "rustPreferencesPassed": 2,
+    "rustCloudSnapshotPassed": 5,
+    "browserSettingsPassed": 1,
+    "browserScope": "Isolated fixture: save, reload, profile + breadcrumb updates, 24-char name at 1000px, reset, blank fallback.",
+    "visualReview": "docs/screenshots/settings/kitchen-nickname.png",
+    "releaseBuild": true,
+    "nsisBuild": true,
+    "updaterSignatureGenerated": true,
+    "manifestGenerated": true
+  },
+  "artifacts": {
+    "exe": "src-tauri/target/release/chefish.exe",
+    "installer": "src-tauri/target/release/bundle/nsis/Chefish_2.3.5_x64-setup.exe"
+  },
+  "limits": [
+    "No personal database or sync queue accessed.",
+    "No installed personal upgrade acceptance.",
+    "Local uncommitted delivery; last public release remains v2.3.3.",
+    "Includes the uncommitted v2.3.4 native title correction."
+  ]
+}

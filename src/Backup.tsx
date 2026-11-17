@@ -1,3 +1,4 @@
+import { confirmAction } from "./services/dialogs";
 import { useEffect, useRef, useState } from "react";
 import {
   ArchiveRestore,
@@ -194,9 +195,9 @@ export default function Backup({
               onClick={() =>
                 void run(async () => {
                   if (
-                    !window.confirm(
+                    !(await confirmAction(
                       "恢复将替换当前厨房数据与偏好。应用会先备份现有数据，继续恢复？",
-                    )
+                    ))
                   )
                     return;
                   await invoke("kitchen_backup_restore", {

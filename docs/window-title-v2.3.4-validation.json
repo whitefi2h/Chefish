@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-06",
+  "version": "2.3.4",
+  "problem": "Native Windows title was persisted as mojibake in tauri.conf.json after a configuration rewrite used the platform default encoding. The web page title and content were unaffected.",
+  "fix": "Restore native title to Chefish · 我的厨房; encode Tauri JSON as ASCII with standard JSON Unicode escapes.",
+  "checks": {
+    "jsonTitle": "Chefish · 我的厨房",
+    "utf8AndGbkReadersAgree": true,
+    "typecheck": true,
+    "frontendBuild": true,
+    "releaseBuild": true,
+    "nsisBuild": true,
+    "signatureGenerated": true,
+    "compiledExeContainsCorrectTitle": true,
+    "compiledExeHasNoOldMojibakeTitle": true
+  },
+  "artifacts": {
+    "exe": "src-tauri/target/release/chefish.exe",
+    "installer": "src-tauri/target/release/bundle/nsis/Chefish_2.3.4_x64-setup.exe"
+  },
+  "limits": [
+    "No personal kitchen or conversations accessed.",
+    "No installed native window acceptance performed.",
+    "Local patch delivery only; not committed, pushed or published."
+  ]
+}

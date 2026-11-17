@@ -1,3 +1,4 @@
+import { confirmAction } from "./services/dialogs";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -243,9 +244,9 @@ export default function KitchenAssistant({
   }, [showTaskPanel, showTools]);
   async function clearHistory() {
     if (
-      !window.confirm(
+      !(await confirmAction(
         "清除本机保存的聊天记录、候选和输入草稿？已保存的菜谱不受影响。",
-      )
+      ))
     )
       return;
     try {

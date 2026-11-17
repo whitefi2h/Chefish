@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-07",
+  "version": "2.3.6",
+  "scope": [
+    "Native title and tray tooltip use stored kitchenName at startup and after UI preferences refresh.",
+    "Web document title, footer, recipe notes heading and onboarding use nickname.",
+    "New recipe default subtitle uses nickname; existing recipe text remains unchanged."
+  ],
+  "checks": {
+    "rustCheck": true,
+    "typecheck": true,
+    "lint": true,
+    "browserNickname": {
+      "passed": 1,
+      "scope": "Save and restart refresh web title and native refresh command bridge; default reset; isolated native command fixture."
+    },
+    "sourceAudit": "Remaining literal 我的厨房 strings in UI are preference defaults, reset controls, placeholder and explanatory copy.",
+    "releaseBuild": true,
+    "nsisBuild": true,
+    "updaterSignatureGenerated": true,
+    "manifestGenerated": true
+  },
+  "limits": [
+    "Browser bridge is a fixture; no installed native window acceptance with personal data.",
+    "No personal kitchen or queue accessed.",
+    "Local uncommitted delivery, not published to GitHub."
+  ],
+  "artifacts": {
+    "exe": "src-tauri/target/release/chefish.exe",
+    "installer": "src-tauri/target/release/bundle/nsis/Chefish_2.3.6_x64-setup.exe"
+  }
+}

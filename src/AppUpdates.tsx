@@ -1,3 +1,4 @@
+import { confirmAction } from "./services/dialogs";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   ArrowUpCircle,
@@ -148,10 +149,11 @@ export default function AppUpdates({
               <button
                 className="primary"
                 disabled={installDisabled}
-                onClick={() => {
+                onClick={async () => {
                   if (
-                    window.confirm(
+                    await confirmAction(
                       "安装更新会退出并重新打开 Chefish。请确认正在编辑的内容已保存，现在安装？",
+                      { title: "重启并安装更新", confirmLabel: "重启并安装" },
                     )
                   )
                     void appUpdater.install();

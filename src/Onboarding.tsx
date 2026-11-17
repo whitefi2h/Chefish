@@ -467,7 +467,7 @@ export default function Onboarding({
   ];
   return (
     <Modal
-      title="设置我的厨房"
+      title={`设置${preferences.kitchenName}`}
       animateEntrance={false}
       onClose={() => close()}
       className={`onboarding-dialog onboarding-step-${step} ${motion ? "onboarding-motion" : ""}`}
@@ -802,7 +802,7 @@ export default function Onboarding({
               disabled={locked}
               onClick={() => close("finished")}
             >
-              进入我的厨房
+              进入{preferences.kitchenName}
               <ArrowRight size={15} />
             </button>
           ) : (step === 1 || step === 4) && childDirty ? null : (

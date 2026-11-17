@@ -1,3 +1,4 @@
+import { answerAppDialog } from "./helpers/appDialog";
 import { test, expect, type Page } from "@playwright/test";
 import { initialState } from "../src/fixtures/demo";
 
@@ -326,11 +327,12 @@ test("chat and candidate IDs restore after close, manual clear persists and orig
   await page.getByRole("button", { name: "厨房助手", exact: true }).click();
   await expect(page.locator(".recipe-candidate")).toHaveCount(2);
   await expect(page.getByLabel("对厨房助手说")).toHaveValue("下次继续");
-  page.once("dialog", (dialog) => dialog.accept());
+  const response0 = answerAppDialog(page, true);
   await page.getByRole("button", { name: "更多操作", exact: true }).click();
   await page
     .getByRole("menuitem", { name: "清除聊天记录", exact: true })
     .click();
+  await response0;
   await expect(page.locator(".recipe-candidate")).toHaveCount(0);
   await expect(page.getByLabel("对厨房助手说")).toHaveValue("");
   await page.getByRole("button", { name: "关闭面板", exact: true }).click();

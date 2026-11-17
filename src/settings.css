@@ -16,6 +16,24 @@
   margin-left: auto;
   color: var(--muted);
 }
+.settings-trigger > div, .settings-kitchen > div { min-width: 0; }
+.settings-trigger > .avatar, .settings-trigger-icon { flex-shrink: 0; }
+.settings-trigger strong, .settings-kitchen strong, .nav-caption {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.breadcrumb .breadcrumb-kitchen-name {
+  display: inline-block;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+  color: inherit;
+  margin: 0;
+}
+.kitchen-name-field input { width: 100%; }
 .dialog.settings-dialog:not(.drawer) {
   width: 940px;
   height: min(760px, calc(100vh - 64px));

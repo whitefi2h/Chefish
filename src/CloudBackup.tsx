@@ -1,3 +1,4 @@
+import { confirmAction } from "./services/dialogs";
 import { useEffect, useRef, useState } from "react";
 import {
   Cloud,
@@ -366,9 +367,9 @@ export default function CloudBackup({
                       onClick={() =>
                         void run(async () => {
                           if (
-                            !window.confirm(
+                            !(await confirmAction(
                               "用云备份替换当前厨房数据与用餐偏好？将先保存本机安全备份，聊天记录和通用设置会保留。",
-                            )
+                            ))
                           )
                             return;
                           await invoke("kitchen_backup_restore", {

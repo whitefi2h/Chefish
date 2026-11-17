@@ -1,3 +1,4 @@
+import { confirmAction } from "./services/dialogs";
 import { CarouselButtons, useHorizontalCarousel } from "./HorizontalCarousel";
 import IngredientAvatar, { IngredientAvatarCredit } from "./IngredientAvatar";
 import { foodInventoryLots, expiringInventoryLots } from "./domain/inventory";
@@ -287,9 +288,9 @@ function DeleteLotButton({
   const ingredient = state.ingredients.find((i) => i.id === lot.ingredientId)!;
   async function remove() {
     if (
-      !window.confirm(
+      !(await confirmAction(
         `删除“${ingredient.name}”这批食材？删除后将从库存移除，历史购买和烹饪记录保留。`,
-      )
+      ))
     )
       return;
     const saved = await mutate(

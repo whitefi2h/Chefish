@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase", deny_unknown_fields)]
 pub struct Preferences {
+    pub kitchen_name: String,
     pub default_servings: i64,
     pub taste: String,
     pub restrictions: String,
@@ -20,6 +21,7 @@ pub struct Preferences {
 impl Default for Preferences {
     fn default() -> Self {
         Self {
+            kitchen_name: "我的厨房".into(),
             default_servings: 2,
             taste: String::new(),
             restrictions: String::new(),
@@ -52,6 +54,9 @@ pub fn load(conn: &Connection) -> Result<Preferences> {
 }
 
 pub(super) fn validate(value: &Preferences) -> Result<()> {
+    if value.kitchen_name.trim().chars().count() > 24 {
+        return Err(error("INVALID_PREFERENCES", "厨房名称最多 24 个字"));
+    }
     if !(1..=12).contains(&value.default_servings)
         || !["home", "recipes", "pantry", "planner", "shopping"]
             .contains(&value.start_page.as_str())
@@ -70,6 +75,10 @@ pub(super) fn validate(value: &Preferences) -> Result<()> {
 
 pub fn save(conn: &mut Connection, mut value: Preferences) -> Result<()> {
     validate(&value)?;
+    value.kitchen_name = value.kitchen_name.trim().to_owned();
+    if value.kitchen_name.is_empty() {
+        value.kitchen_name = Preferences::default().kitchen_name;
+    }
     value.taste = value.taste.trim().to_owned();
     value.restrictions = value.restrictions.trim().to_owned();
     value.equipment = value.equipment.trim().to_owned();
@@ -109,6 +118,7 @@ mod tests {
         db::execute(&mut conn, &Uuid::new_v4().to_string(), serde_json::from_value(json!({"type":"save_plan","plan_id":null,"expected_version":null,"draft":{"recipe_revision_id":revision,"custom_title":null,"day":"2026-10-25","meal":"晚餐","servings":3}})).unwrap()).unwrap();
         let before = db::snapshot(&conn).unwrap();
         let expected = Preferences {
+            kitchen_name: "小鱼的厨房".into(),
             default_servings: 5,
             taste: "少辣".into(),
             restrictions: "不吃花生".into(),
@@ -132,6 +142,10 @@ mod tests {
         assert_eq!(load(&conn).unwrap(), expected);
         save(&mut conn, Preferences::default()).unwrap();
         assert_eq!(load(&conn).unwrap().restrictions, "");
+        let mut blank = Preferences::default();
+        blank.kitchen_name = "  ".into();
+        save(&mut conn, blank).unwrap();
+        assert_eq!(load(&conn).unwrap().kitchen_name, "我的厨房");
         drop(conn);
         std::fs::remove_dir_all(dir).unwrap();
     }

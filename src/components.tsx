@@ -69,6 +69,7 @@ export function Modal({
     const overflow = root.style.overflow;
     root.style.overflow = "hidden";
     el.showModal();
+    el.querySelector<HTMLElement>("[data-dialog-autofocus]")?.focus();
     if (drawer) {
       // Keep the page's stable gutter; extend only the overlay to the viewport edge.
       const gap = window.innerWidth - el.getBoundingClientRect().right;

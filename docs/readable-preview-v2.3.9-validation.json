@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-17",
+  "version": "2.3.9",
+  "scope": [
+    "Remove shopping explanation paragraphs and disclosure controls as requested in the follow-up.",
+    "Keep ingredient names, remaining quantities, 约 and 请确认用量 markers.",
+    "Keep concise nonzero menu change counts; no raw estimate or review note paragraphs."
+  ],
+  "checks": {
+    "typecheck": true,
+    "lint": true,
+    "browser": "Three focused scenarios passed after removing explanations: confirmation, meal grouping and clean procurement preview.",
+    "preview": "docs/screenshots/steward/readable-shopping-preview.png",
+    "packaging": {
+      "buildExit": 0,
+      "installer": "src-tauri/target/release/bundle/nsis/Chefish_2.3.9_x64-setup.exe",
+      "updaterSignatureAndManifest": true
+    }
+  },
+  "limits": [
+    "Preview uses isolated sample data, not the personal kitchen.",
+    "Shopping calculations and explicit confirmation requirements unchanged.",
+    "No GitHub publication."
+  ]
+}

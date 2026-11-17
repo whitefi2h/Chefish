@@ -1,0 +1,36 @@
+{
+  "date": "2026-11-07",
+  "version": "2.3.7",
+  "scope": [
+    "Replace frontend native confirm/prompt dialogs with the shared application Modal.",
+    "Cover update installation, backup restore, sync replacement, inventory deletion, unsaved settings, chat clearing, maintenance undo and review-date input.",
+    "Reuse application colors, typography and buttons; compact content height, explicit initial focus, Escape cancellation and focus restoration."
+  ],
+  "checks": {
+    "typecheck": true,
+    "lint": true,
+    "browserScenarios": {
+      "uniquePassed": 36,
+      "execution": "Initial related suites plus corrected focused reruns; not a single uninterrupted full-suite pass.",
+      "corrections": "Updated chat test sequencing for asynchronous dialogs; explicit focus after showModal; fit-content sizing. A parallel Playwright output-directory collision was rerun serially.",
+      "updateConfirmation": "No browser native dialog; Cancel initially focused; height below 300px; Escape closes confirmation while settings stays open; focus returns; install command is not invoked.",
+      "reviewDate": "Input initially focused; cancellation invokes no mutation; confirmed input invokes the fixture command."
+    },
+    "sourceAudit": "No remaining frontend window.confirm, window.prompt or window.alert calls.",
+    "visualReview": "Reviewed compact update confirmation screenshot after correcting excessive height.",
+    "packaging": "Final rebuild generated version 2.3.7 EXE, NSIS installer, updater signature and manifest; artifact timestamps follow the final frontend build."
+  },
+  "limits": [
+    "Browser validation uses isolated bridge fixtures, not an installed native update acceptance.",
+    "No personal kitchen, sync queue or chat accessed; no real installation or restart performed.",
+    "System file selection and the Windows installer retain their native platform UI.",
+    "Local delivery only; not committed, pushed or published."
+  ],
+  "artifacts": {
+    "exe": "src-tauri/target/release/chefish.exe",
+    "installer": "src-tauri/target/release/bundle/nsis/Chefish_2.3.7_x64-setup.exe",
+    "signature": "src-tauri/target/release/bundle/nsis/Chefish_2.3.7_x64-setup.exe.sig",
+    "manifest": "src-tauri/target/release/bundle/nsis/latest.json",
+    "screenshot": "docs/screenshots/settings/update-app-confirm.png"
+  }
+}

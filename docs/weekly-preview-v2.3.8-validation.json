@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-16",
+  "version": "2.3.8",
+  "scope": [
+    "Group draft dishes by day and meal, ordered by date and breakfast/lunch/dinner; preserve per-dish servings and existing-plan labels.",
+    "Shopping preview lists visible positive remaining quantities with compact estimate/review labels.",
+    "Calculation notes and menu-change records are collapsed behind explicit details controls; confirmation boundaries and calculation logic unchanged."
+  ],
+  "checks": {
+    "typecheck": true,
+    "lint": true,
+    "browser": "18 steward scenarios passed, including new multi-dish grouping. Additional populated shopping fixture passed separately after correcting fixture setup to create a draft before preview.",
+    "visual": "Grouped lunch and two dinner dishes reviewed in isolated browser screenshot.",
+    "screenshot": "docs/screenshots/steward/grouped-menu-preview.png",
+    "packaging": {
+      "releaseBuildExit": 0,
+      "exeVersion": "2.3.8",
+      "installer": "src-tauri/target/release/bundle/nsis/Chefish_2.3.8_x64-setup.exe",
+      "signatureGenerated": true,
+      "manifestGenerated": true
+    }
+  },
+  "limits": [
+    "Isolated browser bridge fixtures, no personal kitchen accessed.",
+    "No changes to persisted plans or shopping quantities until existing explicit confirmation.",
+    "No GitHub publication performed."
+  ]
+}

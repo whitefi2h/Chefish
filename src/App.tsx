@@ -1,4 +1,5 @@
 import { useWindowLayout } from "./useWindowLayout";
+import { invoke } from "@tauri-apps/api/core";
 import { supplies } from "./domain/seasonings";
 import KitchenAssistant from "./KitchenAssistant";
 import { shoppingPending } from "./domain/shopping";
@@ -142,6 +143,18 @@ function Shell() {
   } = useDemo();
   const { route, navigate: setPage, back, canBack, reset } = useNavigation();
   const page = route.page;
+  const identityNotify = useRef(notify);
+  identityNotify.current = notify;
+  useEffect(() => {
+    if (!ready) return;
+    document.title = `Chefish · ${preferences.kitchenName}`;
+    if (persistent)
+      void invoke("kitchen_refresh_identity").catch(() =>
+        identityNotify.current(
+          "厨房名称已保存，窗口标题更新失败，请重启应用。",
+        ),
+      );
+  }, [ready, persistent, preferences.kitchenName]);
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
   const [onboardingStep, setOnboardingStep] = useState<number | null>(null);
   const onboardingChecked = useRef(false);
@@ -205,9 +218,7 @@ function Shell() {
     : pendingItems(state, weekStart).filter((i) => i.status === "pending")
         .length;
   if (persistent && !ready)
-    return (
-      <StartupScreen error={loadError} onRetry={reload} />
-    );
+    return <StartupScreen error={loadError} onRetry={reload} />;
   return (
     <div className="app" aria-busy={busy}>
       <aside className="sidebar">
@@ -234,7 +245,9 @@ function Shell() {
             <small>日常的好滋味</small>
           </div>
         </a>
-        <div className="nav-caption">我的厨房</div>
+        <div className="nav-caption" title={preferences.kitchenName}>
+          {preferences.kitchenName}
+        </div>
         <nav aria-label="全局导航">
           {pages.map((p) => (
             <button
@@ -280,7 +293,9 @@ function Shell() {
             />
           </span>
           <div>
-            <strong>{persistent ? "我的厨房" : "我的演示厨房"}</strong>
+            <strong title={preferences.kitchenName}>
+              {preferences.kitchenName}
+            </strong>
             <small>设置与偏好</small>
           </div>
           <Settings2 size={16} className="settings-trigger-icon" />
@@ -299,7 +314,13 @@ function Shell() {
               <ArrowLeft size={17} />
               返回
             </button>
-            我的厨房 <span>/</span>{" "}
+            <span
+              className="breadcrumb-kitchen-name"
+              title={preferences.kitchenName}
+            >
+              {preferences.kitchenName}
+            </span>{" "}
+            <span>/</span>{" "}
             <strong>{pages.find((p) => p.id === page)?.name}</strong>
           </div>
           <div className="actions">
@@ -380,7 +401,7 @@ function Shell() {
           ))}
         </main>
         <footer className="app-footer">
-          <span>CHEFISH / 我的厨房手记</span>
+          <span>CHEFISH / {preferences.kitchenName}手记</span>
           <span>
             {persistent
               ? `本机日期 ${today} · 数据保存在本机`

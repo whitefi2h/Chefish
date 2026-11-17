@@ -1,3 +1,4 @@
+import { answerAppDialog } from "./helpers/appDialog";
 import { test, expect, type Page } from "@playwright/test";
 import { initialState } from "../src/fixtures/demo";
 async function inventoryIPC(page: Page, fail = false) {
@@ -178,11 +179,12 @@ test("list deletion requires confirmation and cancelling keeps the batch", async
   page,
 }) => {
   await inventoryIPC(page);
-  page.once("dialog", (dialog) => dialog.dismiss());
+  const response0 = answerAppDialog(page, false);
   await page
     .getByRole("button", { name: "删除牛肉批次", exact: true })
     .first()
     .click();
+  await response0;
   expect(
     await page.evaluate(
       () =>
@@ -190,11 +192,12 @@ test("list deletion requires confirmation and cancelling keeps the batch", async
           .inventoryCommands,
     ),
   ).toEqual([]);
-  page.once("dialog", (dialog) => dialog.accept());
+  const response1 = answerAppDialog(page, true);
   await page
     .getByRole("button", { name: "删除牛肉批次", exact: true })
     .first()
     .click();
+  await response1;
   expect(
     await page.evaluate(
       () =>
@@ -247,15 +250,17 @@ test("preview cells and detail share editing and deletion, with empty batches hi
   await expect(dialog.getByLabel("储存位置", { exact: true })).toHaveValue(
     "常温",
   );
-  page.once("dialog", (prompt) => prompt.dismiss());
+  const response2 = answerAppDialog(page, false);
   await dialog
     .getByRole("button", { name: "删除鸡蛋批次", exact: true })
     .click();
+  await response2;
   await expect(dialog).toBeVisible();
-  page.once("dialog", (prompt) => prompt.accept());
+  const response3 = answerAppDialog(page, true);
   await dialog
     .getByRole("button", { name: "删除鸡蛋批次", exact: true })
     .click();
+  await response3;
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(rows).toHaveCount(0);
 });

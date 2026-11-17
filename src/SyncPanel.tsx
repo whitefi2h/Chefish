@@ -1,3 +1,4 @@
+import { confirmAction } from "./services/dialogs";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { RefreshCw, Pause, Play, Cloud, ShieldCheck } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
@@ -130,9 +131,9 @@ export default function SyncPanel({
                 onClick={() =>
                   void run(async () => {
                     if (
-                      !window.confirm(
+                      !(await confirmAction(
                         `将先备份本机，再用这台电脑的完整厨房替换云端同步版本，包含当前 ${status.local?.queuedOperations ?? 0} 项待同步操作的结果。云端原版本会保留恢复记录；其他设备需要重新选择版本。确定以本机为准？`,
-                      )
+                      ))
                     )
                       return;
                     await syncRuntime.forceLocal();
@@ -152,9 +153,9 @@ export default function SyncPanel({
                 onClick={() =>
                   void run(async () => {
                     if (
-                      !window.confirm(
+                      !(await confirmAction(
                         `将先下载云端厨房，再备份并替换本机。当前 ${status.local?.queuedOperations ?? 0} 项本机待同步操作将不再上传；恢复不依赖旧队列回退。确定以云端为准？`,
-                      )
+                      ))
                     )
                       return;
                     await syncRuntime.forceCloud();
@@ -179,11 +180,11 @@ export default function SyncPanel({
                     return;
                   }
                   if (
-                    !window.confirm(
+                    !(await confirmAction(
                       other
                         ? "将先备份本机，再把当前厨房复制到当前登录账户。原账户的云端内容保持保留。继续？"
                         : "将当前厨房（含菜谱图片、库存、菜单与用餐偏好）上传到当前账户，并开启自动同步？聊天和密钥保留本机。",
-                    )
+                    ))
                   )
                     return;
                   await syncRuntime.create(other);
@@ -225,9 +226,9 @@ export default function SyncPanel({
                   onClick={() =>
                     void run(async () => {
                       if (
-                        !window.confirm(
+                        !(await confirmAction(
                           "连接将替换本机厨房数据。会先保存安全备份，并保留本机聊天、通用设置和密钥。继续？",
-                        )
+                        ))
                       )
                         return;
                       await syncRuntime.connect(pending.preview, pending.head);

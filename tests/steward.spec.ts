@@ -52,7 +52,9 @@ async function setup(page: Page, conflict = false, empty = false) {
       let confirmed = false;
       const taskStatuses: Record<string, string> = {};
       const readTasks = new Set<string>();
-      const forecast = {
+      const forecast = JSON.parse(
+        localStorage.getItem("steward-forecast") ?? "null",
+      ) ?? {
         weekStart: "2026-11-02",
         asOf: "2026-10-28",
         items: [],
@@ -125,7 +127,11 @@ async function setup(page: Page, conflict = false, empty = false) {
                           ? {
                               items: Array.from({ length: 8 }, (_, i) => ({
                                 name: ["鸡蛋", "蘑菇", "意面", "鸡肉"][i % 4],
-                                entityKind: "ingredient",
+                                entityKind: localStorage.getItem(
+                                  "review-date-test",
+                                )
+                                  ? "lot"
+                                  : "ingredient",
                                 entityId: `fixture-${i}`,
                                 metadata: { tags: ["已分类"] },
                               })),
@@ -295,7 +301,7 @@ test("weekly discussion survives reload and requires preview before confirmation
   await page.getByRole("button", { name: "核对菜单与采购" }).click();
   await expect(
     page.getByText("西兰花少许：采用估计，请按实物调整"),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "确认菜单并生成采购需求" }).click();
   await expect(page.getByText("菜单已确认，采购需求已更新")).toBeVisible();
 });
@@ -697,4 +703,158 @@ test("proactive inbox stays reachable in long chats, shows every pending item an
   await expect(
     page.getByRole("complementary", { name: "历史会话" }),
   ).toBeVisible();
+});
+
+test("review-date editing uses the styled input modal and cancels safely", async ({
+  page,
+}) => {
+  await page.addInitScript(() => localStorage.setItem("review-date-test", "1"));
+  await setup(page);
+  await page.getByRole("button", { name: "厨房助手", exact: false }).click();
+  await page.getByRole("button", { name: "主动消息", exact: true }).click();
+  await page.getByRole("button", { name: "厨房整理已完成，查看任务" }).click();
+  await page.getByText("查看自动整理明细（8 项）", { exact: true }).click();
+  await page.getByRole("button", { name: "修正预计复查日期" }).first().click();
+  const prompt = page.getByRole("dialog", { name: "修改内容", exact: true });
+  await expect(prompt.getByLabel("输入内容")).toBeFocused();
+  await prompt.getByLabel("输入内容").fill("2026-11-20");
+  await prompt.getByRole("button", { name: "取消", exact: true }).click();
+  expect(
+    await page.evaluate(() =>
+      (window as unknown as { stewardCalls: string[] }).stewardCalls.includes(
+        "kitchen_steward_review_date",
+      ),
+    ),
+  ).toBe(false);
+  await page.getByRole("button", { name: "修正预计复查日期" }).first().click();
+  await prompt.getByLabel("输入内容").fill("2026-11-20");
+  await prompt.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(prompt).not.toBeVisible();
+  expect(
+    await page.evaluate(() =>
+      (window as unknown as { stewardCalls: string[] }).stewardCalls.includes(
+        "kitchen_steward_review_date",
+      ),
+    ),
+  ).toBe(true);
+});
+
+test("same-meal dishes share one row while other meals stay separate", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "steward-draft",
+      JSON.stringify({
+        id: "draft-1",
+        weekStart: "2026-11-16",
+        messages: [],
+        version: 1,
+        status: "draft",
+        slots: [
+          { day: "2026-11-18", meal: "晚餐", customTitle: "鸡翅", servings: 2 },
+          { day: "2026-11-18", meal: "午餐", customTitle: "面条", servings: 1 },
+          {
+            day: "2026-11-18",
+            meal: "晚餐",
+            customTitle: "西兰花",
+            servings: 1,
+          },
+        ],
+      }),
+    ),
+  );
+  await setup(page);
+  await openInbox(page);
+  const table = page.locator(".steward-menu-preview table");
+  await expect(table.locator("tbody tr")).toHaveCount(2);
+  const dinner = table.getByRole("row").filter({ hasText: "晚餐" });
+  await expect(dinner).toContainText("鸡翅");
+  await expect(dinner).toContainText("西兰花");
+  await expect(dinner.locator("li")).toHaveCount(2);
+  await expect(table.locator("tbody tr").first()).toContainText("午餐");
+  await page.getByRole("button", { name: "核对菜单与采购" }).click();
+  await expect(
+    page.getByText("西兰花少许：采用估计，请按实物调整"),
+  ).toHaveCount(0);
+  await page.screenshot({
+    path: "docs/screenshots/steward/grouped-menu-preview.png",
+  });
+});
+
+test("shopping preview shows readable notes without disclosure controls", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "steward-forecast",
+      JSON.stringify({
+        weekStart: "2026-11-16",
+        asOf: "2026-11-16",
+        pastPlanCount: 0,
+        items: [
+          {
+            name: "鸡蛋",
+            remaining: "50",
+            unit: "g",
+            estimated: true,
+            estimates: ["鸡蛋按常见规格换算"],
+            hidden: false,
+          },
+          {
+            name: "西兰花",
+            remaining: "200",
+            unit: "g",
+            review: true,
+            hidden: false,
+          },
+          { name: "已备食材", remaining: "0", unit: "g", hidden: false },
+        ],
+        reviewNotes: [
+          "2026-11-18 晚餐 · 鸡翅：调味请自行核对（很长的腌制说明不应出现在采购页）",
+        ],
+      }),
+    ),
+  );
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "steward-draft",
+      JSON.stringify({
+        id: "draft-1",
+        weekStart: "2026-11-16",
+        messages: [],
+        version: 1,
+        status: "draft",
+        slots: [
+          {
+            day: "2026-11-18",
+            meal: "晚餐",
+            customTitle: "蒜香烤鸡翅",
+            servings: 2,
+          },
+          {
+            day: "2026-11-18",
+            meal: "晚餐",
+            customTitle: "清炒西兰花",
+            servings: 2,
+          },
+        ],
+      }),
+    ),
+  );
+  await setup(page);
+  await openInbox(page);
+  await page.getByRole("button", { name: "核对菜单与采购" }).click();
+  const preview = page.getByLabel("草稿采购预览");
+  await expect(preview).toContainText("还需采购 2 种食材");
+  await expect(preview.locator(".steward-shopping-list li")).toHaveCount(2);
+  await expect(preview.locator(".steward-shopping-list")).toContainText("50 g");
+  await expect(preview.getByText("鸡蛋按常见规格换算")).toBeHidden();
+  await expect(preview.locator("details")).toHaveCount(0);
+  await expect(preview.getByText(/标有|调味料按口味准备/)).toHaveCount(0);
+  await expect(preview).not.toContainText("很长的腌制说明");
+  await page.screenshot({
+    path: "docs/screenshots/steward/readable-shopping-preview.png",
+  });
 });
