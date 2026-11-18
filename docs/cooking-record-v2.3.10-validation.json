@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-18",
+  "version": "2.3.10",
+  "scope": [
+    "Explicit stock-name/alias usage such as 排骨用完了，玉米用了一个 is resolved locally and passed through existing quantity validation.",
+    "Unsupported or ambiguous clauses retain the AI interpretation path.",
+    "Interpretation failure on confirmation saves the written record with empty consumptions rather than blocking completion or deducting recipe suggestions."
+  ],
+  "checks": {
+    "typecheck": true,
+    "lint": true,
+    "browser": "9 cooking scenarios passed, including failed interpretation followed by successful text-only save with no stock deduction.",
+    "rust": "4 passed, 3 live-model tests ignored. Initial parallel compile exhausted Windows commit memory; serial retry passed.",
+    "releaseBuildExit": 0,
+    "artifacts": [
+      "src-tauri/target/release/chefish.exe",
+      "src-tauri/target/release/bundle/nsis/Chefish_2.3.10_x64-setup.exe",
+      "src-tauri/target/release/bundle/nsis/Chefish_2.3.10_x64-setup.exe.sig",
+      "src-tauri/target/release/bundle/nsis/latest.json"
+    ]
+  },
+  "limits": [
+    "Isolated browser fixtures; no personal kitchen or stock accessed.",
+    "No claim of live-model acceptance; deterministic regression uses synthetic stock.",
+    "No GitHub publication performed."
+  ]
+}

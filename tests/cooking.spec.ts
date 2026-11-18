@@ -340,3 +340,41 @@ test("written cooking record is interpreted on submit even after opening manual 
   await card.getByRole("button", { name: "查看烹饪记录" }).click();
   await expect(page.getByRole("dialog")).toContainText("牛肉只用了一点点");
 });
+
+test("failed interpretation still saves written record without deducting suggested stock", async ({
+  page,
+}) => {
+  await cookingIPC(page);
+  await page.evaluate(() => {
+    const target = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (name: string, args: unknown) => Promise<unknown>;
+      };
+    };
+    const original = target.__TAURI_INTERNALS__.invoke;
+    target.__TAURI_INTERNALS__.invoke = async (name, args) => {
+      if (name === "kitchen_cooking_interpret")
+        throw { message: "暂未整理出有效用量" };
+      return original(name, args);
+    };
+  });
+  await page
+    .getByLabel("烹饪记录", { exact: true })
+    .fill("排骨用完了，玉米用了一个。");
+  await page.getByRole("button", { name: "AI 整理实际用量" }).click();
+  await expect(page.getByRole("alert")).toContainText("暂未整理");
+  await page.getByRole("button", { name: "确认完成" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const commands = await page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          cookingCommands: {
+            draft: { record: string; consumptions: unknown[] };
+          }[];
+        }
+      ).cookingCommands,
+  );
+  expect(commands.at(-1)?.draft.record).toBe("排骨用完了，玉米用了一个。");
+  expect(commands.at(-1)?.draft.consumptions).toEqual([]);
+});

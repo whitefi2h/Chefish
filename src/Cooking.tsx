@@ -127,9 +127,13 @@ export function CookingForm({
             !manual
           ) {
             const result = await interpretRecord();
-            if (!result) return;
-            p = result.preview;
-            q = result.quantities;
+            if (result) {
+              p = result.preview;
+              q = result.quantities;
+            } else {
+              // Preserve the record without applying recipe suggestions as actual usage.
+              q = {};
+            }
           }
           const saved = await mutate(
             {
@@ -155,7 +159,9 @@ export function CookingForm({
               },
             },
             (s) => s,
-            "烹饪已完成，记录与实际用量已保存",
+            record.trim() && !Object.keys(q).length
+              ? "烹饪已完成，文字记录已保存，库存未扣减"
+              : "烹饪已完成，记录与实际用量已保存",
           );
           if (saved) onClose();
         }}

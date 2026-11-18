@@ -46,7 +46,63 @@ pub fn context(conn: &rusqlite::Connection, id: &str, servings: i64, date: &str)
         .collect::<Result<Vec<_>>>()?;
     Ok(json!({"preview":preview,"stock":stock,"recipe":title,"date":date,"servings":servings}))
 }
+// Resolve explicit everyday usage without depending on model output formatting.
+fn explicit_usage(input: &Value, record: &str) -> Option<Value> {
+    let stock = input["stock"].as_array()?;
+    let mut consumptions = Vec::new();
+    let mut used = std::collections::BTreeSet::new();
+    for clause in record.split(['，', '。', '、', ',', '.', '；', ';']) {
+        let clause = clause.trim();
+        if clause.is_empty() { continue; }
+        let matches: Vec<_> = stock.iter().filter(|lot| {
+            std::iter::once(lot["name"].as_str())
+                .chain(std::iter::once(lot["canonicalName"].as_str()))
+                .chain(lot["aliases"].as_array().into_iter().flatten().map(Value::as_str))
+                .flatten().any(|name| !name.is_empty() && clause.starts_with(name) &&
+                    clause[name.len()..].trim().starts_with("用"))
+        }).collect();
+        let first = *matches.first()?;
+        if matches.iter().any(|lot| lot["ingredientId"] != first["ingredientId"]) { return None; }
+        let name_end = clause.find('用')?;
+        let action = clause[name_end..].trim_end_matches('了').trim();
+        let all = matches!(action, "用完" | "用光" | "用尽");
+        let amount = if all { Decimal::ZERO } else {
+            let raw = action.strip_prefix("用了").or_else(|| action.strip_prefix("用"))?.trim();
+            let raw = raw.strip_suffix('个')?;
+            match raw {
+                "一" => Decimal::ONE, "两" | "二" => Decimal::from(2),
+                "三" => Decimal::from(3), "四" => Decimal::from(4),
+                "五" => Decimal::from(5), "半" => Decimal::new(5, 1),
+                _ => Decimal::from_str(raw).ok()?,
+            }
+        };
+        if !all && amount <= Decimal::ZERO { return None; }
+        let mut left = amount;
+        for lot in matches {
+            let id = lot["id"].as_str()?;
+            if !used.insert(id.to_owned()) { return None; }
+            let available = Decimal::from_str(lot["quantity"].as_str()?).ok()?;
+            if all {
+                consumptions.push(json!({"lotId":id,"usage":"all","quantity":available.to_string()}));
+            } else {
+                let factor = db::ingredient_standard::factor(first["name"].as_str()?, "个", lot["unit"].as_str()?)?;
+                let quantity = (left * factor).round_dp(6).min(available);
+                consumptions.push(json!({"lotId":id,"usage":"quantity","quantity":quantity.to_string(),"sourceQuantity":amount.to_string(),"sourceUnit":"个"}));
+                left = (left - quantity / factor).max(Decimal::ZERO);
+                if left == Decimal::ZERO { break; }
+            }
+        }
+    }
+    if consumptions.is_empty() { return None; }
+    Some(json!({"consumptions":consumptions,"assumptions":[]}))
+}
 pub fn interpret(input: &Value, record: &str) -> Result<Value> {
+    if let Some(output) = explicit_usage(input, record) {
+        if let Ok(quantities) = validate(input, &output) {
+            let (summary, assumptions) = describe(input, &output, &quantities);
+            return Ok(json!({"quantities":quantities,"summary":summary,"assumptions":assumptions}));
+        }
+    }
     let mut feedback = Value::Null;
     for _ in 0..2 {
         let output = ai::completion(
@@ -229,6 +285,18 @@ pub async fn kitchen_cooking_interpret(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn explicit_finished_ribs_and_one_corn() {
+        let input = json!({"stock":[
+            {"id":"ribs","ingredientId":"ribs","name":"排骨","quantity":"300","unit":"g"},
+            {"id":"corn","ingredientId":"corn","name":"玉米","quantity":"2","unit":"个"}
+        ]});
+        let output = explicit_usage(&input, "排骨用完了，玉米用了一个。").unwrap();
+        let quantities = validate(&input, &output).unwrap();
+        assert_eq!(quantities["ribs"], "300");
+        assert_eq!(quantities["corn"], "1");
+        assert!(explicit_usage(&input, "排骨没用完，玉米用了一个。").is_none());
+    }
     #[test]
     fn native_unit_consumption_is_bounded_and_duplicate_rows_cannot_overdraw() {
         let input = json!({"stock":[{"id":"garlic","quantity":"4"}]});

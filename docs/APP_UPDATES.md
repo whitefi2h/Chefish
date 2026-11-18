@@ -19,6 +19,8 @@
 
 ## 本机构建与后续发布
 
+用户于 2026-11-18 授权后续新版本在相关检查、正式构建和签名通过后直接提交、推送并发布 GitHub Release，无需再次确认。先上传完整资产再公开，随后回读公开更新入口；构建脚本本身仍只负责构建，不自动发布。
+
 运行 `npm run release:build`，生成 NSIS 安装包、同名 `.sig` 和 `latest.json`，均位于 `src-tauri/target/release/bundle/nsis/`。脚本从 CHANGELOG 当前版本段落提取更新说明。
 
 签名私钥保存在当前 Windows 用户目录的 `.tauri/chefish-update.key`，公钥在 `src-tauri/tauri.conf.json`。私钥不在仓库，不打印到日志。应离线妥善备份该文件；未来版本必须继续使用同一密钥，不能为了构建成功另生成替代密钥。其他构建机器通过 `TAURI_SIGNING_PRIVATE_KEY` 与可选的 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` 注入密钥；不会写入仓库。普通 `tauri build` 也需要签名环境变量。
