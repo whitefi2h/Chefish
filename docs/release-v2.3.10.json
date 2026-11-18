@@ -1,0 +1,36 @@
+{
+  "date": "2026-11-18",
+  "version": "2.3.10",
+  "sourceCommit": "ba2c8d78e4203b9699525b8aa4585240e030ce6a",
+  "releaseUrl": "https://github.com/whitefi2h/Chefish/releases/tag/v2.3.10",
+  "publishedAt": "2026-11-18T03:19:22Z",
+  "latestStable": true,
+  "publicUpdaterManifestVerified": true,
+  "assets": [
+    {
+      "name": "chefish.exe",
+      "bytes": 62351360,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.10/chefish.exe"
+    },
+    {
+      "name": "Chefish_2.3.10_x64-setup.exe",
+      "bytes": 44630277,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.10/Chefish_2.3.10_x64-setup.exe"
+    },
+    {
+      "name": "Chefish_2.3.10_x64-setup.exe.sig",
+      "bytes": 440,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.10/Chefish_2.3.10_x64-setup.exe.sig"
+    },
+    {
+      "name": "latest.json",
+      "bytes": 944,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.10/latest.json"
+    }
+  ],
+  "validation": "cooking-record-v2.3.10-validation.json",
+  "limits": [
+    "No personal installed upgrade acceptance performed.",
+    "Personal kitchen data and local cleanup receipt excluded."
+  ]
+}
