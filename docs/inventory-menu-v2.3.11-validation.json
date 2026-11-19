@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-19",
+  "version": "2.3.11",
+  "scope": [
+    "Weekly planning prefers real local recipes matching stock; searches Xiachufang using available ingredient combinations when local options are unsuitable.",
+    "Reject newly invented custom dishes in model plan updates unless named by the user; preserve existing custom dishes.",
+    "Weekly tool results and candidate cards rank by genuine numeric recipe rating, then cooked count; unknown ratings remain unknown.",
+    "External candidates remain recommendations until selected and imported; existing draft preservation and explicit confirmation remain in effect."
+  ],
+  "checks": {
+    "typecheck": true,
+    "lint": true,
+    "rust": "17 passed, 2 live-model tests ignored; includes invention rejection, inventory search dispatch, rating ordering and existing draft preservation.",
+    "releaseBuildExit": 0
+  },
+  "limits": [
+    "Synthetic tool fixtures; no live model/search quality acceptance claimed.",
+    "No personal kitchen data accessed."
+  ]
+}

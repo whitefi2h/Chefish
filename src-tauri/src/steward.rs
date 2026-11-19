@@ -197,7 +197,9 @@ fn reply(app: &tauri::AppHandle, id: &str, version: i64, message: &str) -> Resul
             }
         }
     }
-    candidates.truncate(6);
+    let mut ranked = json!(candidates);
+    rank_weekly_candidates(&mut ranked);
+    let candidates: Vec<Value> = ranked.as_array().unwrap().iter().take(6).cloned().collect();
     let slots_value = if result["action"] == "operate" || result["updatePlan"] == false {
         d["slots"].clone()
     } else {
@@ -250,6 +252,26 @@ fn weekly_prompt() -> String {
         commands
     )
 }
+fn rank_weekly_candidates(rows: &mut Value) {
+    if let Some(rows) = rows.as_array_mut() {
+        rows.sort_by(|a, b| {
+            let rating = |v: &Value| v["rating"].as_f64().filter(|n| (0.0..=10.0).contains(n));
+            rating(b).partial_cmp(&rating(a)).unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| b["madeCount"].as_u64().cmp(&a["madeCount"].as_u64()))
+        });
+    }
+}
+fn invented_weekly_dish(input: &Value, out: &Value) -> bool {
+    if out["updatePlan"] != true { return false; }
+    out["slots"].as_array().into_iter().flatten().any(|slot| {
+        let Some(title) = slot["customTitle"].as_str() else { return false; };
+        let preserved = ["slots", "baseline"].iter().any(|key|
+            input["draft"][key].as_array().into_iter().flatten().any(|old| old["customTitle"] == title));
+        let requested = input["draft"]["messages"].as_array().into_iter().flatten()
+            .any(|m| m["role"] == "user" && m["content"].as_str().is_some_and(|text| !title.is_empty() && text.contains(title)));
+        !preserved && !requested
+    })
+}
 // Read-only tools run in the task conversation; mutations remain preview-only until confirmed.
 fn plan_turn(
     mut input: Value,
@@ -258,9 +280,14 @@ fn plan_turn(
 ) -> Result<Value> {
     for _ in 0..4 {
         let out = complete(input.clone())?;
+        if invented_weekly_dish(&input, &out) {
+            input["validationFeedback"] = json!("不能自创临时菜补齐菜单。请优先使用库中真实菜谱；没有适合菜时用现有库存组合调用search，推荐真实高分菜谱，保留原slots。");
+            continue;
+        }
         match out["action"].as_str().unwrap_or("reply") {
             action @ ("search" | "read") => {
-                let result = tool(action, &out)?;
+                let mut result = tool(action, &out)?;
+                if action == "search" { rank_weekly_candidates(&mut result); }
                 input["toolResults"]
                     .as_array_mut()
                     .unwrap()

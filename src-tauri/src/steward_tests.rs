@@ -161,3 +161,31 @@ fn live_weekly_search_keeps_existing_menu() {
     assert_eq!(out["action"], "reply");
     println!("synthetic weekly search reply: {}", out["message"]);
 }
+
+#[test]
+fn weekly_inventory_rejects_invention_then_searches_rated_sources() {
+    let mut turns = 0;
+    let out = plan_turn(json!({"draft":{"slots":[],"messages":[{"role":"user","content":"用冰箱库存安排一周"}]},"toolResults":[]}), |input| {
+        turns += 1;
+        match turns {
+            1 => Ok(json!({"action":"reply","updatePlan":true,"slots":[{"customTitle":"自创玉米排骨拼盘"}]})),
+            2 => {
+                assert!(input["validationFeedback"].is_string());
+                Ok(json!({"action":"search","query":"玉米 排骨"}))
+            },
+            _ => {
+                let rows = &input["toolResults"][0]["result"];
+                assert_eq!(rows[0]["rating"], 9.2);
+                assert_eq!(rows[1]["rating"], 8.0);
+                assert!(rows[2]["rating"].is_null());
+                Ok(json!({"action":"reply","updatePlan":false,"slots":[],"message":"推荐真实来源"}))
+            }
+        }
+    }, |kind, request| {
+        assert_eq!(kind, "search");
+        assert_eq!(request["query"], "玉米 排骨");
+        Ok(json!([{"title":"人气菜","rating":8.0,"madeCount":10000},{"title":"高分菜","rating":9.2,"madeCount":20},{"title":"未知评分","rating":null,"madeCount":99999}]))
+    }).unwrap();
+    assert_eq!(out["updatePlan"], false);
+    assert_eq!(out["slots"], json!([]));
+}

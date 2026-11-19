@@ -1,7 +1,7 @@
 {
   "name": "chefish",
   "private": true,
-  "version": "2.3.10",
+  "version": "2.3.11",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
