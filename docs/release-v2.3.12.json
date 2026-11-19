@@ -1,0 +1,32 @@
+{
+  "validation": "operation-queue-v2.3.12-validation.json",
+  "latestStable": true,
+  "publishedAt": "2026-11-19T11:15:14Z",
+  "date": "2026-11-19",
+  "version": "2.3.12",
+  "releaseUrl": "https://github.com/whitefi2h/Chefish/releases/tag/v2.3.12",
+  "assets": [
+    {
+      "name": "chefish.exe",
+      "bytes": 62379008,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.12/chefish.exe"
+    },
+    {
+      "name": "Chefish_2.3.12_x64-setup.exe",
+      "bytes": 44635874,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.12/Chefish_2.3.12_x64-setup.exe"
+    },
+    {
+      "name": "Chefish_2.3.12_x64-setup.exe.sig",
+      "bytes": 440,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.12/Chefish_2.3.12_x64-setup.exe.sig"
+    },
+    {
+      "name": "latest.json",
+      "bytes": 914,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.12/latest.json"
+    }
+  ],
+  "sourceCommit": "a4f5b40decc3eb8820597ee5aad9669798c4d56d",
+  "publicUpdaterManifestVerified": true
+}
