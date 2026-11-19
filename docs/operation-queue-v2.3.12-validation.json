@@ -1,0 +1,19 @@
+{
+  "date": "2026-11-19",
+  "version": "2.3.12",
+  "scope": [
+    "Background sync reads, mutations and preference writes share a serialized operation queue instead of discarding writes when inFlight is true.",
+    "Busy state covers pending writes; queue slots release after success or failure.",
+    "Initial unloaded kitchens still require loading; database version checks and error handling remain active."
+  ],
+  "checks": {
+    "typecheck": true,
+    "lint": true,
+    "browser": "10 inventory scenarios passed. New regression pauses a sync bootstrap, submits a purchase, verifies it waits without execution/toast, resumes the read and verifies exactly one saved command and form closure. Existing failure-retains-draft scenario also passed.",
+    "releaseBuildExit": 0
+  },
+  "limits": [
+    "Isolated browser IPC fixtures; no personal kitchen or cloud queue accessed.",
+    "Queued commands still report genuine stale-version/database errors rather than bypassing backend checks."
+  ]
+}

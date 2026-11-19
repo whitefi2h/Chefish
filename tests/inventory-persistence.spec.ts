@@ -293,3 +293,61 @@ test("inline quantity controls use unit steps and never open a dialog", async ({
     page.locator("tbody").getByRole("button", { name: /修改.*属性/ }),
   ).toHaveCount(0);
 });
+
+test("purchase waits for a sync refresh instead of dropping the action", async ({
+  page,
+}) => {
+  await inventoryIPC(page);
+  await page.getByRole("button", { name: "食材购买", exact: true }).click();
+  await page.getByLabel("食材名称", { exact: true }).fill("同步期间购买");
+  await page.evaluate(() => {
+    const target = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (name: string, args: unknown) => Promise<unknown>;
+      };
+      releaseRefresh: () => void;
+      refreshStarted: boolean;
+    };
+    const original = target.__TAURI_INTERNALS__.invoke;
+    let release!: () => void;
+    const paused = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    target.releaseRefresh = release;
+    target.__TAURI_INTERNALS__.invoke = async (name, args) => {
+      if (name === "kitchen_bootstrap" && !target.refreshStarted) {
+        target.refreshStarted = true;
+        await paused;
+      }
+      return original(name, args);
+    };
+    window.dispatchEvent(new Event("chefish:sync-data"));
+  });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as unknown as { refreshStarted: boolean }).refreshStarted,
+      ),
+    )
+    .toBe(true);
+  await page.getByRole("button", { name: "确认购买", exact: true }).click();
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { inventoryCommands: unknown[] })
+          .inventoryCommands,
+    ),
+  ).toHaveLength(0);
+  await expect(page.getByText("正在加载或保存，请稍候。")).toHaveCount(0);
+  await page.evaluate(() =>
+    (window as unknown as { releaseRefresh: () => void }).releaseRefresh(),
+  );
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { inventoryCommands: unknown[] })
+          .inventoryCommands,
+    ),
+  ).toMatchObject([{ type: "receive_lot", draft: { name: "同步期间购买" } }]);
+});

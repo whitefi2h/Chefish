@@ -68,6 +68,21 @@ export function DemoProvider({
   const [loadError, setLoadError] = useState("");
   const [notification, setNotification] = useState({ text: "", revision: 0 });
   const inFlight = useRef(false);
+  const operationTail = useRef<Promise<void>>(Promise.resolve());
+  const queuedWrites = useRef(0);
+  async function acquireOperation() {
+    const previous = operationTail.current;
+    let release!: () => void;
+    operationTail.current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    inFlight.current = true;
+    return () => {
+      inFlight.current = false;
+      release();
+    };
+  }
   const pending = useRef<{ key: string; id: string } | null>(null);
   const refreshRequired = useRef(false);
   const [forecastState, setForecastState] = useState<{
@@ -156,21 +171,21 @@ export function DemoProvider({
         timer = setTimeout(refresh, 100);
         return;
       }
-      inFlight.current = true;
-      void client
-        .load()
-        .then((next) => {
+      void (async () => {
+        const release = await acquireOperation();
+        try {
+          if (!alive) return;
+          const next = await client.load();
           if (alive) {
             setHistory([next]);
             setLoadError("");
           }
-        })
-        .catch((error) => {
+        } catch (error) {
           if (alive) setLoadError(errorMessage(error));
-        })
-        .finally(() => {
-          inFlight.current = false;
-        });
+        } finally {
+          release();
+        }
+      })();
     };
     window.addEventListener("chefish:sync-data", refresh);
     void import("./services/steward")
@@ -254,12 +269,13 @@ export function DemoProvider({
       update(fn, successMessage);
       return true;
     }
-    if (!ready || inFlight.current) {
-      notify("正在加载或保存，请稍候。");
+    if (!ready) {
+      notify("厨房尚未加载完成，请加载后重试。");
       return false;
     }
-    inFlight.current = true;
+    queuedWrites.current += 1;
     setBusy(true);
+    const release = await acquireOperation();
     try {
       if (refreshRequired.current && !(await reload())) {
         notify("上次写入已提交，但读取失败；请先重试加载。");
@@ -310,8 +326,9 @@ export function DemoProvider({
       notify(errorMessage(error));
       return false;
     } finally {
-      inFlight.current = false;
-      setBusy(false);
+      release();
+      queuedWrites.current -= 1;
+      setBusy(queuedWrites.current > 0);
     }
   }
   function undo() {
@@ -333,9 +350,10 @@ export function DemoProvider({
       update((s) => ({ ...s, preferences: next }), "设置已保存到当前演示会话");
       return true;
     }
-    if (!ready || inFlight.current) return false;
-    inFlight.current = true;
+    if (!ready) return false;
+    queuedWrites.current += 1;
     setBusy(true);
+    const release = await acquireOperation();
     try {
       if (!client.savePreferences) throw new Error("当前客户端不支持保存设置");
       await client.savePreferences(next);
@@ -346,8 +364,9 @@ export function DemoProvider({
       notify(errorMessage(error));
       return false;
     } finally {
-      inFlight.current = false;
-      setBusy(false);
+      release();
+      queuedWrites.current -= 1;
+      setBusy(queuedWrites.current > 0);
     }
   }
   return (
