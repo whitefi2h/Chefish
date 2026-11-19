@@ -1,0 +1,32 @@
+{
+  "sourceCommit": "43b4be8314270a438dd5c177fba073ccef3cf8fb",
+  "version": "2.3.11",
+  "releaseUrl": "https://github.com/whitefi2h/Chefish/releases/tag/v2.3.11",
+  "validation": "inventory-menu-v2.3.11-validation.json",
+  "latestStable": true,
+  "assets": [
+    {
+      "bytes": 62383104,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.11/chefish.exe",
+      "name": "chefish.exe"
+    },
+    {
+      "bytes": 44637768,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.11/Chefish_2.3.11_x64-setup.exe",
+      "name": "Chefish_2.3.11_x64-setup.exe"
+    },
+    {
+      "bytes": 440,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.11/Chefish_2.3.11_x64-setup.exe.sig",
+      "name": "Chefish_2.3.11_x64-setup.exe.sig"
+    },
+    {
+      "bytes": 1037,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.3.11/latest.json",
+      "name": "latest.json"
+    }
+  ],
+  "date": "2026-11-19",
+  "publishedAt": "2026-11-19T05:06:35Z",
+  "publicUpdaterManifestVerified": true
+}
