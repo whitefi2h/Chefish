@@ -2,9 +2,9 @@
   "date": "2026-11-21",
   "version": "2.4.0",
   "schema": 19,
-  "status": "draft_uploaded_pending_production_rules",
+  "status": "published",
   "releaseUrl": "https://github.com/whitefi2h/Chefish/releases/tag/v2.4.0",
-  "latestStable": false,
+  "latestStable": true,
   "buildPassed": true,
   "signedInstaller": true,
   "manifestVersionAndSignatureMatch": true,
@@ -25,10 +25,13 @@
     "firestoreEmulatorShutdown": "Test child exited 0 with 8 passed; CLI reported an unexpected error during emulator shutdown."
   },
   "productionRules": {
-    "deployed": false,
-    "reason": "Firebase login expired; reauthentication required"
+    "deployed": true,
+    "readbackMatchesLocal": true,
+    "ruleset": "projects/chefish-kitchen/rulesets/b65494e2-5262-434c-89d9-b77dcfe5830e",
+    "updateTime": "2026-11-20T19:38:09.045624Z",
+    "validation": "cloud-rules-v2.4.0.json"
   },
-  "publicUpdaterManifestVerified": false,
+  "publicUpdaterManifestVerified": true,
   "realAIAndUserUpgradeValidated": false,
   "personalKitchenAccessed": false,
   "assets": [
@@ -55,7 +58,9 @@
   ],
   "sourceCommit": "34a1b10fcd068cd6061a3bf69445bff31901655d",
   "sourcePushed": true,
-  "draftUrl": "https://github.com/whitefi2h/Chefish/releases/tag/untagged-af794e5d93aa4cf465a5",
   "draftAssetsVerified": true,
-  "currentPublicStable": "2.3.12"
+  "currentPublicStable": "2.4.0",
+  "publishedAt": "2026-11-20T19:39:29Z",
+  "publicUpdaterManifestVerifiedAt": "2026-11-20T19:40:34.996056+00:00",
+  "publicAssetsVerified": true
 }

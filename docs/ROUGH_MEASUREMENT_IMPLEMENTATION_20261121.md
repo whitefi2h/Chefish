@@ -32,4 +32,4 @@ v2.3.12及更早客户端无法写入或恢复 schema19 操作；所有同步设
 
 本地产物：src-tauri/target/release/chefish.exe；src-tauri/target/release/bundle/nsis/Chefish_2.4.0_x64-setup.exe、同名.sig、latest.json。
 
-生产Firebase认证过期，首次规则部署失败，已请求恢复登录。源码34a1b10已推送main，四项资产已上传GitHub草稿并回读数量、名称与大小；当前公开稳定版仍为v2.3.12。部署回读完成前不公开稳定版；草稿地址和状态见 release-v2.4.0.json。
+Firebase已重新授权；schema19生产规则部署成功，回读与本地内容一致（cloud-rules-v2.4.0.json）。源码34a1b10已推送main，v2.4.0已公开并设为最新稳定版；四项公开资产、latest更新清单版本及签名回读通过。发布记录见 release-v2.4.0.json。

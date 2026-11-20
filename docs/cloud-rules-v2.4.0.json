@@ -1,0 +1,10 @@
+{
+  "date": "2026-11-20T19:38:42.440Z",
+  "project": "chefish-kitchen",
+  "release": "projects/chefish-kitchen/releases/cloud.firestore",
+  "ruleset": "projects/chefish-kitchen/rulesets/b65494e2-5262-434c-89d9-b77dcfe5830e",
+  "updateTime": "2026-11-20T19:38:09.045624Z",
+  "matchesLocal": true,
+  "schemaMax": 19,
+  "scope": "Firestore rules only; no personal kitchen data accessed"
+}

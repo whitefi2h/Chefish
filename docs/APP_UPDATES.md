@@ -34,3 +34,5 @@ v2.3.3 的公开更新入口为 [GitHub Release](https://github.com/whitefi2h/Ch
 粗略计量使用 schema 19；启动迁移前保留安全备份。新增库存档位及其事件扩展表，完整备份与增量同步均保留。v2.3.12 及更早版本不识别 schema 19，收到新操作或备份后会要求升级；所有参与同一厨房同步的设备应升级。
 
 公开 v2.4.0 前必须将本仓库 Firestore 规则部署到 chefish-kitchen（manifest 的 schema 上限升为 19），并回读生产规则；模拟器通过不能代替生产部署。Firebase 登录过期时只准备本地产物和 GitHub 草稿，恢复登录并部署成功后再公开稳定 Release。
+
+2026-11-21：v2.4.0已公开为最新稳定版，schema19生产规则与公开更新入口均已回读验证。记录见 `release-v2.4.0.json`、`cloud-rules-v2.4.0.json`。
