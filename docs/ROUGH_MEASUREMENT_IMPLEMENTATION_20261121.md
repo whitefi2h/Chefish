@@ -24,7 +24,7 @@ v2.3.12及更早客户端无法写入或恢复 schema19 操作；所有同步设
 
 - Rust 完整套件：177通过，13忽略（真实在线测试未运行）。覆盖迁移、旧精确行为、档位版本冲突与撤销、勾选购买幂等、饭后状态与撤销、回切精确、采购不复用旧数量、离线双库收敛及备份恢复。
 - 浏览器 IPC fixture：库存、完成烹饪、采购和设置相关49项通过；最终补改后另跑粗略模式4项。截图位于 docs/screenshots/rough-mode（本地验收，不提交个人数据）。
-- Vitest：46通过，15跳过。Firestore规则模拟器：8通过（schema19允许、20拒绝）。
+- Vitest：46通过，15跳过。Firestore规则模拟器：8通过（schema19允许、20拒绝），测试子进程退出0；CLI在模拟器关闭阶段报告异常，不作为生产部署成功证据。
 - TypeScript与ESLint检查通过；正式Windows EXE、NSIS、同名签名和更新清单均已生成，清单版本及签名与本地产物匹配。
 - 上述为隔离数据库、模拟IPC与规则模拟器证据；没有访问个人厨房、同步队列和聊天，没有执行用户真实覆盖安装或真实模型识别验收。
 
@@ -32,4 +32,4 @@ v2.3.12及更早客户端无法写入或恢复 schema19 操作；所有同步设
 
 本地产物：src-tauri/target/release/chefish.exe；src-tauri/target/release/bundle/nsis/Chefish_2.4.0_x64-setup.exe、同名.sig、latest.json。
 
-生产Firebase认证过期，首次规则部署失败，已请求恢复登录。部署回读完成前不公开稳定版；GitHub状态以 release-v2.4.0.json 为准。
+生产Firebase认证过期，首次规则部署失败，已请求恢复登录。源码34a1b10已推送main，四项资产已上传GitHub草稿并回读数量、名称与大小；当前公开稳定版仍为v2.3.12。部署回读完成前不公开稳定版；草稿地址和状态见 release-v2.4.0.json。

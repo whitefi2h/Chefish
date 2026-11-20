@@ -2,7 +2,7 @@
   "date": "2026-11-21",
   "version": "2.4.0",
   "schema": 19,
-  "status": "prepared_pending_production_rules",
+  "status": "draft_uploaded_pending_production_rules",
   "releaseUrl": "https://github.com/whitefi2h/Chefish/releases/tag/v2.4.0",
   "latestStable": false,
   "buildPassed": true,
@@ -21,7 +21,8 @@
     },
     "firestoreEmulator": 8,
     "typescript": true,
-    "eslint": true
+    "eslint": true,
+    "firestoreEmulatorShutdown": "Test child exited 0 with 8 passed; CLI reported an unexpected error during emulator shutdown."
   },
   "productionRules": {
     "deployed": false,
@@ -51,5 +52,10 @@
       "bytes": 1481,
       "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.0/latest.json"
     }
-  ]
+  ],
+  "sourceCommit": "34a1b10fcd068cd6061a3bf69445bff31901655d",
+  "sourcePushed": true,
+  "draftUrl": "https://github.com/whitefi2h/Chefish/releases/tag/untagged-af794e5d93aa4cf465a5",
+  "draftAssetsVerified": true,
+  "currentPublicStable": "2.3.12"
 }
