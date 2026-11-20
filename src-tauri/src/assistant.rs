@@ -56,6 +56,14 @@ pub fn context(conn: &Connection, week: Option<&str>) -> Result<Value> {
     let mut snapshot = db::snapshot(conn)?;
     snapshot.as_object_mut().unwrap().remove("preferences");
     let preferences = db::preferences::load(conn)?;
+    if let Some(lots)=snapshot["lots"].as_array_mut() {
+        for lot in lots {
+            if preferences.inventory_mode=="rough" || lot["measurement"]=="level" {
+                lot.as_object_mut().unwrap().remove("quantity");
+                lot["measurement"]=json!("level");
+            }
+        }
+    }
     without_media(&mut snapshot);
     fn compact(v: &mut Value) {
         match v {
@@ -82,7 +90,7 @@ pub fn context(conn: &Connection, week: Option<&str>) -> Result<Value> {
     compact(&mut snapshot);
     snapshot["recipeTags"] = db::recipe_tags::ai_catalog(conn)?;
     Ok(
-        json!({"today":today,"weekStart":week,"snapshot":snapshot,"preferences":{"defaultServings":preferences.default_servings,"taste":preferences.taste,"restrictions":preferences.restrictions,"equipment":preferences.equipment},"shopping":db::shopping::forecast(conn,&week)?,"ingredientDefaultUnits":db::ingredient_standard::default_units(),"toolResults":[]}),
+        json!({"today":today,"weekStart":week,"snapshot":snapshot,"preferences":{"inventoryMode":preferences.inventory_mode,"defaultServings":preferences.default_servings,"taste":preferences.taste,"restrictions":preferences.restrictions,"equipment":preferences.equipment},"shopping":db::shopping::forecast(conn,&week)?,"ingredientDefaultUnits":db::ingredient_standard::default_units(),"toolResults":[]}),
     )
 }
 
@@ -181,7 +189,11 @@ pub fn purchase_intent(local: &Value, messages: &Value) -> Option<Vec<Value>> {
             return None;
         }
         let l = matches[0];
+        if local["preferences"]["inventoryMode"]=="rough" {
+            commands.push(json!({"type":"purchase_level_shopping","line_id":l["id"],"expected_version":l["version"],"ingredient_id":l["ingredientId"],"unit":l["unit"],"week_start":l["weekStart"]}));
+        } else {
         commands.push(json!({"type":"record_purchase","line_id":l["id"],"expected_version":l["version"],"ingredient_id":l["ingredientId"],"unit":l["unit"],"week_start":l["weekStart"],"quantity":l["remaining"]}));
+        }
     }
     let mut seen = std::collections::HashSet::new();
     commands.retain(|c| seen.insert(c.to_string()));
@@ -261,6 +273,11 @@ fn label(c: &Command) -> &'static str {
         Command::CreateNote { .. } => "新增手记",
         Command::EditNote { .. } => "编辑手记",
         Command::DeleteNote { .. } => "删除手记",
+        Command::ReceiveLevelLot { .. } => "食材入库",
+        Command::SetStockLevel { .. } => "调整剩余状态",
+        Command::EditLevelLot { .. } => "编辑食材属性",
+        Command::PurchaseLevelShopping { .. } => "购买并入库",
+        Command::CompleteLevelCooking { .. } => "完成烹饪并记录剩余状态",
         Command::ReceiveLot { .. } => "食材入库",
         Command::EditLot { .. } => "编辑食材属性",
         Command::DeleteLot { .. } => "删除食材批次",
@@ -338,6 +355,7 @@ fn display(v: &Value, snapshot: &Value, section: &str) -> String {
                 String::new()
             }
         ),
+        "lots" if v["measurement"]=="level" || snapshot["preferences"]["inventoryMode"]=="rough" => format!("{} · {}",item_name(snapshot,&v["ingredientId"]),match v["level"].as_i64(){Some(-1)=>"已用完",Some(0)=>"缺乏",Some(1)=>"充足",Some(2)=>"盈余",_=>"未估计"}),
         "lots" => format!(
             "{} · {} {} · {} · 购于{} · 到期{}",
             item_name(snapshot, &v["ingredientId"]),

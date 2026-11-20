@@ -337,7 +337,7 @@ pub fn weekly_question(c: &Connection, week: &str) -> Result<()> {
     let lots = inventory::lots(c)?;
     let names = lots
         .iter()
-        .filter(|l| l["quantity"] != "0")
+        .filter(|l| l["stockPresent"] != false)
         .take(4)
         .filter_map(|l| {
             c.query_row(
@@ -631,6 +631,7 @@ fn inspection_rows(c: &Connection) -> Result<Value> {
     Ok(json!({"recipes":recipes,"ingredients":ingredients,"lots":inventory::lots(c)?}))
 }
 pub fn entities(c: &Connection) -> Result<Vec<Value>> {
+    let coarse=measurement::rough(c)?;
     let s = inspection_rows(c)?;
     let enabled_tags = recipe_tags::definitions(c)?
         .into_iter()
@@ -651,12 +652,16 @@ pub fn entities(c: &Connection) -> Result<Vec<Value>> {
                     o.remove("image");
                     o.remove("events");
                 }
-                if kind == "lot" && row["quantity"] == "0" {
+                if kind == "lot" && row["stockPresent"] == false {
                     continue;
                 }
                 let entity_id = row["id"].as_str().unwrap_or("");
                 v.as_object_mut().unwrap().remove("steward");
                 if kind == "lot" {
+                    if coarse || v["measurement"]=="level" {
+                        v.as_object_mut().unwrap().remove("quantity");
+                        v["measurement"]=json!("level");
+                    }
                     v["name"] = json!(c.query_row(
                         "SELECT name FROM ingredients WHERE id=?1",
                         [row["ingredientId"].as_str().unwrap_or("")],

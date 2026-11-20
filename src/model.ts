@@ -84,6 +84,9 @@ export interface Recipe {
   steps: string[];
 }
 export interface InventoryLot extends Requirement {
+  measurement?: "exact" | "level";
+  level?: number | null;
+  stockPresent?: boolean;
   steward?: import("./services/steward").StewardMetadata;
   quantityText?: string;
   version?: number;
@@ -94,6 +97,9 @@ export interface InventoryLot extends Requirement {
   precision: "exact" | "rough";
 }
 export interface InventoryEvent {
+  levelEvent?: boolean;
+  beforeLevel?: number | null;
+  afterLevel?: number | null;
   beforeUnit?: string;
   afterUnit?: string;
   id: string;
@@ -110,7 +116,7 @@ export interface InventoryEvent {
 }
 export interface CookingResult {
   record?: string;
-  consumptions?: { name: string; quantity: string; unit: string }[];
+  consumptions?: { name: string; quantity: string; unit: string; stockLevel?: number | null }[];
   id: string;
   date: string;
   servings: number;

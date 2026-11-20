@@ -28,3 +28,9 @@
 发布时创建对应 `v<version>` 的 GitHub Release，一并上传 `Chefish_<version>_x64-setup.exe`、`.exe.sig`、`latest.json`，将其标为最新稳定版本。必须一次准备完整后再发布，以免客户端看见缺失的清单。构建脚本不提交、不推送、不自动发布。
 
 v2.3.3 的公开更新入口为 [GitHub Release](https://github.com/whitefi2h/Chefish/releases/tag/v2.3.3)，发布检查见 `release-v2.3.3.json`。v2.2.x 及更早版本没有软件内更新功能，需先手动安装 v2.3.3；v2.3.0 起可通过软件内更新。浏览器 fixture 与单元测试不等于用户电脑执行覆盖安装成功。
+
+## v2.4.0 数据兼容与发布前置条件
+
+粗略计量使用 schema 19；启动迁移前保留安全备份。新增库存档位及其事件扩展表，完整备份与增量同步均保留。v2.3.12 及更早版本不识别 schema 19，收到新操作或备份后会要求升级；所有参与同一厨房同步的设备应升级。
+
+公开 v2.4.0 前必须将本仓库 Firestore 规则部署到 chefish-kitchen（manifest 的 schema 上限升为 19），并回读生产规则；模拟器通过不能代替生产部署。Firebase 登录过期时只准备本地产物和 GitHub 草稿，恢复登录并部署成功后再公开稳定 Release。

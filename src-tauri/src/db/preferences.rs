@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase", deny_unknown_fields)]
 pub struct Preferences {
+    pub inventory_mode: String,
     pub kitchen_name: String,
     pub default_servings: i64,
     pub taste: String,
@@ -21,6 +22,7 @@ pub struct Preferences {
 impl Default for Preferences {
     fn default() -> Self {
         Self {
+            inventory_mode: "exact".into(),
             kitchen_name: "我的厨房".into(),
             default_servings: 2,
             taste: String::new(),
@@ -54,6 +56,7 @@ pub fn load(conn: &Connection) -> Result<Preferences> {
 }
 
 pub(super) fn validate(value: &Preferences) -> Result<()> {
+    if !["exact","rough"].contains(&value.inventory_mode.as_str()) { return Err(error("INVALID_PREFERENCES","计量模式无效")); }
     if value.kitchen_name.trim().chars().count() > 24 {
         return Err(error("INVALID_PREFERENCES", "厨房名称最多 24 个字"));
     }
@@ -118,6 +121,7 @@ mod tests {
         db::execute(&mut conn, &Uuid::new_v4().to_string(), serde_json::from_value(json!({"type":"save_plan","plan_id":null,"expected_version":null,"draft":{"recipe_revision_id":revision,"custom_title":null,"day":"2026-10-25","meal":"晚餐","servings":3}})).unwrap()).unwrap();
         let before = db::snapshot(&conn).unwrap();
         let expected = Preferences {
+            inventory_mode: "exact".into(),
             kitchen_name: "小鱼的厨房".into(),
             default_servings: 5,
             taste: "少辣".into(),

@@ -251,6 +251,11 @@ export function DemoProvider({
     message: string,
   ) {
     const inventoryAction = [
+      "edit_level_lot",
+      "set_stock_level",
+      "receive_level_lot",
+      "purchase_level_shopping",
+      "complete_level_cooking",
       "undo",
       "edit_lot",
       "delete_lot",

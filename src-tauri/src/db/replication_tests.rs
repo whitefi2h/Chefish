@@ -1067,3 +1067,26 @@ fn recipe_tag_definitions_links_merge_and_undo_replicate() {
         json!([recipe])
     );
 }
+
+#[test]
+fn qualitative_stock_and_mode_converge_with_offline_changes_and_backup() {
+    let (_a,mut ac,b,mut bc)=pair();
+    let mut preferences=super::super::preferences::load(&ac).unwrap();
+    preferences.inventory_mode="rough".into();
+    super::super::preferences::save(&mut ac,preferences).unwrap();
+    transfer(&mut ac,&mut bc);
+    assert_eq!(super::super::preferences::load(&bc).unwrap().inventory_mode,"rough");
+    let lot=lots(&ac)[0].clone();
+    execute(&mut ac,json!({"type":"set_stock_level","change":{"lot_id":lot["id"],"expected_version":lot["version"],"level":1}}));
+    let published=transfer(&mut ac,&mut bc);
+    assert_eq!(published.schema_version,19);
+    let lot=lots(&ac)[0].clone();
+    for (c,level) in [(&mut ac,0),(&mut bc,2)] {
+        execute(c,json!({"type":"set_stock_level","change":{"lot_id":lot["id"],"expected_version":lot["version"],"level":level}}));
+    }
+    transfer(&mut ac,&mut bc);transfer(&mut bc,&mut ac);
+    assert_eq!(lots(&ac),lots(&bc));assert_eq!(lots(&ac)[0]["level"],2);
+    let saved=b.root.join("level-backup.sqlite3");backup::create(&bc,&saved).unwrap();
+    let restored=super::super::open(&saved).unwrap();
+    assert_eq!(lots(&restored),lots(&bc));assert_eq!(super::super::preferences::load(&restored).unwrap().inventory_mode,"rough");
+}

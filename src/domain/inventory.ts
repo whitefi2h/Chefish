@@ -1,3 +1,4 @@
+import { hasStock } from "./stock";
 import type { DemoState, InventoryLot } from "../model";
 import { daysLeft } from "../model";
 import { isSeasoning, supplies } from "./seasonings";
@@ -19,7 +20,7 @@ export function expiringInventoryLots(
   return lots
     .filter(
       (lot) =>
-        lot.quantity > 0 && !!lot.expires && daysLeft(lot.expires, today) <= 3,
+        hasStock(lot) && !!lot.expires && daysLeft(lot.expires, today) <= 3,
     )
     .sort((a, b) => (a.expires ?? "").localeCompare(b.expires ?? ""));
 }

@@ -1,4 +1,5 @@
 export interface AppPreferences {
+  inventoryMode: "exact" | "rough";
   kitchenName: string;
   defaultServings: number;
   taste: string;
@@ -13,6 +14,7 @@ export interface AppPreferences {
 }
 
 export const defaultPreferences: AppPreferences = {
+  inventoryMode: "exact",
   kitchenName: "我的厨房",
   defaultServings: 2,
   taste: "",

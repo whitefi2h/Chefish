@@ -107,8 +107,12 @@ pub fn preview(conn: &Connection, key: &str, servings: i64, date: &str) -> Resul
                 conn,
                 lot["ingredientId"].as_str().unwrap(),
                 &ingredient,
-            )? || number(lot["quantity"].as_str().unwrap())? == Decimal::ZERO
+            )? || lot["stockPresent"] == false
             {
+                continue;
+            }
+            if measurement::rough(conn)? || lot["measurement"] == "level" {
+                lots.push(json!({"id":lot["id"],"version":lot["version"],"available":"0","location":lot["location"],"expires":lot["expires"],"review":false,"suggested":"0","unit":lot["unit"],"factor":"1","measurement":lot["measurement"],"level":lot["level"]}));
                 continue;
             }
             let Some(factor) = ingredient_standard::factor_in(
@@ -276,8 +280,20 @@ pub fn session(conn: &Connection, key: &str) -> Result<Value> {
             )
             .optional()?;
         result["record"] = json!(record.unwrap_or_default());
-        let mut stmt=conn.prepare("SELECT i.name,c.quantity,coalesce(json_extract(a.value,'$.afterUnit'),l.unit) FROM cooking_consumptions c JOIN inventory_lots l ON l.id=c.lot_id JOIN ingredients i ON i.id=l.ingredient_id LEFT JOIN app_settings a ON a.key='inventory_units:'||c.event_id WHERE c.session_id=?1 ORDER BY c.rowid")?;
-        result["consumptions"]=Value::Array(stmt.query_map([result["id"].as_str().unwrap()],|r|Ok(json!({"name":r.get::<_,String>(0)?,"quantity":r.get::<_,String>(1)?,"unit":r.get::<_,String>(2)?})))?.collect::<std::result::Result<Vec<_>,_>>()?);
+        let mut stmt=conn.prepare("SELECT i.name,c.quantity,coalesce(json_extract(a.value,'$.afterUnit'),l.unit),c.event_id FROM cooking_consumptions c JOIN inventory_lots l ON l.id=c.lot_id JOIN ingredients i ON i.id=l.ingredient_id LEFT JOIN app_settings a ON a.key='inventory_units:'||c.event_id WHERE c.session_id=?1 ORDER BY c.rowid")?;
+        result["consumptions"]=Value::Array(stmt.query_map([result["id"].as_str().unwrap()],|r|Ok(json!({"name":r.get::<_,String>(0)?,"quantity":r.get::<_,String>(1)?,"unit":r.get::<_,String>(2)?,"eventId":r.get::<_,String>(3)?})))?.collect::<std::result::Result<Vec<_>,_>>()?);
+    }
+    if result.is_null(){return Ok(result);}
+    let session_id=result["id"].as_str().unwrap_or("").to_string();
+    let mut changes=conn.prepare("SELECT c.event_id,m.after_json FROM cooking_consumptions c JOIN inventory_measurement_events m ON m.event_id=c.event_id JOIN inventory_lots l ON l.id=c.lot_id JOIN ingredients i ON i.id=l.ingredient_id WHERE c.session_id=?1")?;
+    let states=changes.query_map([session_id],|r|Ok((r.get::<_,String>(0)?,r.get::<_,Option<String>>(1)?)))?.collect::<std::result::Result<Vec<_>,_>>()?;
+    if let Some(rows)=result["consumptions"].as_array_mut() {
+        for row in rows {
+            if let Some((_,Some(state)))=states.iter().find(|(event,_)|row["eventId"]==*event) {
+                let state:Value=serde_json::from_str(state).map_err(|_|error("DATABASE_ERROR","库存档位历史无效"))?;
+                row["stockLevel"]=state["level"].clone();
+            }
+        }
     }
     Ok(result)
 }
@@ -636,4 +652,22 @@ mod tests {
             .filter_map(|e| e.ok())
             .any(|e| e.file_name().to_string_lossy().starts_with(&prefix)));
     }
+}
+
+pub fn complete_levels(tx:&Transaction,mut draft:CompleteDraft,changes:Vec<measurement::LevelChange>)->Result<()> {
+    if !measurement::rough(tx)? {return Err(error("INVALID_INPUT","请先开启粗略计量模式"));}
+    if changes.len()>500 || !draft.consumptions.is_empty() {return Err(error("INVALID_INPUT","请核对库存档位"));}
+    let mut ids=BTreeSet::new();
+    for change in &changes {
+        if !ids.insert(&change.lot_id) {return Err(error("INVALID_INPUT","库存档位重复"));}
+    }
+    draft.consumptions.clear();
+    let plan=draft.plan_id.clone();
+    complete(tx,draft)?;
+    let session:String=tx.query_row("SELECT cooking_session_id FROM planned_meals WHERE id=?1",[plan],|r|r.get(0))?;
+    for change in changes {
+        let event=inventory::set_level(tx,&change,"cooking")?;
+        tx.execute("INSERT INTO cooking_consumptions VALUES(?1,?2,'0',?3)",params![session,change.lot_id,event])?;
+    }
+    Ok(())
 }

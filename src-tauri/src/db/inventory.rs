@@ -161,7 +161,7 @@ pub fn edit(tx: &Transaction, lot_id: &str, expected: i64, draft: InventoryEdit)
     if before.version != expected {
         return Err(error("STALE_REVISION", "批次已变化，请刷新后再编辑"));
     }
-    let quantity = decimal(&draft.quantity)?;
+    let quantity = if measurement::rough(tx)? {before.amount} else {decimal(&draft.quantity)?};
     if !["g", "ml", "个", "片", "盒"].contains(&draft.unit.as_str())
         || !["exact", "rough"].contains(&draft.precision.as_str())
     {
@@ -199,6 +199,9 @@ pub fn edit(tx: &Transaction, lot_id: &str, expected: i64, draft: InventoryEdit)
         params![lot_id, before.version + 1],
         |r| r.get(0),
     )?;
+    if !measurement::rough(tx)? && measurement::get(tx,lot_id)?.is_some() {
+        measurement::attach(tx,&event_id,lot_id,None)?;
+    }
     let old: Value =
         serde_json::from_str(&prior).map_err(|_| error("DATABASE_ERROR", "批次历史无法读取"))?;
     tx.execute(
@@ -252,6 +255,7 @@ pub fn change(
     if before.version != expected {
         return Err(error("STALE_REVISION", "批次已变化，请重新加载后核对数量"));
     }
+    if operation != "move" && measurement::get(tx,id)?.is_some() { return Err(error("MEASUREMENT_REQUIRED","该批次按档位记录，请使用拉杆或补填当前数量")); }
     let n = decimal(quantity)?;
     let next = match operation {
         "correct" => n,
@@ -429,11 +433,19 @@ pub(super) fn reverse_inner(tx: &Transaction, event_id: &str, reason: &str) -> R
         [&lot_id],
         |r| r.get(0),
     )?;
+    let prior:Option<(Option<String>,Option<String>)> = tx.query_row("SELECT before_json,after_json FROM inventory_measurement_events WHERE event_id=?1",[event_id],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
+    if let Some((before_json,_)) = prior {
+        let v = before_json.as_deref().map(serde_json::from_str::<Value>).transpose().map_err(|_|error("DATABASE_ERROR","库存档位历史无效"))?;
+        measurement::write(tx,&lot_id,v.as_ref())?;
+    }
     let reversal: String = tx.query_row(
         "SELECT id FROM inventory_events WHERE lot_id=?1 AND after_version=?2",
         params![lot_id, before.version + 1],
         |r| r.get(0),
     )?;
+    if let Some((old_before,old_after))=tx.query_row("SELECT before_json,after_json FROM inventory_measurement_events WHERE event_id=?1",[event_id],|r|Ok((r.get::<_,Option<String>>(0)?,r.get::<_,Option<String>>(1)?))).optional()? {
+        tx.execute("INSERT INTO inventory_measurement_events VALUES(?1,?2,?3)",params![reversal,old_after,old_before])?;
+    }
     tx.execute(
         "UPDATE app_settings SET value=?1 WHERE key=?2",
         params![
@@ -443,11 +455,26 @@ pub(super) fn reverse_inner(tx: &Transaction, event_id: &str, reason: &str) -> R
     )?;
     Ok(())
 }
+pub fn set_level(tx: &Transaction, change: &measurement::LevelChange, source: &str) -> Result<String> {
+    let before=lot(tx,&change.lot_id)?;
+    if before.version != change.expected_version {return Err(error("STALE_REVISION","库存已变化，请刷新后调整"));}
+    let next=measurement::value(tx,change.level,source)?;
+    tx.execute("UPDATE inventory_lots SET version=version+1 WHERE id=?1",[&change.lot_id])?;
+    event(tx,&change.lot_id,"correct",&before,before.amount,&before.location,"调整库存档位",None)?;
+    let event_id:String=tx.query_row("SELECT id FROM inventory_events WHERE lot_id=?1 AND after_version=?2",params![change.lot_id,before.version+1],|r|r.get(0))?;
+    measurement::attach(tx,&event_id,&change.lot_id,Some(next))?;
+    Ok(event_id)
+}
 pub fn lots(conn: &Connection) -> Result<Vec<Value>> {
     let mut stmt=conn.prepare("SELECT l.id,l.ingredient_id,l.amount_decimal,l.unit,s.name,l.received_on,l.expires_on,l.precision,l.version FROM inventory_lots l JOIN storage_locations s ON s.id=l.location_id WHERE NOT EXISTS(SELECT 1 FROM app_settings WHERE key='inventory_deleted:'||l.id) ORDER BY (l.amount_decimal='0'),l.expires_on IS NULL,l.expires_on,l.received_on,l.id")?;
     let rows=stmt.query_map([],|r|Ok(json!({"id":r.get::<_,String>(0)?,"ingredientId":r.get::<_,String>(1)?,"quantity":r.get::<_,String>(2)?,"unit":r.get::<_,String>(3)?,"location":r.get::<_,String>(4)?,"received":r.get::<_,String>(5)?,"expires":r.get::<_,Option<String>>(6)?,"precision":r.get::<_,String>(7)?,"version":r.get::<_,i64>(8)?})))?.collect::<std::result::Result<Vec<_>,_>>()?;
     let mut rows = rows;
     for row in &mut rows {
+        let measurement = measurement::get(conn,row["id"].as_str().unwrap())?;
+        row["measurement"] = json!(if measurement.is_some() {"level"} else {"exact"});
+        row["level"] = measurement.as_ref().map(|m|m["level"].clone()).unwrap_or(Value::Null);
+        row["stockPresent"] = json!(measurement.as_ref().map_or(row["quantity"].as_str().unwrap() != "0", |m|m["level"].as_i64().unwrap() >= 0));
+        if measurement.is_some() { row["quantity"] = json!("0"); }
         row["steward"] = super::steward::metadata(conn, "lot", row["id"].as_str().unwrap())?;
     }
     Ok(rows)
@@ -466,6 +493,17 @@ pub fn events(conn: &Connection) -> Result<Vec<Value>> {
     let mut stmt=conn.prepare("SELECT e.id,e.lot_id,e.kind,e.before_amount,e.after_amount,a.name,b.name,e.after_version,e.reason,e.reversed_event_id,e.occurred_at FROM inventory_events e JOIN storage_locations a ON a.id=e.before_location JOIN storage_locations b ON b.id=e.after_location ORDER BY e.rowid DESC")?;
     let rows=stmt.query_map([],|r|Ok(json!({"id":r.get::<_,String>(0)?,"lotId":r.get::<_,String>(1)?,"kind":r.get::<_,String>(2)?,"before":r.get::<_,String>(3)?,"after":r.get::<_,String>(4)?,"beforeLocation":r.get::<_,String>(5)?,"afterLocation":r.get::<_,String>(6)?,"afterVersion":r.get::<_,i64>(7)?,"reason":r.get::<_,String>(8)?,"reversedEventId":r.get::<_,Option<String>>(9)?,"occurredAt":r.get::<_,String>(10)?})))?.collect::<std::result::Result<Vec<_>,_>>()?;
     let mut rows = rows;
+    let levels_ready=conn.query_row("PRAGMA user_version",[],|r|r.get::<_,i64>(0))? >= 19;
+    for row in &mut rows {
+        if !levels_ready {continue;}
+        let state:Option<(Option<String>,Option<String>)>=conn.query_row("SELECT before_json,after_json FROM inventory_measurement_events WHERE event_id=?1",[row["id"].as_str().unwrap()],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
+        if let Some((before,after))=state {
+            row["beforeLevel"]=before.as_deref().and_then(|s|serde_json::from_str::<Value>(s).ok()).map(|v|v["level"].clone()).unwrap_or(Value::Null);
+            row["afterLevel"]=after.as_deref().and_then(|s|serde_json::from_str::<Value>(s).ok()).map(|v|v["level"].clone()).unwrap_or(Value::Null);
+            row["levelEvent"]=json!(true);
+        }
+    }
+
     for row in &mut rows {
         let raw: Option<String> = conn
             .query_row(

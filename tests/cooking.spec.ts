@@ -1,7 +1,14 @@
 import { test, expect, type Page } from "@playwright/test";
 import { initialState } from "../src/fixtures/demo";
-async function cookingIPC(page: Page, fail = false, openCooking = true) {
+async function cookingIPC(
+  page: Page,
+  fail = false,
+  openCooking = true,
+  coarse = false,
+) {
   const state = initialState();
+  if (coarse)
+    state.preferences = { ...state.preferences!, inventoryMode: "rough" };
   const recipe = { ...state.recipes[0], revisionId: "rev-cook" };
   state.recipes = [recipe];
   state.dataRevision = "12";
@@ -18,7 +25,7 @@ async function cookingIPC(page: Page, fail = false, openCooking = true) {
     },
   ];
   await page.addInitScript(
-    ({ state, fail }) => {
+    ({ state, fail, coarse }) => {
       const saved =
         JSON.parse(sessionStorage.getItem("cooking-fixture") ?? "null") ??
         state;
@@ -35,6 +42,7 @@ async function cookingIPC(page: Page, fail = false, openCooking = true) {
             lots: [
               {
                 id: "lot-early",
+                ...(coarse ? { measurement: "level", level: 1 } : {}),
                 version: 1,
                 available: "60",
                 location: "冷藏",
@@ -44,6 +52,7 @@ async function cookingIPC(page: Page, fail = false, openCooking = true) {
               },
               {
                 id: "lot-later",
+                ...(coarse ? { measurement: "level", level: 2 } : {}),
                 version: 1,
                 available: "80",
                 location: "冷冻",
@@ -116,7 +125,10 @@ async function cookingIPC(page: Page, fail = false, openCooking = true) {
               window as unknown as { cookingCommands: unknown[] }
             ).cookingCommands.push(c);
             if (fail) throw { message: "测试：烹饪保存失败，库存未扣减" };
-            if (c.type === "complete_cooking") {
+            if (
+              c.type === "complete_cooking" ||
+              c.type === "complete_level_cooking"
+            ) {
               saved.plans[0].cooking = {
                 id: "session",
                 date: c.draft!.date,
@@ -139,7 +151,7 @@ async function cookingIPC(page: Page, fail = false, openCooking = true) {
         },
       });
     },
-    { state, fail },
+    { state, fail, coarse },
   );
   await page.goto("/");
   await page.getByLabel("查看指定周").fill("2026-10-19");
@@ -377,4 +389,82 @@ test("failed interpretation still saves written record without deducting suggest
   );
   expect(commands.at(-1)?.draft.record).toBe("排骨用完了，玉米用了一个。");
   expect(commands.at(-1)?.draft.consumptions).toEqual([]);
+});
+
+test("rough cooking uses manual sliders and never calls AI on confirmation", async ({
+  page,
+}) => {
+  await cookingIPC(page, false, true, true);
+  const dialog = page.getByRole("dialog", { name: "完成烹饪", exact: true });
+  await expect(dialog.getByRole("slider")).toHaveCount(2);
+  await page.evaluate(() => {
+    const t = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (n: string, a: unknown) => Promise<unknown>;
+      };
+    };
+    const original = t.__TAURI_INTERNALS__.invoke;
+    t.__TAURI_INTERNALS__.invoke = (name, args) => {
+      if (name === "kitchen_cooking_interpret") throw Error("Must not call AI");
+      return original(name, args);
+    };
+  });
+  const slider = dialog.getByRole("slider").first();
+  await slider.focus();
+  await page.keyboard.press("Home");
+  await dialog.getByRole("button", { name: "确认完成", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  const commands = await page.evaluate(
+    () => (window as unknown as { cookingCommands: unknown[] }).cookingCommands,
+  );
+  expect(commands).toMatchObject([
+    {
+      type: "complete_level_cooking",
+      changes: [{ lot_id: "lot-early", expected_version: 1, level: 0 }],
+      draft: { consumptions: [] },
+    },
+  ]);
+});
+
+test("AI results cannot overwrite manual levels, including edits made while AI is pending", async ({
+  page,
+}) => {
+  await cookingIPC(page, false, true, true);
+  await page.evaluate(() => {
+    const t = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (n: string, a: unknown) => Promise<unknown>;
+      };
+      resolveAI: () => void;
+    };
+    const original = t.__TAURI_INTERNALS__.invoke;
+    t.__TAURI_INTERNALS__.invoke = async (name, args) => {
+      if (name !== "kitchen_cooking_interpret") return original(name, args);
+      await new Promise<void>((resolve) => {
+        t.resolveAI = resolve;
+      });
+      const preview = (await original("kitchen_cooking", {})) as unknown;
+      return {
+        preview,
+        levels: [
+          { lot_id: "lot-early", expected_version: 1, level: -1 },
+          { lot_id: "lot-later", expected_version: 1, level: 0 },
+        ],
+        quantities: {},
+        summary: "已整理",
+        assumptions: [],
+      };
+    };
+  });
+  await page.getByLabel("烹饪记录", { exact: true }).fill("牛肉用完了");
+  await page.getByRole("button", { name: "AI 识别剩余情况" }).click();
+  const sliders = page.getByRole("slider");
+  await sliders.first().focus();
+  await page.keyboard.press("End");
+  await page.evaluate(() =>
+    (window as unknown as { resolveAI: () => void }).resolveAI(),
+  );
+  await expect(sliders.first()).toHaveAttribute("aria-valuetext", "盈余");
+  await expect(sliders.nth(1)).toHaveAttribute("aria-valuetext", "缺乏");
+  await page.screenshot({ path: "docs/screenshots/rough-mode/cooking.png" });
 });

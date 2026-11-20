@@ -1,0 +1,55 @@
+{
+  "date": "2026-11-21",
+  "version": "2.4.0",
+  "schema": 19,
+  "status": "prepared_pending_production_rules",
+  "releaseUrl": "https://github.com/whitefi2h/Chefish/releases/tag/v2.4.0",
+  "latestStable": false,
+  "buildPassed": true,
+  "signedInstaller": true,
+  "manifestVersionAndSignatureMatch": true,
+  "checks": {
+    "rust": {
+      "passed": 177,
+      "ignored": 13
+    },
+    "browserRelevant": 49,
+    "browserFinalRough": 4,
+    "vitest": {
+      "passed": 46,
+      "skipped": 15
+    },
+    "firestoreEmulator": 8,
+    "typescript": true,
+    "eslint": true
+  },
+  "productionRules": {
+    "deployed": false,
+    "reason": "Firebase login expired; reauthentication required"
+  },
+  "publicUpdaterManifestVerified": false,
+  "realAIAndUserUpgradeValidated": false,
+  "personalKitchenAccessed": false,
+  "assets": [
+    {
+      "name": "chefish.exe",
+      "bytes": 62736384,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.0/chefish.exe"
+    },
+    {
+      "name": "Chefish_2.4.0_x64-setup.exe",
+      "bytes": 44714509,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.0/Chefish_2.4.0_x64-setup.exe"
+    },
+    {
+      "name": "Chefish_2.4.0_x64-setup.exe.sig",
+      "bytes": 436,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.0/Chefish_2.4.0_x64-setup.exe.sig"
+    },
+    {
+      "name": "latest.json",
+      "bytes": 1481,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.0/latest.json"
+    }
+  ]
+}

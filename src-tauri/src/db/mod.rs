@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use std::{path::Path, str::FromStr, time::Duration};
 use uuid::Uuid;
 pub mod cooking;
+pub mod measurement;
 mod ingredient_category;
 pub mod ingredient_resolution;
 pub mod ingredient_standard;
@@ -21,7 +22,7 @@ pub mod steward;
 pub mod sync;
 pub mod undo;
 pub mod weekly_inspiration;
-pub const CURRENT_SCHEMA: i64 = 18;
+pub const CURRENT_SCHEMA: i64 = 19;
 use inventory::InventoryDraft;
 
 #[derive(Debug, Serialize)]
@@ -118,6 +119,11 @@ pub struct RecipeDraft {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
+    EditLevelLot {lot_id: String, expected_version: i64, draft: inventory::InventoryEdit, level: Option<i64>},
+    SetStockLevel { change: measurement::LevelChange },
+    ReceiveLevelLot { name: String, category: String, level: i64 },
+    PurchaseLevelShopping { line_id: Option<String>, expected_version: i64, ingredient_id: String, unit: String, week_start: Option<String> },
+    CompleteLevelCooking { draft: cooking::CompleteDraft, changes: Vec<measurement::LevelChange> },
     SetReviewDate {
         lot_id: String,
         date: Option<String>,
@@ -658,6 +664,14 @@ fn migrate(connection: &mut Connection, path: &Path) -> Result<()> {
         tx.pragma_update(None, "user_version", 18)?;
         tx.commit()?;
     }
+    if version < 19 {
+        connection.backup("main", path.with_extension(format!("pre-v19-{}.sqlite3", id())), None)?;
+        let tx = connection.transaction()?;
+        tx.execute_batch(include_str!("../../migrations/0019_measurements.sql"))?;
+        tx.execute("INSERT OR IGNORE INTO schema_migrations(version) VALUES(19)", [])?;
+        tx.pragma_update(None,"user_version",19)?;
+        tx.commit()?;
+    }
     Ok(())
 }
 fn category(conn: &Connection, kind: &str, name: &str) -> Result<String> {
@@ -1031,6 +1045,15 @@ fn apply(tx: &Transaction, command: Command) -> Result<()> {
         _ => None,
     };
     match ingredient_standard::command(command)? {
+        Command::EditLevelLot {lot_id,expected_version,draft,level} => {
+            if !measurement::rough(tx)? {return Err(error("INVALID_INPUT","请先开启粗略计量模式"));}
+            inventory::edit(tx,&lot_id,expected_version,draft)?;
+            if let Some(level)=level { inventory::set_level(tx,&measurement::LevelChange{lot_id,expected_version:expected_version+1,level},"manual")?; }
+        }
+        Command::SetStockLevel { change } => { inventory::set_level(tx, &change, "manual")?; }
+        Command::ReceiveLevelLot { name,category,level } => {measurement::receive(tx,&name,&category,level)?;}
+        Command::PurchaseLevelShopping {line_id,expected_version,ingredient_id,unit,week_start} => shopping::purchase_level(tx,line_id,expected_version,&ingredient_id,&unit,week_start)?,
+        Command::CompleteLevelCooking { draft, changes } => cooking::complete_levels(tx,draft,changes)?,
         Command::SetReviewDate { lot_id, date } => {
             tx.query_row(
                 "SELECT id FROM inventory_lots WHERE id=?1",

@@ -56,3 +56,9 @@ commands 每一项必须包含 type 字段，例如 {"type":"receive_lot","draft
 
 菜谱使用统一三维标签，目录在snapshot.recipeTags；只使用已有未删除标签ID，优先已开启项。禁止自由文字标签和自行造词。菜系/特性/方法可多选，缺少依据留空，不把食材、口味、餐次强塞进三类。现有tagOrigin=user的标签未经用户要求不得覆盖。不得再用recipe分类命令替代标签；食材分类仍保留。
 - set_recipe_tags: recipe_id,expected_revision:snapshot.dataRevision,tag_ids:[已有标签ID]。这是完整选择，必须保留用户未要求删除的已有标签；需要开启目录中的关闭项时先征求用户意见。
+
+粗略计量兼容：
+preferences.inventoryMode=rough时，库存只以档位表达，不编造当前克数。level=-1用完、0缺乏、1充足、2盈余、null未估计。quantity缺失不是零库存。菜谱配方和采购建议量仍是具体用量。
+调整剩余状态使用commands:[{type:"set_stock_level",change:{lot_id:真实ID,expected_version:真实版本,level:-1|0|1|2}}]。粗略新增用{type:"receive_level_lot",name,category:"自动分类",level:1}。不要生成change_lot/use/correct来把档位写成数字。
+粗略模式“买好了”优先{type:"purchase_level_shopping",line_id:项目ID或null,expected_version,ingredient_id,unit,week_start:周一起始日或null}，勾选语义为当日购买并默认充足，不追问数量库位或日期。明确手工信息优先，不覆盖。
+只有用户明确描述剩余状态才建议变档；“用了一个”不能推出档位，不每做一顿就降一档。所有写操作仍须用户确认提案。

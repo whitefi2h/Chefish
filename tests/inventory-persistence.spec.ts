@@ -1,8 +1,9 @@
 import { answerAppDialog } from "./helpers/appDialog";
 import { test, expect, type Page } from "@playwright/test";
 import { initialState } from "../src/fixtures/demo";
-async function inventoryIPC(page: Page, fail = false) {
+async function inventoryIPC(page: Page, fail = false, coarse = false) {
   const s = initialState();
+  if (coarse) s.preferences = { ...s.preferences!, inventoryMode: "rough" };
   s.ingredientCategories.push("未分类");
   s.inventoryEvents = [
     {
@@ -350,4 +351,35 @@ test("purchase waits for a sync refresh instead of dropping the action", async (
           .inventoryCommands,
     ),
   ).toMatchObject([{ type: "receive_lot", draft: { name: "同步期间购买" } }]);
+});
+
+test("rough inventory keeps the existing table and uses compact continuous stock controls", async ({
+  page,
+}) => {
+  await inventoryIPC(page, false, true);
+  const row = page.locator("tbody tr").first();
+  const slider = row.getByRole("slider");
+  await expect(slider).toBeVisible();
+  await expect(row.locator(".lot-quantity")).toHaveCount(0);
+  const box = await slider.boundingBox();
+  expect(box!.width).toBeLessThan(240);
+  await slider.focus();
+  await page.keyboard.press("End");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { inventoryCommands: unknown[] })
+            .inventoryCommands.length,
+      ),
+    )
+    .toBe(1);
+  const commands = await page.evaluate(
+    () =>
+      (window as unknown as { inventoryCommands: unknown[] }).inventoryCommands,
+  );
+  expect(commands).toMatchObject([
+    { type: "set_stock_level", change: { level: 2 } },
+  ]);
+  await page.screenshot({ path: "docs/screenshots/rough-mode/inventory.png" });
 });

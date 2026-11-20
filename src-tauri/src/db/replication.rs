@@ -297,6 +297,7 @@ fn immutable(table: &str) -> bool {
             | "recipe_media"
             | "recipe_ingredient_kinds"
             | "inventory_events"
+            | "inventory_measurement_events"
             | "purchase_events"
             | "shopping_receipts"
             | "shopping_receipt_undos"
@@ -493,8 +494,8 @@ fn patch_setting(
         let new = after
             .as_object()
             .ok_or_else(|| error("SYNC_INVALID", "用餐偏好无效"))?;
-        if old.len() != 4
-            || new.len() != 4
+        if !(4..=5).contains(&old.len())
+            || !(4..=5).contains(&new.len())
             || !["defaultServings", "taste", "restrictions", "equipment"]
                 .iter()
                 .all(|key| old.contains_key(*key) && new.contains_key(*key))
@@ -521,7 +522,7 @@ fn patch_setting(
         let map = after
             .as_object()
             .ok_or_else(|| error("SYNC_INVALID", "用餐偏好无效"))?;
-        if map.len() != 4
+        if !(4..=5).contains(&map.len())
             || !["defaultServings", "taste", "restrictions", "equipment"]
                 .iter()
                 .all(|k| map.contains_key(*k))
@@ -529,6 +530,7 @@ fn patch_setting(
             return Err(error("SYNC_INVALID", "同步偏好包含不允许的字段"));
         }
         let mut preferences = preferences::load(conn)?;
+        if let Some(mode)=map.get("inventoryMode") { preferences.inventory_mode=mode.as_str().ok_or_else(||error("SYNC_INVALID","计量模式无效"))?.into(); }
         preferences.default_servings = map["defaultServings"]
             .as_i64()
             .ok_or_else(|| error("SYNC_INVALID", "人数无效"))?;

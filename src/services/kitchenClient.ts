@@ -26,7 +26,57 @@ export interface PlanInput {
   meal: string;
   servings: number;
 }
+export type StockLevelChange = {
+  lot_id: string;
+  expected_version: number;
+  level: number;
+};
+export interface CookingDraft {
+  plan_id: string;
+  expected_version: number;
+  expected_revision: string;
+  servings: number;
+  date: string;
+  note: string;
+  record?: string;
+  acknowledged: boolean;
+  consumptions: {
+    lot_id: string;
+    expected_version: number;
+    quantity: string;
+  }[];
+}
 export type KitchenCommand =
+  | {
+      type: "edit_level_lot";
+      lot_id: string;
+      expected_version: number;
+      level: number | null;
+      draft: {
+        quantity: string;
+        unit: string;
+        location: string;
+        received: string;
+        expires: string | null;
+        precision: string;
+        category: string;
+      };
+    }
+  | { type: "set_stock_level"; change: StockLevelChange }
+  | { type: "receive_level_lot"; name: string; category: string; level: number }
+  | {
+      type: "purchase_level_shopping";
+      line_id: string | null;
+      expected_version: number;
+      ingredient_id: string;
+      unit: string;
+      week_start: string | null;
+    }
+  | {
+      type: "complete_level_cooking";
+      draft: CookingDraft;
+      changes: StockLevelChange[];
+    }
   | {
       type: "save_recipe_tag_definitions";
       expected_revision: string;

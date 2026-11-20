@@ -300,6 +300,7 @@ function ShoppingMemo() {
 }
 export default function NativeShopping() {
   const {
+    preferences,
     state,
     weekStart,
     setWeekStart,
@@ -473,9 +474,11 @@ export default function NativeShopping() {
                       {i.review && <Badge>待核对</Badge>}
                     </div>
                     <small>
-                      {i.source === "plan"
-                        ? `总需 ${format(i.required, i.unit)} · 库存 ${format(i.covered, i.unit)} · 仍缺 ${format(i.remaining, i.unit)}`
-                        : `需求量 ${format(i.required, i.unit)} · 仍缺 ${format(i.remaining, i.unit)}`}
+                      {i.roughStock
+                        ? `所需 ${format(i.required, i.unit)}${i.roughCovered ? " · 按当前档位暂不补货" : ""}`
+                        : i.source === "plan"
+                          ? `总需 ${format(i.required, i.unit)} · 库存 ${format(i.covered, i.unit)} · 仍缺 ${format(i.remaining, i.unit)}`
+                          : `需求量 ${format(i.required, i.unit)} · 仍缺 ${format(i.remaining, i.unit)}`}
                     </small>
                   </div>
                   <div className="shopping-quantity">
@@ -488,12 +491,36 @@ export default function NativeShopping() {
                     </strong>
                   </div>
                   <div className="row-actions">
-                    <button
-                      disabled={disabled || i.remaining === "0"}
-                      onClick={() => setForm({ kind: "buy", line: i })}
-                    >
-                      购买
-                    </button>
+                    {preferences.inventoryMode === "rough" ? (
+                      <input
+                        type="checkbox"
+                        className="purchase-check"
+                        aria-label={`购买完成：${i.name}`}
+                        checked={i.remaining === "0" && i.purchased !== "0"}
+                        disabled={disabled || i.remaining === "0"}
+                        onChange={async () => {
+                          await mutate(
+                            {
+                              type: "purchase_level_shopping",
+                              line_id: i.id,
+                              expected_version: i.version,
+                              ingredient_id: i.ingredientId,
+                              unit: i.unit,
+                              week_start: i.weekStart,
+                            },
+                            (s) => s,
+                            "已购买并入库",
+                          );
+                        }}
+                      />
+                    ) : (
+                      <button
+                        disabled={disabled || i.remaining === "0"}
+                        onClick={() => setForm({ kind: "buy", line: i })}
+                      >
+                        购买
+                      </button>
+                    )}
                     <button
                       disabled={disabled}
                       aria-label={`删除${i.name}`}

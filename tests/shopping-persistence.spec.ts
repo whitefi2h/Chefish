@@ -7,8 +7,11 @@ async function shoppingIPC(
   showPurchased = true,
   missingSeasonings = false,
   decimalQuantities = false,
+  coarse = false,
 ) {
   const state = initialState();
+  if (coarse)
+    state.preferences = { ...state.preferences!, inventoryMode: "rough" };
   if (missingSeasonings)
     state.seasonings = ["醋", "黄油", "蒸鱼豉油", "芝麻油"].map((name) => ({
       id: name,
@@ -174,11 +177,18 @@ async function shoppingIPC(
               };
             if (
               c.type === "purchase_shopping" ||
+              c.type === "purchase_level_shopping" ||
               c.type === "receive_shopping"
             ) {
               const i = f.items.find((i) => i.id === c.line_id)!;
-              const n = Number(c.quantity);
-              if (c.type === "purchase_shopping") {
+              const n =
+                c.type === "purchase_level_shopping"
+                  ? Number(i.remaining)
+                  : Number(c.quantity);
+              if (
+                c.type === "purchase_shopping" ||
+                c.type === "purchase_level_shopping"
+              ) {
                 i.purchased = String(Number(i.purchased) + n);
                 i.received = String(Number(i.received) + n);
                 i.remaining = String(Math.max(0, Number(i.remaining) - n));
@@ -594,4 +604,26 @@ test("shopping rounds presentation to one decimal while purchase input retains p
     .click();
   await carrot.getByRole("button", { name: "购买", exact: true }).click();
   await expect(page.getByLabel("本次购买数量")).toHaveValue("0.666668");
+});
+
+test("rough shopping replaces only the buy action with a checkbox and does not open a form", async ({
+  page,
+}) => {
+  await shoppingIPC(page, "", true, false, false, true);
+  const checkbox = page.getByRole("checkbox", {
+    name: "购买完成：牛肉",
+    exact: true,
+  });
+  await expect(checkbox).not.toBeChecked();
+  await checkbox.check();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(checkbox).toBeChecked();
+  const commands = await page.evaluate(
+    () =>
+      (window as unknown as { shoppingCommands: unknown[] }).shoppingCommands,
+  );
+  expect(commands).toMatchObject([
+    { type: "purchase_level_shopping", ingredient_id: "beef" },
+  ]);
+  await page.screenshot({ path: "docs/screenshots/rough-mode/shopping.png" });
 });

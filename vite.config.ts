@@ -9,7 +9,14 @@ export default defineConfig(async () => {
     server: {
       port: 5173,
       strictPort: true,
-      watch: { ignored: ["**/src-tauri/**", "**/reference/**", "**/docs/fixtures/**"] },
+      watch: {
+        ignored: [
+          "**/src-tauri/**",
+          "**/reference/**",
+          "**/review/**",
+          "**/docs/fixtures/**",
+        ],
+      },
     },
   };
 });

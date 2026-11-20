@@ -1,4 +1,6 @@
 export interface ShoppingLine {
+  roughStock?: boolean;
+  roughCovered?: boolean;
   id: string | null;
   version: number;
   ingredientId: string;

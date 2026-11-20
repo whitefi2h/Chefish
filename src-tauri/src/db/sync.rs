@@ -22,6 +22,8 @@ pub(super) const TABLES: &[&str] = &[
     "storage_locations",
     "inventory_lots",
     "inventory_events",
+    "inventory_measurements",
+    "inventory_measurement_events",
     "planned_meals",
     "shopping_lines",
     "purchase_events",
@@ -136,7 +138,7 @@ pub(super) fn settings(conn: &Connection) -> Result<BTreeMap<String, Value>> {
         })?
         .collect::<std::result::Result<BTreeMap<_, _>, _>>()?;
     let preferences = preferences::load(conn)?;
-    values.insert("preferences_v1".into(), json!({"defaultServings":preferences.default_servings,"taste":preferences.taste,"restrictions":preferences.restrictions,"equipment":preferences.equipment}));
+    values.insert("preferences_v1".into(), json!({"inventoryMode":preferences.inventory_mode,"defaultServings":preferences.default_servings,"taste":preferences.taste,"restrictions":preferences.restrictions,"equipment":preferences.equipment}));
     Ok(values)
 }
 
@@ -157,6 +159,7 @@ fn initialize_capture(conn: &Connection) -> Result<()> {
                 Ok((row.get::<_, String>(1)?, row.get::<_, i64>(5)?))
             })?
             .collect::<std::result::Result<Vec<_>, _>>()?;
+        if columns.is_empty() && ["inventory_measurements","inventory_measurement_events"].contains(table) && conn.query_row("PRAGMA user_version",[],|r|r.get::<_,i64>(0))? < 19 { continue; }
         if columns.is_empty() {
             return Err(error("SYNC_SCHEMA", "同步记录缺少业务表，当前操作未保存"));
         }

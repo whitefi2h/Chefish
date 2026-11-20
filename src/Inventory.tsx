@@ -1,3 +1,5 @@
+import StockSlider from "./StockSlider";
+import { hasStock, stockLevelText } from "./domain/stock";
 import { confirmAction } from "./services/dialogs";
 import { CarouselButtons, useHorizontalCarousel } from "./HorizontalCarousel";
 import IngredientAvatar, { IngredientAvatarCredit } from "./IngredientAvatar";
@@ -36,7 +38,76 @@ import {
 } from "./model";
 import { useDemo } from "./store";
 import { Badge, Modal, Empty } from "./components";
-export function ItemForm({
+function LevelReceive({ onClose }: { onClose: () => void }) {
+  const { mutate, busy, state } = useDemo();
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("自动分类");
+  const [level, setLevel] = useState(1);
+  return (
+    <Modal title="新增食材购买" onClose={onClose}>
+      <form
+        className="form-stack"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (
+            await mutate(
+              { type: "receive_level_lot", name, category, level },
+              (s) => s,
+              "食材已入库",
+            )
+          )
+            onClose();
+        }}
+      >
+        <label>
+          食材名称
+          <input
+            required
+            maxLength={120}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        <label>
+          食材类别
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option>自动分类</option>
+            {state.ingredientCategories.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </label>
+        <StockSlider
+          name={name || "食材"}
+          value={level}
+          disabled={busy}
+          onChange={(v) => {
+            setLevel(v);
+          }}
+        />
+        <button className="primary" disabled={busy || level < 0}>
+          确认购买
+        </button>
+      </form>
+    </Modal>
+  );
+}
+export function ItemForm(props: {
+  mode: "inventory" | "shopping";
+  onClose: () => void;
+  item?: ShoppingItem;
+}) {
+  const { preferences } = useDemo();
+  return preferences.inventoryMode === "rough" && props.mode === "inventory" ? (
+    <LevelReceive onClose={props.onClose} />
+  ) : (
+    <NumericItemForm {...props} />
+  );
+}
+function NumericItemForm({
   mode,
   onClose,
   item,
@@ -325,10 +396,20 @@ function LotEditor({
   lot: InventoryLot;
   onDeleted: () => void;
 }) {
-  const { state, mutate, busy } = useDemo();
+  const { state, mutate, busy, preferences } = useDemo();
   const ingredient = state.ingredients.find((i) => i.id === lot.ingredientId)!;
+  const [level, setLevel] = useState<number | null>(
+    lot.measurement === "level"
+      ? (lot.level ?? null)
+      : lot.quantity === 0
+        ? -1
+        : null,
+  );
+  const coarse = preferences.inventoryMode === "rough";
   const [quantity, setQuantity] = useState(
-    lot.quantityText ?? String(lot.quantity),
+    lot.measurement === "level" && !coarse
+      ? ""
+      : (lot.quantityText ?? String(lot.quantity)),
   );
   const [unit, setUnit] = useState(lot.unit);
   const [location, setLocation] = useState(lot.location);
@@ -337,6 +418,12 @@ function LotEditor({
   const rough = lot.precision === "rough";
   const [category, setCategory] = useState(ingredient.category);
   const changed =
+    level !==
+      (lot.measurement === "level"
+        ? (lot.level ?? null)
+        : lot.quantity === 0
+          ? -1
+          : null) ||
     Number(quantity) !== lot.quantity ||
     unit !== lot.unit ||
     location !== lot.location ||
@@ -354,7 +441,9 @@ function LotEditor({
             : category;
         await mutate(
           {
-            type: "edit_lot",
+            ...(coarse
+              ? { type: "edit_level_lot" as const, level }
+              : { type: "edit_lot" as const }),
             lot_id: lot.id,
             expected_version: lot.version ?? 1,
             draft: {
@@ -401,32 +490,41 @@ function LotEditor({
       }}
     >
       <fieldset disabled={busy} className="lot-fields">
-        <div className="form-row">
-          <label>
-            剩余数量（{unit}）
-            <input
-              type="number"
-              min="0"
-              max="100000"
-              step="0.000001"
-              required
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-            />
-          </label>
-          <label>
-            单位
-            <select
-              aria-label="库存单位"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-            >
-              {["g", "ml", "个", "片", "盒"].map((u) => (
-                <option key={u}>{u}</option>
-              ))}
-            </select>
-          </label>
-        </div>
+        {coarse ? (
+          <StockSlider
+            value={level}
+            name={ingredient.name}
+            disabled={busy}
+            onChange={(v) => setLevel(v)}
+          />
+        ) : (
+          <div className="form-row">
+            <label>
+              剩余数量（{unit}）
+              <input
+                type="number"
+                min="0"
+                max="100000"
+                step="0.000001"
+                required
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+              />
+            </label>
+            <label>
+              单位
+              <select
+                aria-label="库存单位"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+              >
+                {["g", "ml", "个", "片", "盒"].map((u) => (
+                  <option key={u}>{u}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
         {unit !== lot.unit && (
           <p className="hint">
             单位修正会按填写的数量保存；请同时核对剩余数量，不会自动换算或改写历史记录。
@@ -589,7 +687,12 @@ export function LotDetail({
             .filter((l) => l.ingredientId === lot.ingredientId)
             .map((l, i) => (
               <option key={l.id} value={l.id}>
-                批次 {i + 1} · {amount(l.quantity, l.unit)} · {l.expires ?? "—"}
+                批次 {i + 1} ·{" "}
+                {l.measurement === "level" ||
+                state.preferences?.inventoryMode === "rough"
+                  ? stockLevelText(l.level)
+                  : amount(l.quantity, l.unit)}{" "}
+                · {l.expires ?? "—"}
               </option>
             ))}
         </select>
@@ -652,15 +755,17 @@ export function LotDetail({
                   </small>
                 </div>
                 <p>
-                  {event.kind === "move"
-                    ? `${event.beforeLocation} → ${event.afterLocation}`
-                    : event.kind === "use" || event.kind === "discard"
-                      ? `${amount(Number(event.before) - Number(event.after), event.afterUnit ?? lot.unit)} · 剩余 ${event.after} ${event.afterUnit ?? lot.unit}`
-                      : event.kind === "receive"
-                        ? `${event.after} ${event.afterUnit ?? lot.unit} · ${event.afterLocation}`
-                        : event.kind === "reverse"
-                          ? `恢复为 ${event.after} ${event.afterUnit ?? lot.unit} · ${event.afterLocation}`
-                          : `${event.before} ${event.beforeUnit ?? lot.unit} → ${event.after} ${event.afterUnit ?? lot.unit}`}
+                  {event.levelEvent
+                    ? `${stockLevelText(event.beforeLevel)} → ${stockLevelText(event.afterLevel)}`
+                    : event.kind === "move"
+                      ? `${event.beforeLocation} → ${event.afterLocation}`
+                      : event.kind === "use" || event.kind === "discard"
+                        ? `${amount(Number(event.before) - Number(event.after), event.afterUnit ?? lot.unit)} · 剩余 ${event.after} ${event.afterUnit ?? lot.unit}`
+                        : event.kind === "receive"
+                          ? `${event.after} ${event.afterUnit ?? lot.unit} · ${event.afterLocation}`
+                          : event.kind === "reverse"
+                            ? `恢复为 ${event.after} ${event.afterUnit ?? lot.unit} · ${event.afterLocation}`
+                            : `${event.before} ${event.beforeUnit ?? lot.unit} → ${event.after} ${event.afterUnit ?? lot.unit}`}
                 </p>
                 {event.reason &&
                   !["撤销上次操作", "手动购买"].includes(event.reason) && (
@@ -682,6 +787,49 @@ export function LotDetail({
   );
 }
 function LotQuantity({ lot, name }: { lot: InventoryLot; name: string }) {
+  const { preferences, mutate, busy } = useDemo();
+  if (preferences.inventoryMode === "rough" || lot.measurement === "level")
+    return (
+      <StockSlider
+        name={name}
+        value={
+          lot.measurement === "level"
+            ? (lot.level ?? null)
+            : lot.quantity === 0
+              ? -1
+              : null
+        }
+        disabled={busy}
+        onChange={(level) =>
+          mutate(
+            {
+              type: "set_stock_level",
+              change: {
+                lot_id: lot.id,
+                expected_version: lot.version ?? 1,
+                level,
+              },
+            },
+            (s) => ({
+              ...s,
+              lots: s.lots.map((l) =>
+                l.id === lot.id ? { ...l, measurement: "level", level } : l,
+              ),
+            }),
+            "库存已更新",
+          )
+        }
+      />
+    );
+  return <NumericLotQuantity lot={lot} name={name} />;
+}
+function NumericLotQuantity({
+  lot,
+  name,
+}: {
+  lot: InventoryLot;
+  name: string;
+}) {
   const { mutate, busy, notify } = useDemo();
   const [value, setValue] = useState(lot.quantityText ?? String(lot.quantity));
   const cancel = useRef(false);
@@ -887,10 +1035,10 @@ export default function Inventory({
   const alerts = expiringInventoryLots(foodLots, today);
   const attention = useHorizontalCarousel(alerts.map((l) => l.id).join("|"));
   const filtered = [...foodLots]
-    .sort((a, b) => Number(a.quantity === 0) - Number(b.quantity === 0))
+    .sort((a, b) => Number(!hasStock(a)) - Number(!hasStock(b)))
     .filter(
       (l) =>
-        (showEmpty || l.quantity > 0) &&
+        (showEmpty || hasStock(l)) &&
         state.ingredients
           .find((i) => i.id === l.ingredientId)!
           .name.includes(query) &&
@@ -966,7 +1114,11 @@ export default function Inventory({
                       <span>
                         <strong>{ingredient.name}</strong>
                         <small>
-                          {amount(l.quantity, l.unit)} · {l.location}
+                          {l.measurement === "level" ||
+                          state.preferences?.inventoryMode === "rough"
+                            ? stockLevelText(l.level)
+                            : amount(l.quantity, l.unit)}{" "}
+                          · {l.location}
                         </small>
                       </span>
                       <Badge
@@ -987,9 +1139,7 @@ export default function Inventory({
                 <Badge>
                   {
                     new Set(
-                      foodLots
-                        .filter((l) => l.quantity > 0)
-                        .map((l) => l.ingredientId),
+                      foodLots.filter(hasStock).map((l) => l.ingredientId),
                     ).size
                   }{" "}
                   种
@@ -1152,7 +1302,7 @@ export default function Inventory({
                         )}
                       </td>
                       <td>
-                        {l.quantity === 0 ? (
+                        {!hasStock(l) ? (
                           <Badge>已用完</Badge>
                         ) : l.expires ? (
                           <Badge

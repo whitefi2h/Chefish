@@ -1,3 +1,4 @@
+import { stockLevelText } from "./domain/stock";
 import { inspirationForWeek } from "./domain/weeklyInspiration";
 import { CarouselButtons, useHorizontalCarousel } from "./HorizontalCarousel";
 import { useNavigation } from "./navigation";
@@ -164,7 +165,10 @@ export function PlanForm({
             {initial.cooking.consumptions?.length ? (
               initial.cooking.consumptions.map((c, i) => (
                 <p key={i}>
-                  {c.name} · {c.quantity} {c.unit}
+                  {c.name} ·{" "}
+                  {c.stockLevel != null
+                    ? stockLevelText(c.stockLevel)
+                    : `${c.quantity} ${c.unit}`}
                 </p>
               ))
             ) : (

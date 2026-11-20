@@ -348,6 +348,25 @@ export default function Settings({
                     个字。名称保存在这台电脑，留空使用“我的厨房”。
                   </p>
                 </div>
+                <div className="settings-row">
+                  <div>
+                    <label htmlFor="inventory-mode">库存计量方式</label>
+                    <p>粗略模式用三档记录库存，保留精确模式。</p>
+                  </div>
+                  <select
+                    id="inventory-mode"
+                    value={draft.inventoryMode}
+                    onChange={(e) =>
+                      change(
+                        "inventoryMode",
+                        e.target.value as AppPreferences["inventoryMode"],
+                      )
+                    }
+                  >
+                    <option value="exact">精确计量</option>
+                    <option value="rough">粗略计量</option>
+                  </select>
+                </div>
                 {onStartOnboarding && (
                   <div className="settings-row">
                     <div>

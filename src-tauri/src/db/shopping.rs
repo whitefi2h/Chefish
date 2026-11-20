@@ -273,6 +273,10 @@ fn receive_from(
             Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
+    if measurement::rough(tx)? {
+        let event:String=tx.query_row("SELECT id FROM inventory_events WHERE lot_id=?1 ORDER BY after_version DESC LIMIT 1",[&lot_id],|r|r.get(0))?;
+        measurement::attach(tx,&event,&lot_id,Some(measurement::value(tx,1,"purchase")?))?;
+    }
     let mut remaining = n;
     for (purchase, bought) in rows {
         let mut stmt =
@@ -379,9 +383,10 @@ pub fn forecast(conn: &Connection, scope: &str) -> Result<Value> {
     Ok(result)
 }
 fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> {
-    let mut stmt=conn.prepare("SELECT ingredient_id,unit,amount_decimal,expires_on,received_on,COALESCE(json_extract((SELECT value FROM app_settings WHERE key='steward_meta:lot:'||l.id),'$.sourceName'),(SELECT name FROM ingredients WHERE id=l.ingredient_id)),COALESCE(json_extract((SELECT value FROM app_settings WHERE key='steward_meta:lot:'||l.id),'$.sourceUnit'),unit),precision='rough' FROM inventory_lots l WHERE NOT EXISTS(SELECT 1 FROM app_settings WHERE key='inventory_deleted:'||l.id) ORDER BY expires_on IS NULL,expires_on,received_on,rowid")?;
+    let coarse=measurement::rough(conn)?;
+    let mut stmt=conn.prepare("SELECT ingredient_id,unit,amount_decimal,expires_on,received_on,COALESCE(json_extract((SELECT value FROM app_settings WHERE key='steward_meta:lot:'||l.id),'$.sourceName'),(SELECT name FROM ingredients WHERE id=l.ingredient_id)),COALESCE(json_extract((SELECT value FROM app_settings WHERE key='steward_meta:lot:'||l.id),'$.sourceUnit'),unit),precision='rough' FROM inventory_lots l WHERE ?1=0 AND NOT EXISTS(SELECT 1 FROM inventory_measurements m WHERE m.lot_id=l.id) AND NOT EXISTS(SELECT 1 FROM app_settings WHERE key='inventory_deleted:'||l.id) ORDER BY expires_on IS NULL,expires_on,received_on,rowid")?;
     let lots = stmt
-        .query_map([], |r| {
+        .query_map([coarse], |r| {
             Ok((
                 r.get::<_, String>(0)?,
                 r.get::<_, String>(1)?,
@@ -668,6 +673,27 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
     for ((ingredient, u), d) in demand {
         items.push(item(conn, None, 0, &ingredient, &u, "plan", scope, d)?);
     }
+    let stock=inventory::lots(conn)?;
+    for row in &mut items {
+        let matching=stock.iter().filter(|l| l["measurement"]=="level" && l["stockPresent"]==true && l["ingredientId"]==row["ingredientId"]).collect::<Vec<_>>();
+        if !coarse && matching.is_empty(){continue;}
+        row["roughStock"]=json!(true);
+        // A band is not a weight. Only the stated two-meal lower bound can cover
+        // a small plan; larger/uncertain plans retain a recipe-based shopping amount.
+        let sources=row["sources"].as_array().cloned().unwrap_or_default();
+        let max_people:i64=conn.query_row("SELECT coalesce(max(servings),1) FROM planned_meals WHERE removed=0 AND day>=?1 AND day<=date(?1,'+6 days')",[scope],|r|r.get(0))?;
+        let covered=row["source"]=="plan" && !sources.is_empty() && sources.len()<=2 && matching.iter().any(|lot|{
+            lot["level"].as_i64().unwrap_or(-1)>=1 &&
+            measurement::get(conn,lot["id"].as_str().unwrap()).ok().flatten().is_some_and(|m|m["referenceServings"].as_i64().unwrap_or(1)>=max_people) &&
+            sources.iter().all(|s| lot["expires"].as_str().is_none_or(|expiry|s.as_str().unwrap_or("").get(..10).is_some_and(|day|expiry>=day)))
+        });
+        row["roughCovered"]=json!(covered);
+        if covered {
+            row["remaining"]=json!("0");
+        } else if !matching.is_empty() {
+            row["review"]=json!(true);
+        }
+    }
     let past: i64 = conn.query_row(
         "SELECT count(*) FROM planned_meals WHERE removed=0 AND day<?1",
         [today],
@@ -720,3 +746,14 @@ fn item(
 #[cfg(test)]
 #[path = "shopping_tests.rs"]
 mod tests;
+
+pub fn purchase_level(tx:&Transaction,key:Option<String>,expected:i64,ingredient:&str,u:&str,scope:Option<String>)->Result<()> {
+    if !measurement::rough(tx)? {return Err(error("INVALID_INPUT","请先开启粗略计量模式"));}
+    let week=scope.clone().unwrap_or(week(tx,&local_today(tx)?)?);
+    let forecast=forecast_inner(tx,&week,&local_today(tx)?)?;
+    let line=forecast["items"].as_array().unwrap().iter().find(|row| row["ingredientId"]==ingredient && row["unit"]==u && (key.is_none() || row["id"]==json!(key)))
+        .ok_or_else(||error("NOT_FOUND","采购项目已变化，请刷新"))?;
+    let amount=line["remaining"].as_str().unwrap();
+    if number(amount)? <= Decimal::ZERO {return Err(error("NO_CHANGE","该项已购买或无需购买"));}
+    purchase(tx,key,expected,ingredient,u,scope,amount,"未指定",&local_today(tx)?,None)
+}

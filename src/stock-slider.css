@@ -1,0 +1,149 @@
+.stock-control {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 252px;
+  max-width: 100%;
+  height: 34px;
+}
+.stock-empty {
+  border: 0;
+  padding: 0;
+  min-height: 24px;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  border-radius: 50%;
+  background: #e6e8e3;
+  color: #8c9388;
+  transition:
+    background 150ms,
+    transform 150ms;
+}
+.stock-empty:hover {
+  background: #d7dcd3;
+}
+.stock-empty:active {
+  transform: scale(0.9);
+}
+.stock-empty[aria-pressed="true"] {
+  background: #8c9388;
+  color: white;
+}
+.stock-track {
+  position: relative;
+  flex: 1;
+  min-width: 85px;
+  height: 34px;
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
+  padding: 0 10px;
+}
+.stock-track[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: default;
+}
+.stock-rail {
+  position: relative;
+  top: 14px;
+  height: 6px;
+  border-radius: 9px;
+  background: linear-gradient(90deg, #d8b786, #adc39a 50%, #71a89e);
+}
+.stock-knob {
+  position: absolute;
+  top: -7px;
+  width: 20px;
+  height: 20px;
+  border: 2px solid;
+  background: white;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 1px 4px #24352125;
+  pointer-events: none;
+  transition:
+    left 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 140ms;
+}
+.stock-track.dragging {
+  cursor: grabbing;
+}
+.stock-track.dragging .stock-knob {
+  transition: none;
+  box-shadow: 0 2px 7px #24352135;
+}
+.stock-label {
+  flex: 0 0 40px;
+  text-align: right;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.is-empty .stock-rail {
+  opacity: 0.25;
+}
+.is-empty .stock-knob {
+  opacity: 0;
+}
+.cooking-level-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 58px;
+  border-bottom: 1px solid var(--border);
+}
+.cooking-level-row .stock-control {
+  flex-shrink: 0;
+}
+.cooking-levels {
+  margin: 8px 0 18px;
+}
+.cooking-level-row strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.inventory-table:has(.stock-control) .inventory-col-quantity {
+  width: 270px;
+}
+.inventory-table .stock-control {
+  margin: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stock-knob,
+  .stock-empty {
+    transition: none;
+  }
+}
+@media (max-width: 600px) {
+  .cooking-level-row {
+    gap: 10px;
+  }
+  .cooking-level-row .stock-control {
+    width: 215px;
+  }
+}
+
+.purchase-check {
+  width: 22px;
+  height: 22px;
+  margin: 8px 14px;
+  accent-color: #6e8764;
+  cursor: pointer;
+}
+.purchase-check:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.stock-track.keyboard .stock-knob {
+  transition: none;
+}
+
+.cooking-form:has(.cooking-levels) textarea {
+  height: 64px;
+  min-height: 64px;
+}
+.cooking-form:has(.cooking-levels) .cooking-record-actions {
+  margin: 0;
+}
