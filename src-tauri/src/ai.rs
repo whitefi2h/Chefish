@@ -284,13 +284,14 @@ pub fn search(query: &str) -> Result<Value> {
         }
         match crate::site_search::search(query) {
             Ok(rows) if !rows.as_array().unwrap().is_empty() => return Ok(rows),
+            Err(e) if e.code == "SITE_VERIFICATION" => return Err(e),
             Err(e) if e.code == "SITE_RATE_LIMIT" => break,
             _ => {}
         }
     }
     let stored = load()?;
     let client = client(stored.settings.timeout.min(30))?;
-    let secret = key(&stored, "deepseek")?;
+    let secret = key(&stored, "deepseek").map_err(|_|fail("SEARCH_UNAVAILABLE","站内搜索暂未成功；备用网页搜索需要DeepSeek密钥，可在模型设置添加，或直接导入菜谱链接"))?;
     search_with(
         query,
         |q| {

@@ -35,6 +35,7 @@ pub fn search(query: &str) -> Result<Value> {
                 .and_then(|v| v.to_str().ok()),
         ));
     }
+    if response.status().is_redirection() || response.status()==reqwest::StatusCode::FORBIDDEN {return Err(crate::site_access::verification_required());}
     if !response.status().is_success() {
         return Err(fail("下厨房暂未提供站内搜索内容"));
     }
@@ -59,11 +60,11 @@ pub fn search(query: &str) -> Result<Value> {
     let html = String::from_utf8(bytes).map_err(|_| fail("站内搜索编码无法识别"))?;
     parse(&html)
 }
-fn parse(html: &str) -> Result<Value> {
+pub(crate) fn parse(html: &str) -> Result<Value> {
     let root = Html::parse_document(html);
     let select = |s: &str| Selector::parse(s).unwrap();
     if root.select(&select(".search-result-list")).next().is_none() {
-        return Err(fail("下厨房搜索页暂不可读取，可能需要在浏览器完成验证"));
+        return Err(crate::site_access::verification_required());
     }
     let mut seen = std::collections::HashSet::new();
     let mut rows = Vec::new();
@@ -131,7 +132,7 @@ fn parse(html: &str) -> Result<Value> {
     }
     // This is popularity within the returned first page, not an invented site-wide ranking.
     rows.sort_by(|a, b| b["madeCount"].as_u64().cmp(&a["madeCount"].as_u64()));
-    rows.truncate(10);
+    rows.truncate(50);
     Ok(json!(rows))
 }
 #[cfg(test)]

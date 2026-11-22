@@ -17,6 +17,7 @@ pub fn canonical_url(value: &str) -> Result<String> {
             Some("www.xiachufang.com"),
             Some("m.xiachufang.com"),
             Some("xiachufang.com"),
+            Some("hanwuji.xiachufang.com"),
         ]
         .contains(&u.host_str())
         || !u.username().is_empty()
@@ -59,6 +60,9 @@ pub fn fetch(value: &str) -> Result<String> {
                 .and_then(|v| v.to_str().ok()),
         ));
     }
+    if response.status().is_redirection() || response.status()==reqwest::StatusCode::FORBIDDEN {
+        return Err(crate::site_access::verification_required());
+    }
     if !response.status().is_success() {
         return Err(failure(
             "SITE_REFUSED",
@@ -93,7 +97,7 @@ pub fn fetch(value: &str) -> Result<String> {
     validate_document(&html)?;
     Ok(html)
 }
-fn validate_document(html: &str) -> Result<()> {
+pub(crate) fn validate_document(html: &str) -> Result<()> {
     use scraper::{Html, Selector};
     let root = Html::parse_document(html);
     let visible = root
@@ -105,7 +109,7 @@ fn validate_document(html: &str) -> Result<()> {
             .next()
             .is_some();
     fn recipe(value: &serde_json::Value) -> bool {
-        if value["@type"] == "Recipe" {
+        if value["@type"] == "Recipe" || value["@type"].as_array().is_some_and(|types|types.iter().any(|t|t=="Recipe")) {
             return value.get("recipeIngredient").is_some()
                 || value.get("recipeInstructions").is_some();
         }
@@ -122,6 +126,7 @@ fn validate_document(html: &str) -> Result<()> {
                 .is_some_and(|v| recipe(&v))
         });
     if !visible && !structured {
+        if html.contains("humancheck_captcha") || html.contains("请滑动完成验证") {return Err(crate::site_access::verification_required());}
         return Err(failure(
             "SITE_CONTENT",
             "下厨房返回了异常内容或验证页，未取得菜谱正文；请稍后重试，或提供正常显示的 HTML。",
@@ -153,7 +158,7 @@ pub fn verify(value: &str) -> Result<serde_json::Value> {
     let html = fetch(&url)?;
     metadata(&html, &url)
 }
-fn metadata(html: &str, url: &str) -> Result<serde_json::Value> {
+pub(crate) fn metadata(html: &str, url: &str) -> Result<serde_json::Value> {
     use scraper::{Html, Selector};
     use serde_json::{json, Value};
     let root = Html::parse_document(html);
@@ -239,6 +244,13 @@ mod tests {
         assert_eq!(v["ratingCount"], 123);
         assert_eq!(v["madeCount"], 456);
         assert!(metadata("<h1>请验证</h1>", "https://www.xiachufang.com/recipe/1/").is_err());
+    }
+    #[test]
+    fn accepts_recipe_type_arrays_and_known_site_alias() {
+        assert!(validate_document(r#"<script type="application/ld+json">{"@type":["Recipe"],"recipeIngredient":["鸡蛋2个"]}</script>"#).is_ok());
+        assert_eq!(canonical_url("https://hanwuji.xiachufang.com/recipe/123/").unwrap(),"https://www.xiachufang.com/recipe/123/");
+        assert_eq!(validate_document("请滑动完成验证").unwrap_err().code,"SITE_VERIFICATION");
+        assert!(validate_document("<h1 class='page-title'>菜谱</h1><div class='steps'>炒熟</div><script>const challenge='/auth/humancheck_captcha/';</script>").is_ok());
     }
     #[test]
     fn only_public_recipe_links_are_accepted_and_tracking_is_removed() {

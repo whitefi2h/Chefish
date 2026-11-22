@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-22",
+  "version": "2.4.1",
+  "scope": "Downstream search/import verification and parser compatibility; schema19 unchanged",
+  "checks": {
+    "rustRegularPassed": 179,
+    "nativeWebView2SmokePassed": 1,
+    "browserUniquePassed": 24,
+    "typescript": true,
+    "eslint": true
+  },
+  "nativeEvidence": "Real isolated Windows WebView2 against a synthetic local HTTP page: DOM capture and remote IPC denial passed",
+  "liveRecipeEvidence": {
+    "urls": [
+      "https://www.xiachufang.com/recipe/107076587/",
+      "https://www.xiachufang.com/recipe/107431912/"
+    ],
+    "beforeFix": "Both public HTTP requests returned 302 to humancheck_captcha; no recipe body",
+    "userCompletedLiveCaptchaTested": false,
+    "liveRecipeImportValidated": false
+  },
+  "personalKitchenAccessed": false,
+  "realUserUpgradeValidated": false
+}

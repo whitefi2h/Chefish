@@ -5,9 +5,12 @@ export function canonicalRecipeUrl(value: string): string {
   const url = new URL(value.trim());
   if (
     url.protocol !== "https:" ||
-    !["www.xiachufang.com", "m.xiachufang.com", "xiachufang.com"].includes(
-      url.hostname,
-    ) ||
+    ![
+      "www.xiachufang.com",
+      "m.xiachufang.com",
+      "xiachufang.com",
+      "hanwuji.xiachufang.com",
+    ].includes(url.hostname) ||
     url.port ||
     url.username ||
     url.password ||

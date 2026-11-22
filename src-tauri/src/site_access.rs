@@ -55,3 +55,7 @@ mod tests {
         assert!(check().is_ok());
     }
 }
+
+pub fn verification_required() -> ApiError {
+    ApiError {code:"SITE_VERIFICATION".into(),message:"下厨房需要在站内窗口完成验证后继续读取".into()}
+}

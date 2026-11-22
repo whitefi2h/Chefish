@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { readRecipePage } from "./services/siteReader";
 import { nativeMode } from "./services/kitchenClient";
 import AISettings from "./AISettings";
 import { useDemo } from "./store";
@@ -114,7 +114,7 @@ export default function WebRecipeImport({
               throw new Error(
                 "浏览器预览支持本地 HTML；链接读取请使用桌面版。",
               );
-            await read(await invoke<string>("kitchen_import_url", { url }));
+            await read(await readRecipePage(url));
           } catch (e) {
             setError(
               e instanceof Error

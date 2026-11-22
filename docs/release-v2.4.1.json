@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-22",
+  "version": "2.4.1",
+  "status": "prepared",
+  "sourcePushed": false,
+  "latestStable": false,
+  "validation": "site-reader-v2.4.1-validation.json",
+  "buildPassed": true,
+  "signedInstaller": true,
+  "manifestVersionAndSignatureMatch": true,
+  "publicUpdaterManifestVerified": false,
+  "releaseUrl": "https://github.com/whitefi2h/Chefish/releases/tag/v2.4.1",
+  "assets": [
+    {
+      "name": "chefish.exe",
+      "bytes": 62674432
+    },
+    {
+      "name": "Chefish_2.4.1_x64-setup.exe",
+      "bytes": 44707334
+    },
+    {
+      "name": "Chefish_2.4.1_x64-setup.exe.sig",
+      "bytes": 436
+    },
+    {
+      "name": "latest.json",
+      "bytes": 1124
+    }
+  ]
+}

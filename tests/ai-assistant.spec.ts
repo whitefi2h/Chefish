@@ -435,3 +435,45 @@ test("rate limiting pauses remaining external candidate detail requests", async 
   );
   expect(count).toBe(1);
 });
+
+test("more current-page results expands candidates without another website request", async ({
+  page,
+}) => {
+  await stub(page);
+  await assistant(page);
+  await page.evaluate(() => {
+    const t = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (name: string, args: unknown) => Promise<unknown>;
+      };
+      siteSearchCount: number;
+    };
+    const original = t.__TAURI_INTERNALS__.invoke;
+    t.siteSearchCount = 0;
+    t.__TAURI_INTERNALS__.invoke = async (name, args) => {
+      if (name === "kitchen_ai_search") {
+        t.siteSearchCount++;
+        return Array.from({ length: 8 }, (_, i) => ({
+          id: `more-${i}`,
+          url: `https://www.xiachufang.com/recipe/${100 + i}/`,
+          title: `更多测试菜${i}`,
+          snippet: "测试",
+          source: "xiachufang",
+          rating: 8,
+          madeCount: 1,
+          author: "测试",
+        }));
+      }
+      return original(name, args);
+    };
+  });
+  await search(page);
+  await expect(page.locator(".recipe-candidate")).toHaveCount(3);
+  await page.getByRole("button", { name: "更多本页结果" }).click();
+  await expect(page.locator(".recipe-candidate")).toHaveCount(8);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { siteSearchCount: number }).siteSearchCount,
+    ),
+  ).toBe(1);
+});

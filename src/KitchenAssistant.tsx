@@ -1,3 +1,4 @@
+import { readRecipePage, searchRecipePages } from "./services/siteReader";
 import { confirmAction } from "./services/dialogs";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -130,6 +131,7 @@ export default function KitchenAssistant({
   const saveQueue = useRef(Promise.resolve());
   const [lastQuery, setLastQuery] = useState("");
   const [lastLimit, setLastLimit] = useState(3);
+  const searchPool = useRef<Candidate[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let alive = true;
@@ -345,12 +347,15 @@ export default function KitchenAssistant({
     }
   }
   async function runSearch(query: string, limit = 3) {
+    searchPool.current = [];
     setLastQuery(query);
     setLastLimit(limit);
     setStage("正在搜索下厨房，暂时失败时会自动重试…");
-    const rows = (
-      await invoke<Candidate[]>("kitchen_ai_search", { query, limit })
-    )
+    const found = await searchRecipePages(query, 50);
+    searchPool.current = found.map((r) =>
+      r.source === "xiachufang" ? { ...r, verification: "site" } : r,
+    );
+    const rows = found
       .slice(0, limit)
       .map((r) =>
         r.source === "xiachufang" ? { ...r, verification: "site" } : r,
@@ -398,7 +403,7 @@ export default function KitchenAssistant({
   async function importUrl(url: string) {
     setPendingUrl(url);
     setStage("读取菜谱正文…");
-    const html = await invoke<string>("kitchen_import_url", { url });
+    const html = await readRecipePage(url);
     setStage("整理食材、步骤与图片…");
     const content = recipeTextFromHtml(html);
     setPasted(content);
@@ -1061,6 +1066,28 @@ export default function KitchenAssistant({
             >
               重试搜索
             </button>
+            {searchPool.current.length > candidates.length && (
+              <button
+                disabled={busy}
+                onClick={() => {
+                  const extra = searchPool.current.slice(
+                    candidates.length,
+                    candidates.length + 5,
+                  );
+                  setCandidates((current) => [...current, ...extra]);
+                  setMessages((current) => [
+                    ...current,
+                    {
+                      role: "assistant",
+                      content: "更多本页候选：",
+                      candidates: extra,
+                    },
+                  ]);
+                }}
+              >
+                更多本页结果
+              </button>
+            )}
           </div>
         )}
         <div className="assistant-conversation" aria-live="polite">

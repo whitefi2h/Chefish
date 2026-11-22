@@ -13,6 +13,7 @@ mod onboarding;
 mod recipe_images;
 mod recipe_import;
 mod site_access;
+mod site_browser;
 mod site_search;
 mod steward;
 mod sync_commands;
@@ -524,6 +525,8 @@ fn main() {
             cloud_commands::cloud_backup_accept_chunk,
             cloud_commands::cloud_backup_finish_download,
             cloud_commands::cloud_backup_release,
+            site_browser::kitchen_site_open,
+            site_browser::kitchen_site_read,
             kitchen_import_url,
             kitchen_import_images,
             kitchen_recipe_images,
