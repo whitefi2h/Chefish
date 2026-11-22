@@ -1,30 +1,38 @@
 {
   "date": "2026-11-22",
   "version": "2.4.2",
-  "status": "prepared",
+  "status": "published",
   "validation": "import-fallback-v2.4.2-validation.json",
-  "latestStable": false,
+  "latestStable": true,
   "buildPassed": true,
   "signedInstaller": true,
   "manifestVersionAndSignatureMatch": true,
-  "publicUpdaterManifestVerified": false,
+  "publicUpdaterManifestVerified": true,
   "releaseUrl": "https://github.com/whitefi2h/Chefish/releases/tag/v2.4.2",
   "assets": [
     {
       "name": "chefish.exe",
-      "bytes": 62674432
+      "bytes": 62674432,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.2/chefish.exe"
     },
     {
       "name": "Chefish_2.4.2_x64-setup.exe",
-      "bytes": 44710615
+      "bytes": 44710615,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.2/Chefish_2.4.2_x64-setup.exe"
     },
     {
       "name": "Chefish_2.4.2_x64-setup.exe.sig",
-      "bytes": 436
+      "bytes": 436,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.2/Chefish_2.4.2_x64-setup.exe.sig"
     },
     {
       "name": "latest.json",
-      "bytes": 1195
+      "bytes": 1195,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.2/latest.json"
     }
-  ]
+  ],
+  "sourceCommit": "ea36519846295807fc9488191fc00f3a95fdcf38",
+  "sourcePushed": true,
+  "publishedAt": "2026-11-22T12:37:07Z",
+  "publicAssetsVerified": true
 }
