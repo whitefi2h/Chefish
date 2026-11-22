@@ -38,7 +38,12 @@ export function CookingForm({
 }) {
   const { state, today, mutate, busy, preferences } = useDemo();
   const coarse = preferences.inventoryMode === "rough";
-  const [levelChanges, setLevelChanges] = useState<Record<string, number>>({});
+  const [levelChanges, setLevelChanges] = useState<
+    Record<string, { level: number; expected_version: number }>
+  >({});
+  const interpretEpoch = useRef(0);
+  const submitting = useRef(false);
+  const [saving, setSaving] = useState(false);
   const touchedLevels = useRef(new Set<string>());
   const [servings, setServings] = useState(plan.servings);
   const [date, setDate] = useState(plan.day);
@@ -55,6 +60,8 @@ export function CookingForm({
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
     let alive = true;
+    interpretEpoch.current += 1;
+    setInterpreting(false);
     invoke<CookingPreview>("kitchen_cooking", {
       planId: plan.id,
       servings,
@@ -80,9 +87,10 @@ export function CookingForm({
       });
     return () => {
       alive = false;
+      interpretEpoch.current += 1;
     };
   }, [plan.id, servings, date, refresh]);
-  const ready = preview && preview.planVersion === (plan.version ?? 1);
+  const ready = !!preview;
   const short = preview?.rows.some(
     (r) =>
       r.lots.reduce(
@@ -93,6 +101,7 @@ export function CookingForm({
       Number(r.required),
   );
   async function interpretRecord() {
+    const epoch = ++interpretEpoch.current;
     setInterpreting(true);
     setError("");
     try {
@@ -108,14 +117,40 @@ export function CookingForm({
         date,
         record,
       });
-      setPreview(result.preview);
+      if (epoch !== interpretEpoch.current || (coarse && submitting.current))
+        return null;
+      setPreview((previous) => {
+        if (!coarse) return result.preview;
+        const ids = new Set(
+          result.preview.rows.flatMap((r) => r.lots.map((l) => l.id)),
+        );
+        const manualRows = (previous?.rows ?? [])
+          .map((r) => ({
+            ...r,
+            lots: r.lots.filter(
+              (l) => touchedLevels.current.has(l.id) && !ids.has(l.id),
+            ),
+          }))
+          .filter((r) => r.lots.length);
+        return {
+          ...result.preview,
+          rows: [...result.preview.rows, ...manualRows],
+        };
+      });
       if (coarse) {
         setLevelChanges((previous) => ({
-          ...previous,
+          ...Object.fromEntries(
+            Object.entries(previous).filter(([id]) =>
+              touchedLevels.current.has(id),
+            ),
+          ),
           ...Object.fromEntries(
             (result.levels ?? [])
               .filter((c) => !touchedLevels.current.has(c.lot_id))
-              .map((c) => [c.lot_id, c.level]),
+              .map((c) => [
+                c.lot_id,
+                { level: c.level, expected_version: c.expected_version },
+              ]),
           ),
         }));
       } else setQuantities(result.quantities);
@@ -124,10 +159,11 @@ export function CookingForm({
       setAssumptions(result.assumptions ?? []);
       return result;
     } catch (e) {
-      setError(errorMessage(e));
+      if (epoch === interpretEpoch.current && !submitting.current)
+        setError(errorMessage(e));
       return null;
     } finally {
-      setInterpreting(false);
+      if (epoch === interpretEpoch.current) setInterpreting(false);
     }
   }
   return (
@@ -136,70 +172,80 @@ export function CookingForm({
         className="form-stack cooking-form"
         onSubmit={async (e) => {
           e.preventDefault();
-          if (!ready) return;
-          let p = preview,
-            q = quantities;
-          if (
-            !coarse &&
-            record.trim() &&
-            interpreted !== `${record}|${servings}|${date}` &&
-            !manual
-          ) {
-            const result = await interpretRecord();
-            if (result) {
-              p = result.preview;
-              q = result.quantities;
-            } else {
-              // Preserve the record without applying recipe suggestions as actual usage.
-              q = {};
+          if (!preview || submitting.current) return;
+          submitting.current = true;
+          setSaving(true);
+          setError("");
+          try {
+            let p = preview,
+              q = quantities;
+            if (
+              !coarse &&
+              record.trim() &&
+              interpreted !== `${record}|${servings}|${date}` &&
+              !manual
+            ) {
+              const result = await interpretRecord();
+              if (result) {
+                p = result.preview;
+                q = result.quantities;
+              } else {
+                // Preserve the record without applying recipe suggestions as actual usage.
+                q = {};
+              }
             }
-          }
-          const saved = await mutate(
-            {
-              ...(coarse
-                ? {
-                    type: "complete_level_cooking" as const,
-                    changes: Object.entries(levelChanges).map(
-                      ([lot_id, level]) => ({
-                        lot_id,
-                        level,
-                        expected_version: p.rows
-                          .flatMap((r) => r.lots)
-                          .find((l) => l.id === lot_id)!.version,
-                      }),
-                    ),
-                  }
-                : { type: "complete_cooking" as const }),
-              draft: {
-                plan_id: plan.id,
-                expected_version: p.planVersion,
-                expected_revision: p.revision,
-                servings,
-                date,
-                note,
-                record,
-                acknowledged: true,
-                consumptions: coarse
-                  ? []
-                  : p.rows.flatMap((r) =>
-                      r.lots
-                        .filter((l) => Number(q[l.id] ?? 0) > 0)
-                        .map((l) => ({
-                          lot_id: l.id,
-                          expected_version: l.version,
-                          quantity: q[l.id],
-                        })),
-                    ),
+            const saved = await mutate(
+              {
+                ...(coarse
+                  ? {
+                      type: "complete_level_cooking" as const,
+                      changes: Object.entries(levelChanges).map(
+                        ([lot_id, change]) => ({ lot_id, ...change }),
+                      ),
+                    }
+                  : { type: "complete_cooking" as const }),
+                draft: {
+                  plan_id: plan.id,
+                  expected_version: p.planVersion,
+                  expected_revision: p.revision,
+                  servings,
+                  date,
+                  note,
+                  record,
+                  acknowledged: true,
+                  consumptions: coarse
+                    ? []
+                    : p.rows.flatMap((r) =>
+                        r.lots
+                          .filter((l) => Number(q[l.id] ?? 0) > 0)
+                          .map((l) => ({
+                            lot_id: l.id,
+                            expected_version: l.version,
+                            quantity: q[l.id],
+                          })),
+                      ),
+                },
               },
-            },
-            (s) => s,
-            coarse
-              ? "烹饪已完成，记录与剩余状态已保存"
-              : record.trim() && !Object.keys(q).length
-                ? "烹饪已完成，文字记录已保存，库存未扣减"
-                : "烹饪已完成，记录与实际用量已保存",
-          );
-          if (saved) onClose();
+              (s) => s,
+              coarse
+                ? "烹饪已完成，记录与剩余状态已保存"
+                : record.trim() && !Object.keys(q).length
+                  ? "烹饪已完成，文字记录已保存，库存未扣减"
+                  : "烹饪已完成，记录与实际用量已保存",
+            );
+            if (saved) {
+              interpretEpoch.current += 1;
+              onClose();
+            } else
+              setError(
+                "本次未保存，文字和拉杆调整仍保留。请核对提示后重试；库存有变化时可刷新建议。",
+              );
+          } catch (error) {
+            setError(errorMessage(error));
+          } finally {
+            submitting.current = false;
+            setSaving(false);
+          }
         }}
       >
         <div>
@@ -215,7 +261,7 @@ export function CookingForm({
             实际人数
             <input
               aria-label="实际人数"
-              disabled={interpreting}
+              disabled={interpreting || saving}
               type="number"
               min="1"
               max="12"
@@ -232,7 +278,7 @@ export function CookingForm({
             烹饪日期
             <input
               aria-label="烹饪日期"
-              disabled={interpreting}
+              disabled={interpreting || saving}
               type="date"
               min="1900-01-01"
               max={today}
@@ -257,12 +303,15 @@ export function CookingForm({
                   </strong>
                   <StockSlider
                     name={r.name}
-                    value={levelChanges[l.id] ?? l.level ?? null}
-                    disabled={busy}
+                    value={levelChanges[l.id]?.level ?? l.level ?? null}
+                    disabled={busy || saving}
                     onTouch={() => touchedLevels.current.add(l.id)}
                     onChange={(level) => {
                       touchedLevels.current.add(l.id);
-                      setLevelChanges((v) => ({ ...v, [l.id]: level }));
+                      setLevelChanges((v) => ({
+                        ...v,
+                        [l.id]: { level, expected_version: l.version },
+                      }));
                     }}
                   />
                 </div>
@@ -277,7 +326,7 @@ export function CookingForm({
             maxLength={4000}
             rows={coarse ? 2 : 4}
             value={record}
-            disabled={interpreting}
+            disabled={interpreting || saving}
             onChange={(e) => {
               setRecord(e.target.value);
               setManual(false);
@@ -292,6 +341,7 @@ export function CookingForm({
           <textarea
             aria-label="烹饪心得"
             maxLength={2000}
+            disabled={saving}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="记录口味、火候，或下次想改进的地方。"
@@ -300,7 +350,9 @@ export function CookingForm({
         <div className="cooking-record-actions">
           <button
             type="button"
-            disabled={!record.trim() || !ready || interpreting || busy}
+            disabled={
+              !record.trim() || !ready || interpreting || busy || saving
+            }
             onClick={() => void interpretRecord()}
           >
             {interpreting
@@ -356,7 +408,7 @@ export function CookingForm({
                     </span>
                     <input
                       aria-label={`${r.name} ${l.id} 实际用量`}
-                      disabled={interpreting}
+                      disabled={interpreting || saving}
                       type="number"
                       min="0"
                       max={l.available}
@@ -389,7 +441,7 @@ export function CookingForm({
         <div className="actions">
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || saving}
             onClick={() => {
               setPreview(undefined);
               setRefresh((n) => n + 1);
@@ -400,7 +452,7 @@ export function CookingForm({
           <button
             className="primary"
             type="submit"
-            disabled={busy || (!coarse && interpreting) || !ready}
+            disabled={busy || saving || (!coarse && interpreting) || !ready}
           >
             确认完成
           </button>

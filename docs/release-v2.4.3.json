@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-22",
+  "version": "2.4.3",
+  "status": "prepared",
+  "validation": "cooking-save-v2.4.3-validation.json",
+  "latestStable": false,
+  "buildPassed": true,
+  "signedInstaller": true,
+  "manifestVersionAndSignatureMatch": true,
+  "publicUpdaterManifestVerified": false,
+  "releaseUrl": "https://github.com/whitefi2h/Chefish/releases/tag/v2.4.3",
+  "assets": [
+    {
+      "name": "chefish.exe",
+      "bytes": 62674944
+    },
+    {
+      "name": "Chefish_2.4.3_x64-setup.exe",
+      "bytes": 44710788
+    },
+    {
+      "name": "Chefish_2.4.3_x64-setup.exe.sig",
+      "bytes": 436
+    },
+    {
+      "name": "latest.json",
+      "bytes": 1237
+    }
+  ]
+}

@@ -468,3 +468,225 @@ test("AI results cannot overwrite manual levels, including edits made while AI i
   await expect(sliders.nth(1)).toHaveAttribute("aria-valuetext", "缺乏");
   await page.screenshot({ path: "docs/screenshots/rough-mode/cooking.png" });
 });
+
+test("rough completion remains usable after refreshing a changed plan version", async ({
+  page,
+}) => {
+  await cookingIPC(page, false, true, true);
+  await page.evaluate(() => {
+    const t = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (n: string, a: unknown) => Promise<unknown>;
+      };
+    };
+    const original = t.__TAURI_INTERNALS__.invoke;
+    t.__TAURI_INTERNALS__.invoke = async (n, a) => {
+      const r = await original(n, a);
+      return n === "kitchen_cooking"
+        ? { ...(r as object), planVersion: 2, revision: "13" }
+        : r;
+    };
+  });
+  await page.getByRole("button", { name: "刷新建议", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "确认完成", exact: true }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "确认完成", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "完成烹饪" })).toHaveCount(0);
+  const commands = await page.evaluate(
+    () => (window as unknown as { cookingCommands: unknown[] }).cookingCommands,
+  );
+  expect(commands).toMatchObject([
+    {
+      type: "complete_level_cooking",
+      draft: { expected_version: 2, expected_revision: "13" },
+    },
+  ]);
+});
+test("rough AI preview changes cannot silently upgrade a manual level version", async ({
+  page,
+}) => {
+  await cookingIPC(page, false, true, true);
+  await page.getByRole("slider").first().focus();
+  await page.keyboard.press("Home");
+  await page.evaluate(() => {
+    const t = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (n: string, a: unknown) => Promise<unknown>;
+      };
+    };
+    const original = t.__TAURI_INTERNALS__.invoke;
+    t.__TAURI_INTERNALS__.invoke = async (n, a) => {
+      if (n !== "kitchen_cooking_interpret") return original(n, a);
+      const p = (await original("kitchen_cooking", {})) as {
+        rows: { lots: { version: number }[] }[];
+      };
+      p.rows[0].lots[0].version = 2;
+      return {
+        preview: p,
+        levels: [],
+        quantities: {},
+        summary: "已整理",
+        assumptions: [],
+      };
+    };
+  });
+  await page.getByLabel("烹饪记录", { exact: true }).fill("其他食材未变");
+  await page.getByRole("button", { name: "AI 识别剩余情况" }).click();
+  await expect(page.getByText("已整理", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "确认完成", exact: true }).click();
+  const commands = await page.evaluate(
+    () => (window as unknown as { cookingCommands: unknown[] }).cookingCommands,
+  );
+  expect(commands).toMatchObject([
+    { changes: [{ lot_id: "lot-early", level: 0, expected_version: 1 }] },
+  ]);
+});
+test("rough save failure retains manual levels and text with an inline retry message", async ({
+  page,
+}) => {
+  await cookingIPC(page, true, true, true);
+  await page.getByLabel("烹饪心得").fill("保留我的手记");
+  await page.getByRole("slider").first().focus();
+  await page.keyboard.press("Home");
+  await page.getByRole("button", { name: "确认完成", exact: true }).click();
+  await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
+    "本次未保存",
+  );
+  await expect(page.getByLabel("烹饪心得")).toHaveValue("保留我的手记");
+  await expect(page.getByRole("slider").first()).toHaveAttribute(
+    "aria-valuetext",
+    "缺乏",
+  );
+  await expect(
+    page.getByRole("button", { name: "确认完成", exact: true }),
+  ).toBeEnabled();
+});
+
+test("manual levels for an extra ingredient survive another AI interpretation without crashing save", async ({
+  page,
+}) => {
+  await cookingIPC(page, false, true, true);
+  await page.evaluate(() => {
+    const t = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (n: string, a: unknown) => Promise<unknown>;
+      };
+    };
+    const original = t.__TAURI_INTERNALS__.invoke;
+    let calls = 0;
+    t.__TAURI_INTERNALS__.invoke = async (n, a) => {
+      if (n !== "kitchen_cooking_interpret") return original(n, a);
+      calls++;
+      const p = (await original("kitchen_cooking", {})) as {
+        rows: {
+          ingredientId: string;
+          name: string;
+          unit: string;
+          required: string;
+          missing: string;
+          lots: { id: string; version: number; level: number }[];
+        }[];
+      };
+      if (calls === 1)
+        p.rows.push({
+          ...p.rows[0],
+          ingredientId: "corn",
+          name: "玉米",
+          lots: [
+            { ...p.rows[0].lots[0], id: "extra-corn", version: 7, level: 1 },
+          ],
+        });
+      return {
+        preview: p,
+        levels:
+          calls === 1
+            ? [{ lot_id: "extra-corn", expected_version: 7, level: 0 }]
+            : [],
+        quantities: {},
+        summary: `整理${calls}`,
+        assumptions: [],
+      };
+    };
+  });
+  await page.getByLabel("烹饪记录", { exact: true }).fill("玉米只剩一点");
+  await page.getByRole("button", { name: "AI 识别剩余情况" }).click();
+  const slider = page.getByRole("slider", { name: "玉米存量" });
+  await slider.focus();
+  await page.keyboard.press("End");
+  await page.getByRole("button", { name: "AI 识别剩余情况" }).click();
+  await expect(page.getByText("整理2", { exact: true })).toBeVisible();
+  await expect(slider).toHaveAttribute("aria-valuetext", "盈余");
+  await page.getByRole("button", { name: "确认完成", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "完成烹饪" })).toHaveCount(0);
+  const commands = await page.evaluate(
+    () =>
+      (window as unknown as { cookingCommands: { changes: unknown[] }[] })
+        .cookingCommands,
+  );
+  expect(commands[0].changes).toContainEqual({
+    lot_id: "extra-corn",
+    level: 2,
+    expected_version: 7,
+  });
+});
+
+test("refreshing rough suggestions ignores a late AI response", async ({
+  page,
+}) => {
+  await cookingIPC(page, false, true, true);
+  await page.evaluate(() => {
+    const t = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (n: string, a: unknown) => Promise<unknown>;
+      };
+      releaseCookingAI: () => void;
+    };
+    const old = t.__TAURI_INTERNALS__.invoke;
+    t.__TAURI_INTERNALS__.invoke = async (n, a) => {
+      if (n !== "kitchen_cooking_interpret") return old(n, a);
+      await new Promise<void>((resolve) => {
+        t.releaseCookingAI = resolve;
+      });
+      return {
+        preview: await old("kitchen_cooking", {}),
+        levels: [{ lot_id: "lot-early", expected_version: 1, level: -1 }],
+        quantities: {},
+        summary: "过时的识别结果",
+        assumptions: [],
+      };
+    };
+  });
+  await page.getByLabel("烹饪记录", { exact: true }).fill("牛肉用完了");
+  await page.getByRole("button", { name: "AI 识别剩余情况" }).click();
+  await page.getByRole("button", { name: "刷新建议", exact: true }).click();
+  await page.getByRole("slider").first().focus();
+  await page.keyboard.press("End");
+  await page.evaluate(() =>
+    (window as unknown as { releaseCookingAI: () => void }).releaseCookingAI(),
+  );
+  await expect(page.getByRole("slider").first()).toHaveAttribute(
+    "aria-valuetext",
+    "盈余",
+  );
+  await expect(page.getByText("过时的识别结果", { exact: true })).toHaveCount(
+    0,
+  );
+});
+test("repeated rough completion submission saves only once", async ({
+  page,
+}) => {
+  await cookingIPC(page, false, true, true);
+  await page.evaluate(() => {
+    const form = document.querySelector<HTMLFormElement>("form.cooking-form")!;
+    form.requestSubmit();
+    form.requestSubmit();
+  });
+  await expect(page.getByRole("dialog", { name: "完成烹饪" })).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { cookingCommands: unknown[] }).cookingCommands,
+    ),
+  ).toHaveLength(1);
+});

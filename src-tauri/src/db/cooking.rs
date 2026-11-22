@@ -143,6 +143,9 @@ pub fn preview(conn: &Connection, key: &str, servings: i64, date: &str) -> Resul
     Ok(json!({"planVersion":version,"revision":revision,"rows":rows}))
 }
 pub fn complete(tx: &Transaction, d: CompleteDraft) -> Result<()> {
+    complete_inner(tx,d,true)
+}
+fn complete_inner(tx: &Transaction, d: CompleteDraft, check_kitchen_revision:bool) -> Result<()> {
     if !d.acknowledged
         || (d.note.chars().count() > 2000 || d.record.chars().count() > 4000)
         || d.consumptions.len() > 500
@@ -153,7 +156,7 @@ pub fn complete(tx: &Transaction, d: CompleteDraft) -> Result<()> {
         ));
     }
     let p = preview(tx, &d.plan_id, d.servings, &d.date)?;
-    if p["revision"] != d.expected_revision || p["planVersion"] != d.expected_version {
+    if (check_kitchen_revision && p["revision"] != d.expected_revision) || p["planVersion"] != d.expected_version {
         return Err(error(
             "STALE_REVISION",
             "菜单或库存已变化，请刷新建议后核对",
@@ -384,6 +387,38 @@ mod tests {
             acknowledged: true,
             consumptions,
         }
+    }
+    #[test]
+    fn rough_completion_ignores_unrelated_updates_but_preserves_level_undo() {
+        let (_,mut c,key)=setup();
+        let mut pref=preferences::load(&c).unwrap();pref.inventory_mode="rough".into();preferences::save(&mut c,pref.clone()).unwrap();
+        let lot=inventory::lots(&c).unwrap()[0].clone();
+        let change=measurement::LevelChange{lot_id:lot["id"].as_str().unwrap().into(),expected_version:lot["version"].as_i64().unwrap(),level:0};
+        let mut d=draft(&c,&key);d.record="饭已做好，剩余不多".into();d.note="保存文字".into();
+        pref.taste="少辣".into();preferences::save(&mut c,pref).unwrap();
+        assert_ne!(preview(&c,&key,2,&d.date).unwrap()["revision"],d.expected_revision);
+        execute(&mut c,&id(),Command::CompleteLevelCooking{draft:d.clone(),changes:vec![change.clone()]}).unwrap();
+        assert_eq!(session(&c,&key).unwrap()["record"],d.record);
+        assert_eq!(inventory::lots(&c).unwrap().iter().find(|l|l["id"]==change.lot_id).unwrap()["level"],0);
+        execute(&mut c,&id(),Command::UndoCooking{plan_id:key,expected_version:2}).unwrap();
+        assert!(measurement::get(&c,&change.lot_id).unwrap().is_none());
+    }
+    #[test]
+    fn rough_completion_still_rolls_back_conflicting_lots_and_menu_changes() {
+        let (_,mut c,key)=setup();
+        let mut pref=preferences::load(&c).unwrap();pref.inventory_mode="rough".into();preferences::save(&mut c,pref).unwrap();
+        let lots=inventory::lots(&c).unwrap();
+        let changes:Vec<_>=lots.iter().take(2).map(|l|measurement::LevelChange{lot_id:l["id"].as_str().unwrap().into(),expected_version:l["version"].as_i64().unwrap(),level:0}).collect();
+        let d=draft(&c,&key);
+        let mut concurrent=changes[1].clone();concurrent.level=2;
+        execute(&mut c,&id(),Command::SetStockLevel{change:concurrent}).unwrap();
+        let before=snapshot(&c).unwrap();
+        let err=execute(&mut c,&id(),Command::CompleteLevelCooking{draft:d.clone(),changes:changes.clone()}).unwrap_err();
+        assert_eq!(err.code,"STALE_REVISION");assert_eq!(snapshot(&c).unwrap(),before);assert!(session(&c,&key).unwrap().is_null());
+        c.execute("UPDATE planned_meals SET version=version+1 WHERE id=?1",[&key]).unwrap();
+        let before=snapshot(&c).unwrap();
+        assert!(execute(&mut c,&id(),Command::CompleteLevelCooking{draft:d,changes:vec![]}).is_err());
+        assert_eq!(snapshot(&c).unwrap(),before);
     }
     #[test]
     fn written_record_and_recipe_notebook_survive_restart_and_undo_together() {
@@ -663,7 +698,7 @@ pub fn complete_levels(tx:&Transaction,mut draft:CompleteDraft,changes:Vec<measu
     }
     draft.consumptions.clear();
     let plan=draft.plan_id.clone();
-    complete(tx,draft)?;
+    complete_inner(tx,draft,false)?;
     let session:String=tx.query_row("SELECT cooking_session_id FROM planned_meals WHERE id=?1",[plan],|r|r.get(0))?;
     for change in changes {
         let event=inventory::set_level(tx,&change,"cooking")?;

@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-22",
+  "version": "2.4.3",
+  "reportedMode": "rough",
+  "rootCauses": [
+    "Rough completion inherited the exact-mode global data_revision guard, rejecting unrelated updates",
+    "Refreshed plan version was compared with a frozen modal prop, leaving confirm disabled",
+    "Level changes depended on looking up batches in the latest AI preview; manual extra batches could disappear or gain newer versions silently"
+  ],
+  "changes": [
+    "Rough save checks the plan and modified batch versions in one transaction; exact mode retains its existing global revision guard",
+    "Persist level values with their original expected batch version and preserve manually edited extra rows across AI results",
+    "Allow refreshed plan previews to submit; guard duplicate submits and ignore AI responses invalidated by refresh or save",
+    "Failed mutation retains current input and shows a persistent inline retry message"
+  ],
+  "checks": {
+    "rustFullPassed": 182,
+    "rustIgnored": 14,
+    "cookingBrowserPassed": 17,
+    "typescript": true,
+    "eslint": true
+  },
+  "evidence": "Isolated SQLite tests and browser IPC fixtures; no personal kitchen, queue or chat accessed",
+  "realUserInstallationValidated": false,
+  "schemaChanged": false
+}
