@@ -487,6 +487,9 @@ fn prefer_source_ingredients(result: &mut Value, content: &str) -> Result<()> {
     Ok(())
 }
 fn organized_draft(mut result: Value, url: String, categories: Vec<String>) -> Result<Value> {
+    if result.get("draft").is_none() && result["error"].is_string() {
+        return Err(fail("AI_RESPONSE", "模型未能整理出完整菜谱，原文仍可预览"));
+    }
     // Images come from the source page downloader, never from model-generated data.
     if let Some(draft) = result.get_mut("draft").and_then(Value::as_object_mut) {
         draft.remove("media");
@@ -718,6 +721,12 @@ mod tests {
             "https://www.xiachufang.com/recipe/2/"
         );
         assert_eq!(out["warnings"].as_array().unwrap().len(), 6);
+    }
+    #[test]
+    fn explicit_model_recipe_error_is_reported_as_incomplete_content() {
+        let err=organized_draft(json!({"error":"未取得完整菜谱正文"}),"https://www.xiachufang.com/recipe/1/".into(),vec![]).unwrap_err();
+        assert_eq!(err.code,"AI_RESPONSE");
+        assert!(err.message.contains("模型未能整理出完整菜谱"));
     }
     #[test]
     fn malformed_model_ingredients_still_fail_without_discarding_rows() {

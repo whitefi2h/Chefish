@@ -1,6 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { parseRecipe, type RecipeDraft } from "../RecipeEditor";
-import { canonicalRecipeUrl } from "../domain/recipeImport";
+import {
+  canonicalRecipeUrl,
+  parseRecipeHtml,
+  recipeTextFromHtml,
+} from "../domain/recipeImport";
 export type Provider = "deepseek" | "openai" | "gemini";
 export interface AISettings {
   provider: Provider;
@@ -83,6 +87,31 @@ export async function organizeRecipe(
   const images = await importRecipeImages(content, url);
   if (images.media) draft.media = images.media;
   return { draft, warnings: [...result.warnings, ...images.warnings] };
+}
+// A model failure must not discard a recipe page that can be parsed directly.
+export async function organizeRecipeFromHtml(
+  html: string,
+  url: string,
+  categories: string[],
+) {
+  const content = recipeTextFromHtml(html);
+  try {
+    return await organizeRecipe(content, url, categories);
+  } catch (modelError) {
+    let result: ReturnType<typeof parseRecipeHtml>;
+    try {
+      result = parseRecipeHtml(html, url);
+    } catch {
+      throw modelError;
+    }
+    const images = await importRecipeImages(content, url);
+    if (images.media) result.draft.media = images.media;
+    result.warnings.push(
+      "AI 整理未完成，已按原网页生成预览，请确认后导入。",
+      ...images.warnings,
+    );
+    return result;
+  }
 }
 export async function importRecipeImages(
   content: string,

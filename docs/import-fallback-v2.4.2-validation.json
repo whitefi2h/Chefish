@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-22",
+  "version": "2.4.2",
+  "issues": [
+    "Import checkbox inherited column layout from .form-stack label",
+    "Model output failed recipe schema validation after HTML had been read; original model reply is not available from screenshots"
+  ],
+  "change": "Keep strict save validation; if model organization fails, parse trusted page markup into editable preview and preserve source, ingredients, amounts and steps. Shared by ordinary and assistant imports. No auto-save.",
+  "checks": {
+    "browserPassed": 26,
+    "rustAiPassed": 17,
+    "rustAiIgnoredLive": 3,
+    "typescript": true,
+    "eslint": true
+  },
+  "evidence": "Isolated synthetic page/model fixtures and Rust tests, with screenshot geometry assertion for toggle/text alignment",
+  "personalKitchenAccessed": false,
+  "realModelReplyInspected": false,
+  "realUserUpgradeValidated": false,
+  "schemaChanged": false
+}

@@ -20,6 +20,7 @@ import { recipeTextFromHtml } from "./domain/recipeImport";
 import {
   aiStatus,
   organizeRecipe,
+  organizeRecipeFromHtml,
   selectedUrl,
   type Candidate,
   type AssistantProposal,
@@ -407,7 +408,11 @@ export default function KitchenAssistant({
     setStage("整理食材、步骤与图片…");
     const content = recipeTextFromHtml(html);
     setPasted(content);
-    const result = await organizeRecipe(content, url, state.recipeCategories);
+    const result = await organizeRecipeFromHtml(
+      html,
+      url,
+      state.recipeCategories,
+    );
     setWarnings(result.warnings);
     setDraft(result.draft);
   }

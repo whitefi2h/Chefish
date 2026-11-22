@@ -285,7 +285,7 @@ for (const [width, height] of [
     ).toBe(true);
   });
 
-test("web importer uses configured AI automatically and retains HTML on organize failure", async ({
+test("web importer falls back to source preview and keeps the model toggle inline", async ({
   page,
 }) => {
   await stub(page, "organize");
@@ -300,7 +300,31 @@ test("web importer uses configured AI automatically and retains HTML on organize
     .getByLabel("下厨房菜谱链接")
     .fill("https://www.xiachufang.com/recipe/123451/");
   await page.getByRole("button", { name: "读取链接", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("原文已保留");
+  await expect(
+    page.getByRole("heading", { name: "测试菜", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("AI 整理未完成，已按原网页生成预览，请确认后导入。", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const toggle = page.getByLabel("用模型整理食材和步骤");
+  const check = await toggle.boundingBox();
+  const label = await page
+    .getByText("用模型整理食材和步骤", { exact: true })
+    .boundingBox();
+  expect(
+    Math.abs(check!.y + check!.height / 2 - (label!.y + label!.height / 2)),
+  ).toBeLessThan(3);
+  expect(label!.x).toBeGreaterThan(check!.x + check!.width);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { savedCommands: unknown[] }).savedCommands,
+    ),
+  ).toHaveLength(0);
+  await page.screenshot({
+    path: "docs/screenshots/import-fallback/preview.png",
+  });
   await expect(page.getByLabel("下厨房菜谱链接")).toHaveValue(
     "https://www.xiachufang.com/recipe/123451/",
   );
@@ -476,4 +500,65 @@ test("more current-page results expands candidates without another website reque
       () => (window as unknown as { siteSearchCount: number }).siteSearchCount,
     ),
   ).toBe(1);
+});
+
+test("assistant source import can preview when model formatting fails", async ({
+  page,
+}) => {
+  await stub(page, "organize");
+  await assistant(page);
+  await search(page);
+  await page.getByRole("button", { name: "整理这道菜" }).first().click();
+  await expect(
+    page.getByText("AI 整理未完成，已按原网页生成预览，请确认后导入。", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "编辑后导入" })).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { savedCommands: unknown[] }).savedCommands,
+    ),
+  ).toHaveLength(0);
+});
+test("malformed model reply uses genuine page content and never turns a challenge into a recipe", async ({
+  page,
+}) => {
+  await stub(page);
+  await page.goto("/");
+  await page.evaluate(() => {
+    const t = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (n: string, a: unknown) => Promise<unknown>;
+      };
+    };
+    const old = t.__TAURI_INTERNALS__.invoke;
+    t.__TAURI_INTERNALS__.invoke = async (n, a) =>
+      n === "kitchen_ai_organize"
+        ? { draft: { name: "不可使用的模型输出" } }
+        : old(n, a);
+  });
+  const result = await page.evaluate(async () => {
+    const { organizeRecipeFromHtml } = await import(
+      ["/src/services/aiClient.ts"].join("")
+    );
+    const url = "https://www.xiachufang.com/recipe/107469486/";
+    const page =
+      '<h1 class="page-title">原文保留的菜</h1><div class="ings"><table><tr><td class="name">鸡蛋</td><td class="unit">2个</td></tr></table></div><div class="steps"><li><p class="text">打蛋炒熟。</p></li></div>';
+    const preview = await organizeRecipeFromHtml(page, url, []);
+    let rejected = false;
+    try {
+      await organizeRecipeFromHtml("<h1>请滑动完成验证</h1>", url, []);
+    } catch {
+      rejected = true;
+    }
+    return { preview, rejected };
+  });
+  expect(result.preview.draft.name).toBe("原文保留的菜");
+  expect(result.preview.draft.ingredients[0]).toMatchObject({
+    name: "鸡蛋",
+    quantity: 2,
+    unit: "个",
+  });
+  expect(result.rejected).toBe(true);
 });

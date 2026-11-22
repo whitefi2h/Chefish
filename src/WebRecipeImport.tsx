@@ -6,6 +6,7 @@ import { useDemo } from "./store";
 import {
   aiStatus,
   organizeRecipe,
+  organizeRecipeFromHtml,
   importRecipeImages,
 } from "./services/aiClient";
 import { errorMessage } from "./services/kitchenClient";
@@ -44,11 +45,7 @@ export default function WebRecipeImport({
     setLastHtml(html);
     const result =
       configured && useAI
-        ? await organizeRecipe(
-            recipeTextFromHtml(html),
-            url,
-            state.recipeCategories,
-          )
+        ? await organizeRecipeFromHtml(html, url, state.recipeCategories)
         : parseRecipeHtml(html, url);
     if (!(configured && useAI) && nativeMode) {
       const images = await importRecipeImages(recipeTextFromHtml(html), url);
@@ -63,14 +60,14 @@ export default function WebRecipeImport({
       {nativeMode && (
         <>
           <div className="assistant-toolbar">
-            <label className="inline">
+            <label className="check-label">
               <input
                 type="checkbox"
                 checked={useAI && configured}
                 disabled={!configured || loading}
                 onChange={(e) => setUseAI(e.target.checked)}
               />
-              用模型整理食材和步骤
+              <span>用模型整理食材和步骤</span>
             </label>
             <button
               disabled={loading}
