@@ -3,7 +3,11 @@ import { hasStock, stockLevelText } from "./domain/stock";
 import { confirmAction } from "./services/dialogs";
 import { CarouselButtons, useHorizontalCarousel } from "./HorizontalCarousel";
 import IngredientAvatar, { IngredientAvatarCredit } from "./IngredientAvatar";
-import { foodInventoryLots, expiringInventoryLots } from "./domain/inventory";
+import {
+  foodInventoryLots,
+  expiringInventoryLots,
+  inventoryStatus,
+} from "./domain/inventory";
 import {
   rememberIngredientPhoto,
   usesIngredientPhoto,
@@ -29,7 +33,6 @@ import {
   shiftDate,
   amount,
   daysLeft,
-  expiryLabel,
   type Category,
   type Location,
   type ShoppingItem,
@@ -392,12 +395,19 @@ function DeleteLotButton({
 function LotEditor({
   lot,
   onDeleted,
+  onSaved,
 }: {
   lot: InventoryLot;
   onDeleted: () => void;
+  onSaved: () => void;
 }) {
   const { state, mutate, busy, preferences } = useDemo();
   const ingredient = state.ingredients.find((i) => i.id === lot.ingredientId)!;
+  const [baseline, setBaseline] = useState({
+    lot,
+    category: ingredient.category,
+    coarse: preferences.inventoryMode === "rough",
+  });
   const [level, setLevel] = useState<number | null>(
     lot.measurement === "level"
       ? (lot.level ?? null)
@@ -405,7 +415,7 @@ function LotEditor({
         ? -1
         : null,
   );
-  const coarse = preferences.inventoryMode === "rough";
+  const coarse = baseline.coarse;
   const [quantity, setQuantity] = useState(
     lot.measurement === "level" && !coarse
       ? ""
@@ -417,35 +427,82 @@ function LotEditor({
   const [expires, setExpires] = useState(lot.expires ?? "");
   const rough = lot.precision === "rough";
   const [category, setCategory] = useState(ingredient.category);
+  const stale =
+    lot.version !== baseline.lot.version ||
+    lot.stockRevision !== baseline.lot.stockRevision ||
+    ingredient.category !== baseline.category ||
+    (preferences.inventoryMode === "rough") !== coarse;
+  function review(keep: boolean) {
+    const old = baseline.lot;
+    const nextCoarse = preferences.inventoryMode === "rough";
+    const oldLevel =
+      old.measurement === "level"
+        ? (old.level ?? null)
+        : old.quantity === 0
+          ? -1
+          : null;
+    if (!keep || level === oldLevel)
+      setLevel(
+        lot.measurement === "level"
+          ? (lot.level ?? null)
+          : lot.quantity === 0
+            ? -1
+            : null,
+      );
+    const oldQuantity =
+      old.measurement === "level" && !coarse
+        ? ""
+        : (old.quantityText ?? String(old.quantity));
+    if (!keep || quantity === oldQuantity)
+      setQuantity(
+        lot.measurement === "level" && !nextCoarse
+          ? ""
+          : (lot.quantityText ?? String(lot.quantity)),
+      );
+    if (!keep || unit === old.unit) setUnit(lot.unit);
+    if (!keep || location === old.location) setLocation(lot.location);
+    if (!keep || received === old.received) setReceived(lot.received);
+    if (!keep || expires === (old.expires ?? "")) setExpires(lot.expires ?? "");
+    if (!keep || category === baseline.category)
+      setCategory(ingredient.category);
+    setBaseline({ lot, category: ingredient.category, coarse: nextCoarse });
+  }
   const changed =
     level !==
-      (lot.measurement === "level"
-        ? (lot.level ?? null)
-        : lot.quantity === 0
+      (baseline.lot.measurement === "level"
+        ? (baseline.lot.level ?? null)
+        : baseline.lot.quantity === 0
           ? -1
           : null) ||
-    Number(quantity) !== lot.quantity ||
-    unit !== lot.unit ||
-    location !== lot.location ||
-    received !== lot.received ||
-    (expires || null) !== lot.expires ||
-    category !== ingredient.category;
+    (baseline.lot.measurement === "level" && !coarse
+      ? quantity !== ""
+      : Number(quantity) !== baseline.lot.quantity) ||
+    unit !== baseline.lot.unit ||
+    location !== baseline.lot.location ||
+    received !== baseline.lot.received ||
+    (expires || null) !== baseline.lot.expires ||
+    category !== baseline.category;
   return (
     <form
       className="form-stack lot-editor"
       onSubmit={async (e) => {
         e.preventDefault();
+        if (stale) return;
         const inferred =
           category === "自动分类"
             ? ingredientCategory(ingredient.name)
             : category;
-        await mutate(
+        const saved = await mutate(
           {
             ...(coarse
-              ? { type: "edit_level_lot" as const, level }
+              ? {
+                  type: "edit_level_lot" as const,
+                  level,
+                  expected_stock_revision: baseline.lot.stockRevision,
+                }
               : { type: "edit_lot" as const }),
             lot_id: lot.id,
-            expected_version: lot.version ?? 1,
+            expected_version: baseline.lot.version ?? 1,
             draft: {
               quantity,
               unit,
@@ -487,8 +544,36 @@ function LotEditor({
           }),
           "食材已更新",
         );
+        if (saved) onSaved();
       }}
     >
+      {stale && (
+        <section className="cooking-ai-summary" role="alert">
+          <p>这批食材已更新，你的修改仍保留。请核对后再保存。</p>
+          <p className="hint">
+            最新库存：
+            {lot.measurement === "level" ||
+            preferences.inventoryMode === "rough"
+              ? stockLevelText(lot.level)
+              : amount(lot.quantity, lot.unit)}{" "}
+            · {lot.location}
+          </p>
+          <div className="actions">
+            {coarse === (preferences.inventoryMode === "rough") && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => review(true)}
+              >
+                保留修改并合并最新信息
+              </button>
+            )}
+            <button type="button" disabled={busy} onClick={() => review(false)}>
+              使用最新内容
+            </button>
+          </div>
+        </section>
+      )}
       <fieldset disabled={busy} className="lot-fields">
         {coarse ? (
           <StockSlider
@@ -588,7 +673,11 @@ function LotEditor({
         </label>
         <p className="hint">分类适用于同名食材的所有批次。</p>
         <div className="actions lot-editor-actions">
-          <button className="primary" disabled={!changed} type="submit">
+          <button
+            className="primary"
+            disabled={!changed || stale}
+            type="submit"
+          >
             保存修改
           </button>
           <DeleteLotButton lot={lot} onDeleted={onDeleted} />
@@ -606,6 +695,7 @@ export function LotDetail({
 }) {
   const { state, mutate, persistent, busy, today } = useDemo();
   const [selected, setSelected] = useState(id);
+  const [savedGeneration, setSavedGeneration] = useState(0);
   const [imageBusy, setImageBusy] = useState(false);
   const [imageError, setImageError] = useState("");
   const original = state.lots.find((l) => l.id === id);
@@ -698,9 +788,10 @@ export function LotDetail({
         </select>
       </label>
       <LotEditor
-        key={`${lot.id}:${lot.version ?? lot.quantity}`}
+        key={`${lot.id}:${savedGeneration}`}
         lot={lot}
         onDeleted={onClose}
+        onSaved={() => setSavedGeneration((n) => n + 1)}
       />
       {persistent && (
         <section className="inventory-history space-top">
@@ -807,6 +898,7 @@ function LotQuantity({ lot, name }: { lot: InventoryLot; name: string }) {
               change: {
                 lot_id: lot.id,
                 expected_version: lot.version ?? 1,
+                expected_stock_revision: lot.stockRevision,
                 level,
               },
             },
@@ -1072,23 +1164,32 @@ export default function Inventory({
                   需要关注 <span>{alerts.length}</span>
                 </h2>
                 <div className="attention-counts">
-                  {alerts.some((l) => daysLeft(l.expires, today) < 0) && (
+                  {alerts.some(
+                    (l) => !!l.expires && daysLeft(l.expires, today) < 0,
+                  ) && (
                     <span className="expired">
                       过期{" "}
                       {
-                        alerts.filter((l) => daysLeft(l.expires, today) < 0)
-                          .length
+                        alerts.filter(
+                          (l) => !!l.expires && daysLeft(l.expires, today) < 0,
+                        ).length
                       }
                     </span>
                   )}
-                  {alerts.some((l) => daysLeft(l.expires, today) >= 0) && (
+                  {alerts.some(
+                    (l) => !!l.expires && daysLeft(l.expires, today) >= 0,
+                  ) && (
                     <span>
                       临期{" "}
                       {
-                        alerts.filter((l) => daysLeft(l.expires, today) >= 0)
-                          .length
+                        alerts.filter(
+                          (l) => !!l.expires && daysLeft(l.expires, today) >= 0,
+                        ).length
                       }
                     </span>
+                  )}
+                  {alerts.some((l) => !l.expires) && (
+                    <span>复查 {alerts.filter((l) => !l.expires).length}</span>
                   )}
                 </div>
                 <CarouselButtons carousel={attention} label="临期食材" />
@@ -1121,10 +1222,8 @@ export default function Inventory({
                           · {l.location}
                         </small>
                       </span>
-                      <Badge
-                        tone={daysLeft(l.expires, today) < 0 ? "red" : "warm"}
-                      >
-                        {expiryLabel(l.expires, today)}
+                      <Badge tone={inventoryStatus(l, today).tone}>
+                        {inventoryStatus(l, today).label}
                       </Badge>
                     </button>
                   );
@@ -1293,28 +1392,20 @@ export default function Inventory({
                         />
                       </td>
                       <td className="inventory-expiry" title={l.steward?.basis}>
-                        {l.expires ??
-                          (l.steward?.reviewOn
-                            ? `预计复查 ${l.steward.reviewOn}`
-                            : "—")}
+                        <span>{l.expires ?? l.steward?.reviewOn ?? "—"}</span>
+                        {!l.expires && l.steward?.reviewOn && (
+                          <small>预计复查</small>
+                        )}
                         {l.steward?.suggestedLocation === l.location && (
-                          <small> · 库位为推测</small>
+                          <small>库位为推测</small>
                         )}
                       </td>
                       <td>
                         {!hasStock(l) ? (
                           <Badge>已用完</Badge>
-                        ) : l.expires ? (
-                          <Badge
-                            tone={
-                              daysLeft(l.expires, today) < 0
-                                ? "red"
-                                : daysLeft(l.expires, today) <= 3
-                                  ? "warm"
-                                  : "green"
-                            }
-                          >
-                            {expiryLabel(l.expires, today)}
+                        ) : l.expires || l.steward?.reviewOn ? (
+                          <Badge tone={inventoryStatus(l, today).tone}>
+                            {inventoryStatus(l, today).label}
                           </Badge>
                         ) : (
                           <span className="muted">—</span>

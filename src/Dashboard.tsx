@@ -2,7 +2,11 @@ import IngredientAvatar from "./IngredientAvatar";
 import { quantityText } from "./domain/quantity";
 import { shoppingPending } from "./domain/shopping";
 import { supplies } from "./domain/seasonings";
-import { foodInventoryLots, expiringInventoryLots } from "./domain/inventory";
+import {
+  foodInventoryLots,
+  expiringInventoryLots,
+  inventoryStatus,
+} from "./domain/inventory";
 import {
   ArrowRight,
   Leaf,
@@ -10,14 +14,7 @@ import {
   CalendarDays,
   Clock,
 } from "lucide-react";
-import {
-  recipeForPlan,
-  weekDays,
-  weekOf,
-  daysLeft,
-  expiryLabel,
-  pendingItems,
-} from "./model";
+import { recipeForPlan, weekDays, weekOf, pendingItems } from "./model";
 import { useDemo } from "./store";
 import { Badge, Food } from "./components";
 import { useState, useEffect } from "react";
@@ -155,8 +152,8 @@ export default function Dashboard({
                 />
                 {state.ingredients.find((i) => i.id === l.ingredientId)!.name}
               </span>
-              <Badge tone={daysLeft(l.expires, today) < 0 ? "red" : "warm"}>
-                {expiryLabel(l.expires, today)}
+              <Badge tone={inventoryStatus(l, today).tone}>
+                {inventoryStatus(l, today).label}
               </Badge>
             </div>
           ))}

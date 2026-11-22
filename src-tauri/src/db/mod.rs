@@ -119,7 +119,7 @@ pub struct RecipeDraft {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
-    EditLevelLot {lot_id: String, expected_version: i64, draft: inventory::InventoryEdit, level: Option<i64>},
+    EditLevelLot {lot_id: String, expected_version: i64, #[serde(default)] expected_stock_revision: Option<String>, draft: inventory::InventoryEdit, level: Option<i64>},
     SetStockLevel { change: measurement::LevelChange },
     ReceiveLevelLot { name: String, category: String, level: i64 },
     PurchaseLevelShopping { line_id: Option<String>, expected_version: i64, ingredient_id: String, unit: String, week_start: Option<String> },
@@ -1045,10 +1045,15 @@ fn apply(tx: &Transaction, command: Command) -> Result<()> {
         _ => None,
     };
     match ingredient_standard::command(command)? {
-        Command::EditLevelLot {lot_id,expected_version,draft,level} => {
+        Command::EditLevelLot {lot_id,expected_version,expected_stock_revision,draft,level} => {
             if !measurement::rough(tx)? {return Err(error("INVALID_INPUT","请先开启粗略计量模式"));}
+            if let Some(revision) = expected_stock_revision {
+                if measurement::stock_revision(tx,&lot_id)? != revision {
+                    return Err(error("STALE_REVISION","库存档位或数量已变化，请核对后重新确认"));
+                }
+            }
             inventory::edit(tx,&lot_id,expected_version,draft)?;
-            if let Some(level)=level { inventory::set_level(tx,&measurement::LevelChange{lot_id,expected_version:expected_version+1,level},"manual")?; }
+            if let Some(level)=level { inventory::set_level(tx,&measurement::LevelChange{lot_id,expected_version:expected_version+1,expected_stock_revision:None,level},"manual")?; }
         }
         Command::SetStockLevel { change } => { inventory::set_level(tx, &change, "manual")?; }
         Command::ReceiveLevelLot { name,category,level } => {measurement::receive(tx,&name,&category,level)?;}

@@ -383,3 +383,71 @@ test("rough inventory keeps the existing table and uses compact continuous stock
   ]);
   await page.screenshot({ path: "docs/screenshots/rough-mode/inventory.png" });
 });
+
+test("background stock update preserves edits and requires explicit review before save", async ({
+  page,
+}) => {
+  await inventoryIPC(page, false, true);
+  await page
+    .locator("tbody tr")
+    .first()
+    .getByRole("button", { name: /查看/ })
+    .click();
+  const form = page.locator(".lot-editor");
+  const slider = form.getByRole("slider");
+  await slider.focus();
+  await page.keyboard.press("End");
+  const received = form.locator('input[type="date"]').first();
+  await received.fill("2026-10-01");
+  await expect(slider).toHaveAttribute("aria-valuetext", "盈余");
+  await page.evaluate(async () => {
+    const t = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (n: string, a: unknown) => Promise<unknown>;
+      };
+    };
+    const snapshot = (await t.__TAURI_INTERNALS__.invoke(
+      "kitchen_bootstrap",
+      {},
+    )) as {
+      lots: {
+        id: string;
+        version: number;
+        measurement: string;
+        level: number;
+        quantity: string;
+        received: string;
+      }[];
+    };
+    const lot = snapshot.lots.find((l) => l.id === "beef-1")!;
+    const date = lot.received;
+    lot.version = 2;
+    lot.measurement = "level";
+    lot.level = 0;
+    lot.quantity = "0";
+    window.dispatchEvent(new Event("chefish:sync-data"));
+    return date;
+  });
+  await expect(form.getByRole("slider")).toHaveAttribute(
+    "aria-valuetext",
+    "盈余",
+  );
+  await expect(received).toHaveValue("2026-10-01");
+  await expect(form.getByRole("button", { name: "保存修改" })).toBeDisabled();
+  await form.getByRole("button", { name: "保留修改并合并最新信息" }).click();
+  await expect(slider).toHaveAttribute("aria-valuetext", "盈余");
+  await expect(received).toHaveValue("2026-10-01");
+  await form.getByRole("button", { name: "保存修改" }).click();
+  const commands = await page.evaluate(
+    () =>
+      (window as unknown as { inventoryCommands: unknown[] }).inventoryCommands,
+  );
+  expect(commands).toMatchObject([
+    {
+      type: "edit_level_lot",
+      expected_version: 2,
+      level: 2,
+      draft: { received: "2026-10-01" },
+    },
+  ]);
+});

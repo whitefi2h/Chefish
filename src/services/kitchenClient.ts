@@ -27,6 +27,7 @@ export interface PlanInput {
   servings: number;
 }
 export type StockLevelChange = {
+  expected_stock_revision?: string;
   lot_id: string;
   expected_version: number;
   level: number;
@@ -49,6 +50,7 @@ export interface CookingDraft {
 export type KitchenCommand =
   | {
       type: "edit_level_lot";
+      expected_stock_revision?: string;
       lot_id: string;
       expected_version: number;
       level: number | null;

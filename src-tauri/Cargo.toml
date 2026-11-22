@@ -1,6 +1,6 @@
 [package]
 name = "chefish"
-version = "2.4.3"
+version = "2.4.4"
 description = "Chefish local kitchen"
 edition = "2021"
 

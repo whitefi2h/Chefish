@@ -112,7 +112,7 @@ pub fn preview(conn: &Connection, key: &str, servings: i64, date: &str) -> Resul
                 continue;
             }
             if measurement::rough(conn)? || lot["measurement"] == "level" {
-                lots.push(json!({"id":lot["id"],"version":lot["version"],"available":"0","location":lot["location"],"expires":lot["expires"],"review":false,"suggested":"0","unit":lot["unit"],"factor":"1","measurement":lot["measurement"],"level":lot["level"]}));
+                lots.push(json!({"id":lot["id"],"version":lot["version"],"available":"0","location":lot["location"],"expires":lot["expires"],"review":false,"suggested":"0","unit":lot["unit"],"factor":"1","measurement":lot["measurement"],"level":lot["level"],"stockRevision":lot["stockRevision"]}));
                 continue;
             }
             let Some(factor) = ingredient_standard::factor_in(
@@ -141,6 +141,18 @@ pub fn preview(conn: &Connection, key: &str, servings: i64, date: &str) -> Resul
         |r| r.get(0),
     )?;
     Ok(json!({"planVersion":version,"revision":revision,"rows":rows}))
+}
+pub fn preview_with_lots(conn: &Connection, key: &str, servings: i64, date: &str, lot_ids: &[String]) -> Result<Value> {
+    let mut result = preview(conn, key, servings, date)?;
+    let rows = result["rows"].as_array_mut().unwrap();
+    let present: BTreeSet<String> = rows.iter().flat_map(|r| r["lots"].as_array().unwrap().iter().filter_map(|l| l["id"].as_str().map(str::to_owned))).collect();
+    for lot in inventory::lots(conn)? {
+        let id = lot["id"].as_str().unwrap();
+        if !lot_ids.iter().any(|wanted| wanted == id) || present.contains(id) { continue; }
+        let name: String = conn.query_row("SELECT name FROM ingredients WHERE id=?1", [lot["ingredientId"].as_str().unwrap()], |r| r.get(0))?;
+        rows.push(json!({"ingredientId":lot["ingredientId"],"name":name,"unit":lot["unit"],"required":"0","missing":"0","lots":[{"id":id,"version":lot["version"],"available":"0","location":lot["location"],"expires":lot["expires"],"review":false,"suggested":"0","unit":lot["unit"],"measurement":lot["measurement"],"level":lot["level"],"stockRevision":lot["stockRevision"]}]}));
+    }
+    Ok(result)
 }
 pub fn complete(tx: &Transaction, d: CompleteDraft) -> Result<()> {
     complete_inner(tx,d,true)
@@ -393,7 +405,7 @@ mod tests {
         let (_,mut c,key)=setup();
         let mut pref=preferences::load(&c).unwrap();pref.inventory_mode="rough".into();preferences::save(&mut c,pref.clone()).unwrap();
         let lot=inventory::lots(&c).unwrap()[0].clone();
-        let change=measurement::LevelChange{lot_id:lot["id"].as_str().unwrap().into(),expected_version:lot["version"].as_i64().unwrap(),level:0};
+        let change=measurement::LevelChange{lot_id:lot["id"].as_str().unwrap().into(),expected_version:lot["version"].as_i64().unwrap(),expected_stock_revision:None,level:0};
         let mut d=draft(&c,&key);d.record="饭已做好，剩余不多".into();d.note="保存文字".into();
         pref.taste="少辣".into();preferences::save(&mut c,pref).unwrap();
         assert_ne!(preview(&c,&key,2,&d.date).unwrap()["revision"],d.expected_revision);
@@ -408,7 +420,7 @@ mod tests {
         let (_,mut c,key)=setup();
         let mut pref=preferences::load(&c).unwrap();pref.inventory_mode="rough".into();preferences::save(&mut c,pref).unwrap();
         let lots=inventory::lots(&c).unwrap();
-        let changes:Vec<_>=lots.iter().take(2).map(|l|measurement::LevelChange{lot_id:l["id"].as_str().unwrap().into(),expected_version:l["version"].as_i64().unwrap(),level:0}).collect();
+        let changes:Vec<_>=lots.iter().take(2).map(|l|measurement::LevelChange{lot_id:l["id"].as_str().unwrap().into(),expected_version:l["version"].as_i64().unwrap(),expected_stock_revision:None,level:0}).collect();
         let d=draft(&c,&key);
         let mut concurrent=changes[1].clone();concurrent.level=2;
         execute(&mut c,&id(),Command::SetStockLevel{change:concurrent}).unwrap();

@@ -1,6 +1,68 @@
 import { test, expect } from "@playwright/test";
 import { initialState } from "../src/fixtures/demo";
 
+test("rough review reminders agree on home and inventory without calling estimates expired", async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date("2026-11-23T12:00:00+08:00"));
+  const state = initialState();
+  state.preferences = { ...state.preferences!, inventoryMode: "rough" };
+  state.ingredients = [{ ...state.ingredients[0], id: "greens", name: "青菜" }];
+  state.lots = [
+    {
+      ...state.lots[0],
+      id: "greens-lot",
+      ingredientId: "greens",
+      measurement: "level",
+      level: 1,
+      quantity: 0,
+      stockPresent: true,
+      expires: null,
+      steward: { reviewOn: "2026-11-20" },
+    },
+  ];
+  state.plans = [];
+  await page.addInitScript(
+    (state) =>
+      Object.assign(window, {
+        isTauri: true,
+        __TAURI_INTERNALS__: {
+          invoke: async (n: string) =>
+            n === "kitchen_bootstrap"
+              ? state
+              : n === "kitchen_shopping"
+                ? { items: [], reviewNotes: [], pastPlanCount: 0 }
+                : null,
+        },
+      }),
+    state,
+  );
+  await page.goto("/");
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "首页", exact: true })
+    .click();
+  const home = page.locator(".dashboard-alert");
+  await expect(home).toContainText("1 个提醒");
+  await expect(home).toContainText("待复查");
+  await expect(home).not.toContainText("已过期");
+  await home.getByRole("button", { name: "查看食材库存" }).click();
+  const attention = page.getByRole("region", { name: "需要关注" });
+  await expect(attention).toContainText("复查 1");
+  await expect(attention).toContainText("待复查");
+  await expect(attention).not.toContainText("已过期");
+  const dateCell = page.locator(".inventory-expiry").first();
+  const dateFits = await dateCell.evaluate((el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el.querySelector("span")!);
+    return (
+      range.getBoundingClientRect().right <= el.getBoundingClientRect().right
+    );
+  });
+  expect(dateFits).toBe(true);
+  await page.screenshot({ path: "review/rough-compat-review-reminders.png" });
+});
+
 test("home and inventory share reminder scope, count and expiry order after inventory changes", async ({
   page,
 }) => {

@@ -534,12 +534,22 @@ test("rough AI preview changes cannot silently upgrade a manual level version", 
   await page.getByLabel("烹饪记录", { exact: true }).fill("其他食材未变");
   await page.getByRole("button", { name: "AI 识别剩余情况" }).click();
   await expect(page.getByText("已整理", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "确认完成", exact: true }),
+  ).toBeDisabled();
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { cookingCommands: unknown[] }).cookingCommands,
+    ),
+  ).toEqual([]);
+  await page.getByRole("button", { name: "保留我的选择" }).click();
   await page.getByRole("button", { name: "确认完成", exact: true }).click();
   const commands = await page.evaluate(
     () => (window as unknown as { cookingCommands: unknown[] }).cookingCommands,
   );
   expect(commands).toMatchObject([
-    { changes: [{ lot_id: "lot-early", level: 0, expected_version: 1 }] },
+    { changes: [{ lot_id: "lot-early", level: 0, expected_version: 2 }] },
   ]);
 });
 test("rough save failure retains manual levels and text with an inline retry message", async ({
@@ -585,7 +595,12 @@ test("manual levels for an extra ingredient survive another AI interpretation wi
           unit: string;
           required: string;
           missing: string;
-          lots: { id: string; version: number; level: number }[];
+          lots: {
+            id: string;
+            version: number;
+            level: number;
+            stockRevision?: string;
+          }[];
         }[];
       };
       if (calls === 1)
@@ -689,4 +704,261 @@ test("repeated rough completion submission saves only once", async ({
         (window as unknown as { cookingCommands: unknown[] }).cookingCommands,
     ),
   ).toHaveLength(1);
+});
+
+test("refresh preserves selected rough level and record", async ({ page }) => {
+  await cookingIPC(page, false, true, true);
+  await page.getByLabel("烹饪记录", { exact: true }).fill("保留我的文字");
+  await page.getByRole("slider").first().focus();
+  await page.keyboard.press("Home");
+  await expect(page.getByRole("slider").first()).toHaveAttribute(
+    "aria-valuetext",
+    "缺乏",
+  );
+  await page.getByRole("button", { name: "刷新建议", exact: true }).click();
+  await expect(page.getByRole("slider").first()).toHaveAttribute(
+    "aria-valuetext",
+    "缺乏",
+  );
+  await page.getByRole("button", { name: "确认完成", exact: true }).click();
+  const commands = await page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          cookingCommands: { changes: unknown[]; draft: { record: string } }[];
+        }
+      ).cookingCommands,
+  );
+  expect(commands[0].changes).toEqual([
+    { lot_id: "lot-early", expected_version: 1, level: 0 },
+  ]);
+  expect(commands[0].draft.record).toBe("保留我的文字");
+});
+test("exact cooking preserves qualitative batches without displaying false zero quantities", async ({
+  page,
+}) => {
+  await cookingIPC(page, false, true, false);
+  await page.evaluate(() => {
+    const t = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (n: string, a: unknown) => Promise<unknown>;
+      };
+    };
+    const old = t.__TAURI_INTERNALS__.invoke;
+    t.__TAURI_INTERNALS__.invoke = async (n, a) => {
+      const p = await old(n, a);
+      if (n !== "kitchen_cooking") return p;
+      const preview = p as { rows: { lots: unknown[] }[] };
+      preview.rows[0].lots = [
+        {
+          id: "rough",
+          version: 1,
+          available: "0",
+          suggested: "0",
+          unit: "g",
+          factor: "1",
+          measurement: "level",
+          level: 2,
+          location: "冷藏",
+          expires: null,
+          review: false,
+        },
+      ];
+      return preview;
+    };
+  });
+  await page.getByRole("button", { name: "刷新建议", exact: true }).click();
+  await page.getByText("手动调整实际用量", { exact: true }).click();
+  await expect(
+    page.getByLabel("牛肉 rough 实际用量", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("仍按档位记录 · 盈余", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "补填当前数量" }),
+  ).toBeVisible();
+});
+
+test("refresh keeps changed stock choices pending until explicitly reviewed", async ({
+  page,
+}) => {
+  await cookingIPC(page, false, true, true);
+  await page.evaluate(() => {
+    const t = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (n: string, a: unknown) => Promise<unknown>;
+      };
+    };
+    const old = t.__TAURI_INTERNALS__.invoke;
+    t.__TAURI_INTERNALS__.invoke = async (n, a) => {
+      const p = await old(n, a);
+      if (n === "kitchen_cooking")
+        (
+          p as { rows: { lots: { stockRevision: string }[] }[] }
+        ).rows[0].lots[0].stockRevision = '["level",1,2]';
+      return p;
+    };
+  });
+  await page.getByRole("button", { name: "刷新建议", exact: true }).click();
+  await page.getByRole("slider").first().focus();
+  await page.keyboard.press("Home");
+  await page.evaluate(() => {
+    const t = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (n: string, a: unknown) => Promise<unknown>;
+      };
+    };
+    const old = t.__TAURI_INTERNALS__.invoke;
+    t.__TAURI_INTERNALS__.invoke = async (n, a) => {
+      const p = await old(n, a);
+      if (n === "kitchen_cooking")
+        (
+          p as {
+            rows: {
+              lots: {
+                version: number;
+                level: number;
+                stockRevision?: string;
+              }[];
+            }[];
+          }
+        ).rows[0].lots[0] = {
+          ...(
+            p as {
+              rows: {
+                lots: {
+                  version: number;
+                  level: number;
+                  stockRevision?: string;
+                }[];
+              }[];
+            }
+          ).rows[0].lots[0],
+          version: 1,
+          level: 2,
+          stockRevision: '["level",2,2]',
+        };
+      return p;
+    };
+  });
+  await page.getByRole("button", { name: "刷新建议", exact: true }).click();
+  await expect(
+    page.getByText("牛肉的库存已变化，请核对。你的选择仍保留。"),
+  ).toBeVisible();
+  await expect(page.getByRole("slider").first()).toHaveAttribute(
+    "aria-valuetext",
+    "缺乏",
+  );
+  await expect(
+    page.getByRole("button", { name: "确认完成", exact: true }),
+  ).toBeDisabled();
+  await page.screenshot({ path: "review/rough-compat-stock-conflict.png" });
+  await page.getByRole("button", { name: "保留我的选择" }).click();
+  await page.getByRole("button", { name: "确认完成", exact: true }).click();
+  const commands = await page.evaluate(
+    () => (window as unknown as { cookingCommands: unknown[] }).cookingCommands,
+  );
+  expect(commands).toMatchObject([
+    {
+      changes: [
+        {
+          lot_id: "lot-early",
+          level: 0,
+          expected_version: 1,
+          expected_stock_revision: '["level",2,2]',
+        },
+      ],
+    },
+  ]);
+});
+
+test("exact cooking can refill a qualitative batch without losing the cooking record", async ({
+  page,
+}) => {
+  await cookingIPC(page);
+  await page.getByLabel("烹饪记录", { exact: true }).fill("保留我的记录");
+  await page.evaluate(async () => {
+    const t = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (n: string, a: unknown) => Promise<unknown>;
+      };
+    };
+    const old = t.__TAURI_INTERNALS__.invoke;
+    const snapshot = (await old("kitchen_bootstrap", {})) as {
+      lots: {
+        id: string;
+        measurement: string;
+        level: number;
+        quantity: string;
+        unit: string;
+        version: number;
+      }[];
+    };
+    const lot = snapshot.lots.find((l) => l.id === "beef-1")!;
+    lot.measurement = "level";
+    lot.level = 2;
+    lot.quantity = "0";
+    t.__TAURI_INTERNALS__.invoke = async (n, a) => {
+      const command = (
+        a as { command?: { type: string; draft: { quantity: string } } }
+      )?.command;
+      if (n === "kitchen_execute" && command?.type === "edit_lot") {
+        lot.measurement = "exact";
+        lot.quantity = command.draft.quantity;
+        lot.version = 2;
+      }
+      const p = await old(n, a);
+      if (n === "kitchen_cooking")
+        (p as { rows: { lots: unknown[] }[] }).rows[0].lots = [
+          {
+            id: lot.id,
+            version: lot.version ?? 1,
+            available: lot.quantity,
+            suggested: "0",
+            measurement: lot.measurement,
+            level: lot.level,
+            unit: "g",
+            location: "冷藏",
+            expires: null,
+            review: false,
+          },
+        ];
+      return p;
+    };
+    window.dispatchEvent(new Event("chefish:sync-data"));
+  });
+  await page.getByRole("button", { name: "刷新建议", exact: true }).click();
+  await page.getByText("手动调整实际用量", { exact: true }).click();
+  await page.getByRole("button", { name: "补填当前数量" }).click();
+  const detail = page.getByRole("dialog", { name: "食材详情 · 牛肉" });
+  await detail.getByLabel("剩余数量", { exact: false }).fill("300");
+  await detail.getByRole("button", { name: "保存修改" }).click();
+  await expect(detail.getByLabel("剩余数量", { exact: false })).toHaveValue(
+    "300",
+  );
+  await detail.getByRole("button", { name: "关闭面板" }).click();
+  await expect(page.getByLabel("烹饪记录", { exact: true })).toHaveValue(
+    "保留我的记录",
+  );
+  await expect(
+    page.getByLabel("牛肉 beef-1 实际用量", { exact: true }),
+  ).toHaveAttribute("max", "300");
+  await page.getByLabel("牛肉 beef-1 实际用量", { exact: true }).fill("50");
+  await page.getByRole("button", { name: "确认完成", exact: true }).click();
+  const commands = await page.evaluate(
+    () => (window as unknown as { cookingCommands: unknown[] }).cookingCommands,
+  );
+  expect(commands).toMatchObject([
+    { type: "edit_lot" },
+    {
+      type: "complete_cooking",
+      draft: {
+        record: "保留我的记录",
+        consumptions: [
+          { lot_id: "beef-1", expected_version: 2, quantity: "50" },
+        ],
+      },
+    },
+  ]);
 });

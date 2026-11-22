@@ -84,6 +84,7 @@ export interface Recipe {
   steps: string[];
 }
 export interface InventoryLot extends Requirement {
+  stockRevision?: string;
   measurement?: "exact" | "level";
   level?: number | null;
   stockPresent?: boolean;

@@ -457,7 +457,8 @@ pub(super) fn reverse_inner(tx: &Transaction, event_id: &str, reason: &str) -> R
 }
 pub fn set_level(tx: &Transaction, change: &measurement::LevelChange, source: &str) -> Result<String> {
     let before=lot(tx,&change.lot_id)?;
-    if before.version != change.expected_version {return Err(error("STALE_REVISION","库存已变化，请刷新后调整"));}
+    let stale=if let Some(revision)=&change.expected_stock_revision {measurement::stock_revision(tx,&change.lot_id)? != *revision} else {before.version != change.expected_version};
+    if stale {return Err(error("STALE_REVISION","库存档位或数量已变化，请核对后重新确认"));}
     let next=measurement::value(tx,change.level,source)?;
     tx.execute("UPDATE inventory_lots SET version=version+1 WHERE id=?1",[&change.lot_id])?;
     event(tx,&change.lot_id,"correct",&before,before.amount,&before.location,"调整库存档位",None)?;
@@ -471,6 +472,7 @@ pub fn lots(conn: &Connection) -> Result<Vec<Value>> {
     let mut rows = rows;
     for row in &mut rows {
         let measurement = measurement::get(conn,row["id"].as_str().unwrap())?;
+        row["stockRevision"] = json!(measurement::stock_revision(conn,row["id"].as_str().unwrap())?);
         row["measurement"] = json!(if measurement.is_some() {"level"} else {"exact"});
         row["level"] = measurement.as_ref().map(|m|m["level"].clone()).unwrap_or(Value::Null);
         row["stockPresent"] = json!(measurement.as_ref().map_or(row["quantity"].as_str().unwrap() != "0", |m|m["level"].as_i64().unwrap() >= 0));

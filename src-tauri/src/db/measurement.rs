@@ -5,6 +5,8 @@ use super::*;
 pub struct LevelChange {
     pub lot_id: String,
     pub expected_version: i64,
+    #[serde(default)]
+    pub expected_stock_revision: Option<String>,
     pub level: i64,
 }
 pub fn rough(conn: &Connection) -> Result<bool> {
@@ -15,6 +17,12 @@ pub fn get(conn: &Connection, lot: &str) -> Result<Option<Value>> {
         return Ok(None);
     }
     Ok(conn.query_row("SELECT level,source,reference_servings FROM inventory_measurements WHERE lot_id=?1", [lot], |r| Ok(json!({"level":r.get::<_,i64>(0)?,"source":r.get::<_,String>(1)?,"referenceServings":r.get::<_,i64>(2)?}))).optional()?)
+}
+// Compare the actual stock state, not metadata edits or colliding device counters.
+pub fn stock_revision(conn:&Connection,lot:&str)->Result<String> {
+    if let Some(m)=get(conn,lot)? {return Ok(json!(["level",m["level"],m["referenceServings"]]).to_string());}
+    let (amount,unit):(String,String)=conn.query_row("SELECT amount_decimal,unit FROM inventory_lots WHERE id=?1",[lot],|r|Ok((r.get(0)?,r.get(1)?)))?;
+    Ok(json!(["exact",amount,unit]).to_string())
 }
 pub fn write(conn: &Connection, lot: &str, value: Option<&Value>) -> Result<()> {
     if let Some(value) = value {
@@ -252,4 +260,83 @@ mod tests {
         assert_eq!(repeated["items"][0]["remaining"], "600");
         assert_eq!(repeated["items"][0]["roughCovered"], false);
     }
+    fn compat_recipe(c:&mut Connection,name:&str,ingredient:&str)->Value {
+        run(c,json!({"type":"create_recipe","draft":{"name":name,"category":"未分类","minutes":10,"servings":2,"subtitle":"","seasoning":"","ingredients":[{"name":ingredient,"quantity":"200","unit":"g"}],"steps":["煮熟"]}}));
+        snapshot(c).unwrap()["recipes"].as_array().unwrap().iter().find(|r|r["name"]==name).unwrap()["revisionId"].clone()
+    }
+    fn compat_plan(c:&mut Connection,revision:&Value,day:&str,people:i64) {
+        run(c,json!({"type":"save_plan","plan_id":null,"expected_version":null,"draft":{"recipe_revision_id":revision,"custom_title":null,"day":day,"meal":"晚餐","servings":people}}));
+    }
+    #[test]
+    fn compat_unrelated_people_do_not_change_coverage_and_review_is_not_expiry() {
+        let mut c=kitchen();let today=shopping::local_today(&c).unwrap();
+        let base=shopping::week(&c,&today).unwrap();let week:String=c.query_row("SELECT date(?1,'+7 days')",[base],|r|r.get(0)).unwrap();
+        let greens=compat_recipe(&mut c,"青菜测试","青菜");compat_plan(&mut c,&greens,&week,2);
+        run(&mut c,json!({"type":"receive_level_lot","name":"青菜","category":"自动分类","level":1}));
+        let before=shopping::forecast(&c,&week).unwrap();
+        let beef=compat_recipe(&mut c,"牛肉测试","牛肉");let next:String=c.query_row("SELECT date(?1,'+1 day')",[&week],|r|r.get(0)).unwrap();compat_plan(&mut c,&beef,&next,6);
+        let after=shopping::forecast(&c,&week).unwrap();
+        let line=|v:Value|v["items"].as_array().unwrap().iter().find(|r|r["name"]=="青菜").unwrap().clone();
+        let a=line(before);let b=line(after);assert_eq!(a["remaining"],"0");assert_eq!(b["remaining"],"0");
+        let later:String=c.query_row("SELECT date(?1,'+2 days')",[&week],|r|r.get(0)).unwrap();
+        compat_plan(&mut c,&greens,&later,6);
+        let large = line(shopping::forecast(&c,&week).unwrap());
+        assert_eq!(large["maxPeople"],6);
+        assert_eq!(large["remaining"],"800");
+        let lot=inventory_rows(&c).unwrap()[0].clone();
+        run(&mut c,json!({"type":"set_review_date","lot_id":lot["id"],"date":"2000-01-01"}));
+        let reviewed=inventory_rows(&c).unwrap()[0].clone();assert_eq!(reviewed["steward"]["reviewOn"],"2000-01-01");assert!(reviewed["expires"].is_null());
+    }
+    #[test]
+    fn compat_metadata_move_preserves_pending_rough_cooking() {
+        let mut c=kitchen();let today=shopping::local_today(&c).unwrap();
+        let rev=compat_recipe(&mut c,"青菜测试","青菜");compat_plan(&mut c,&rev,&today,2);
+        run(&mut c,json!({"type":"receive_level_lot","name":"青菜","category":"自动分类","level":1}));
+        let state=snapshot(&c).unwrap();let plan=state["plans"][0]["id"].as_str().unwrap();let lot=&state["lots"][0];let preview=cooking::preview(&c,plan,2,&today).unwrap();
+        let command:Command=serde_json::from_value(json!({"type":"complete_level_cooking","draft":{"plan_id":plan,"expected_version":preview["planVersion"],"expected_revision":preview["revision"],"servings":2,"date":today,"note":"","record":"我的记录","acknowledged":true,"consumptions":[]},"changes":[{"lot_id":lot["id"],"expected_version":lot["version"],"expected_stock_revision":lot["stockRevision"],"level":0}]})).unwrap();
+        run(&mut c,json!({"type":"change_lot","lot_id":lot["id"],"expected_version":lot["version"],"operation":"move","quantity":"0","location":"冷藏","reason":"AI推测库位"}));
+        execute(&mut c,&id(),command).unwrap();assert_eq!(cooking::session(&c,plan).unwrap()["record"],"我的记录");assert_eq!(inventory_rows(&c).unwrap()[0]["location"],"冷藏");assert_eq!(inventory_rows(&c).unwrap()[0]["level"],0);
+    }
+
+    #[test]
+    fn compat_actual_stock_change_rejects_cooking_atomically_and_fresh_choice_saves() {
+        let mut c=kitchen();let today=shopping::local_today(&c).unwrap();
+        let rev=compat_recipe(&mut c,"青菜测试","青菜");compat_plan(&mut c,&rev,&today,2);
+        run(&mut c,json!({"type":"receive_level_lot","name":"青菜","category":"自动分类","level":1}));
+        let s=snapshot(&c).unwrap();let plan=&s["plans"][0]["id"];let lot=&s["lots"][0];
+        let p=cooking::preview(&c,plan.as_str().unwrap(),2,&today).unwrap();
+        let mut command=json!({"type":"complete_level_cooking","draft":{"plan_id":plan,"expected_version":p["planVersion"],"expected_revision":p["revision"],"servings":2,"date":today,"note":"我的手记","record":"我的记录","acknowledged":true,"consumptions":[]},"changes":[{"lot_id":lot["id"],"expected_version":lot["version"],"expected_stock_revision":lot["stockRevision"],"level":-1}]});
+        run(&mut c,json!({"type":"set_stock_level","change":{"lot_id":lot["id"],"expected_version":lot["version"],"level":2}}));
+        let err=execute(&mut c,&id(),serde_json::from_value(command.clone()).unwrap()).unwrap_err();
+        assert_eq!(err.code,"STALE_REVISION");
+        assert!(cooking::session(&c,plan.as_str().unwrap()).unwrap().is_null());
+        let fresh=inventory_rows(&c).unwrap()[0].clone();assert_eq!(fresh["level"],2);
+        command["changes"][0]["expected_stock_revision"]=fresh["stockRevision"].clone();
+        command["changes"][0]["expected_version"]=fresh["version"].clone();
+        run(&mut c,command);
+        assert_eq!(cooking::session(&c,plan.as_str().unwrap()).unwrap()["note"],"我的手记");
+        assert_eq!(inventory_rows(&c).unwrap()[0]["level"],-1);
+    }
+
+    #[test]
+    fn compat_extra_lot_refresh_and_exact_ai_context_preserve_bands() {
+        let mut c=kitchen();let today=shopping::local_today(&c).unwrap();
+        let rev=compat_recipe(&mut c,"青菜测试","青菜");compat_plan(&mut c,&rev,&today,2);
+        for name in ["青菜","鸡蛋"] {run(&mut c,json!({"type":"receive_level_lot","name":name,"category":"自动分类","level":1}));}
+        let s=snapshot(&c).unwrap();let plan=s["plans"][0]["id"].as_str().unwrap();
+        let egg_id:String=c.query_row("SELECT l.id FROM inventory_lots l JOIN ingredients i ON i.id=l.ingredient_id WHERE i.name='鸡蛋'",[],|r|r.get(0)).unwrap();
+        let before=cooking::preview_with_lots(&c,plan,2,&today,std::slice::from_ref(&egg_id)).unwrap();
+        let egg=before["rows"].as_array().unwrap().iter().find(|r|r["name"]=="鸡蛋").unwrap()["lots"][0].clone();
+        run(&mut c,json!({"type":"set_stock_level","change":{"lot_id":egg_id,"expected_version":egg["version"],"level":-1}}));
+        let after=cooking::preview_with_lots(&c,plan,2,&today,&[egg_id]).unwrap();
+        let fresh=&after["rows"].as_array().unwrap().iter().find(|r|r["name"]=="鸡蛋").unwrap()["lots"][0];
+        assert_eq!(fresh["level"],-1);assert_ne!(fresh["stockRevision"],egg["stockRevision"]);
+        let mut prefs=preferences::load(&c).unwrap();prefs.inventory_mode="exact".into();preferences::save(&mut c,prefs).unwrap();
+        let context=crate::cooking_ai::context(&c,plan,2,&today).unwrap();
+        assert!(context["stock"].as_array().unwrap().is_empty());
+        assert_eq!(context["levelStock"][0]["name"],"青菜");
+        assert_eq!(context["levelStock"][0]["level"],1);
+        assert!(context["levelStock"][0].get("quantity").is_none());
+    }
+
 }

@@ -1090,3 +1090,15 @@ fn qualitative_stock_and_mode_converge_with_offline_changes_and_backup() {
     let restored=super::super::open(&saved).unwrap();
     assert_eq!(lots(&restored),lots(&bc));assert_eq!(super::super::preferences::load(&restored).unwrap().inventory_mode,"rough");
 }
+
+#[test]
+fn rough_stock_token_rejects_colliding_remote_counter() {
+ let (_aroot,mut a,_broot,mut b)=pair();
+ let first=lots(&a)[0].clone();execute(&mut a,json!({"type":"set_stock_level","change":{"lot_id":first["id"],"expected_version":first["version"],"level":1}}));transfer(&mut a,&mut b);
+ let initial=lots(&a)[0].clone();
+ for (c,level) in [(&mut a,0),(&mut b,2)] {execute(c,json!({"type":"set_stock_level","change":{"lot_id":initial["id"],"expected_version":initial["version"],"level":level}}));}
+ let local=lots(&a)[0].clone();transfer(&mut a,&mut b);transfer(&mut b,&mut a);let merged=lots(&a)[0].clone();
+ assert_eq!(local["version"],merged["version"]);assert_ne!(local["level"],merged["level"]);
+ let command=serde_json::from_value(json!({"type":"set_stock_level","change":{"lot_id":local["id"],"expected_version":local["version"],"expected_stock_revision":local["stockRevision"],"level":-1}})).unwrap();
+ let error=super::super::execute(&mut a,&Uuid::new_v4().to_string(),command).unwrap_err();assert_eq!(error.code,"STALE_REVISION");assert_eq!(lots(&a)[0]["level"],merged["level"]);
+}

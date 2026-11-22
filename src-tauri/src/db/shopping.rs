@@ -366,6 +366,7 @@ struct Stock {
 }
 #[derive(Default)]
 struct Demand {
+    max_people: i64,
     required: Decimal,
     covered: Decimal,
     carried_purchase: Decimal,
@@ -565,6 +566,7 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
             }
             if in_scope {
                 let row = demand.entry((ingredient, u)).or_default();
+                row.max_people=row.max_people.max(servings);
                 row.required += required;
                 row.covered += required - remaining;
                 row.review |= review;
@@ -681,7 +683,7 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
         // A band is not a weight. Only the stated two-meal lower bound can cover
         // a small plan; larger/uncertain plans retain a recipe-based shopping amount.
         let sources=row["sources"].as_array().cloned().unwrap_or_default();
-        let max_people:i64=conn.query_row("SELECT coalesce(max(servings),1) FROM planned_meals WHERE removed=0 AND day>=?1 AND day<=date(?1,'+6 days')",[scope],|r|r.get(0))?;
+        let max_people=row["maxPeople"].as_i64().unwrap_or(1);
         let covered=row["source"]=="plan" && !sources.is_empty() && sources.len()<=2 && matching.iter().any(|lot|{
             lot["level"].as_i64().unwrap_or(-1)>=1 &&
             measurement::get(conn,lot["id"].as_str().unwrap()).ok().flatten().is_some_and(|m|m["referenceServings"].as_i64().unwrap_or(1)>=max_people) &&
@@ -739,7 +741,7 @@ fn item(
         history=stmt.query_map([key],|r|Ok(json!({"kind":r.get::<_,String>(0)?,"id":r.get::<_,String>(1)?,"quantity":r.get::<_,String>(2)?,"at":r.get::<_,String>(3)?,"lotId":r.get::<_,Option<String>>(4)?})))?.collect::<std::result::Result<Vec<_>,_>>()?;
     }
     Ok(
-        json!({"id":key,"version":version,"ingredientId":ingredient,"name":ingredient_standard::name_in(conn,&name)?,"category":category,"unit":u,"source":source,"weekStart":if source=="plan"{Some(scope)}else{None},"required":show(d.required),"covered":show(d.covered),"shortage":show(shortage),"purchased":show(purchased),"received":show(received),"unreceived":show(outstanding),"remaining":show(remaining),"review":d.review,"estimated":d.estimated,"estimates":d.estimates,"hidden":hidden,"surplus":source=="plan" && outstanding>shortage,"sources":d.sources,"history":history}),
+        json!({"maxPeople":d.max_people,"id":key,"version":version,"ingredientId":ingredient,"name":ingredient_standard::name_in(conn,&name)?,"category":category,"unit":u,"source":source,"weekStart":if source=="plan"{Some(scope)}else{None},"required":show(d.required),"covered":show(d.covered),"shortage":show(shortage),"purchased":show(purchased),"received":show(received),"unreceived":show(outstanding),"remaining":show(remaining),"review":d.review,"estimated":d.estimated,"estimates":d.estimates,"hidden":hidden,"surplus":source=="plan" && outstanding>shortage,"sources":d.sources,"history":history}),
     )
 }
 

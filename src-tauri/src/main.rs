@@ -210,6 +210,7 @@ fn kitchen_cooking(
     plan_id: String,
     servings: i64,
     date: String,
+    lot_ids: Option<Vec<String>>,
 ) -> db::Result<serde_json::Value> {
     let guard = database.0.lock().map_err(|_| db::ApiError {
         code: "DATABASE_ERROR".into(),
@@ -219,7 +220,7 @@ fn kitchen_cooking(
         code: "BOOTSTRAP_FAILED".into(),
         message: database.1.clone(),
     })?;
-    db::cooking::preview(conn, &plan_id, servings, &date)
+    db::cooking::preview_with_lots(conn, &plan_id, servings, &date, &lot_ids.unwrap_or_default())
 }
 #[tauri::command]
 fn kitchen_recipe_history(

@@ -991,6 +991,12 @@ label {
   font-size: 13.5px;
   font-variant-numeric: tabular-nums;
 }
+.inventory-expiry small {
+  display: block;
+  white-space: normal;
+  color: var(--muted);
+  font-size: 12px;
+}
 
 .inventory-table td:first-child small {
   font-size: 12px;

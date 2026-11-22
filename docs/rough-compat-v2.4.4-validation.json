@@ -1,0 +1,83 @@
+{
+  "date": "2026-11-23",
+  "version": "2.4.4",
+  "audit": "ROUGH_MODE_AUDIT_20261122.json",
+  "fixes": {
+    "R01": "库存语义修订标识校验真实档位、数量或基准人数；双端计数相同仍能识别旧选择，保持原同步与撤销事件规则。",
+    "R02": "刷新建议保留手动档位、文字及配方外食材选择；真实冲突由用户核对最新档位后明确保留或替换。",
+    "R03": "首页和库存共用预计复查提醒；预计日期显示待复查，不冒充真实过期。",
+    "R04": "粗略烹饪提交按库存语义校验，单纯补库位不阻断保存；真实库存变化仍整笔回滚。",
+    "R05": "精确烹饪明确显示残留档位，可就地打开现有库存详情补填当前数量；返回后保留烹饪记录。AI上下文单列档位库存，不伪造精确数量。",
+    "R06": "每项食材按实际参与的未完成餐次记录最大人数，无关大份餐不再改变该食材的采购结论。",
+    "R07": "库存编辑器按批次保留草稿；后台变化时显示最新库存，明确核对后合并未编辑字段或使用最新内容。"
+  },
+  "checks": {
+    "rust": {
+      "passed": 187,
+      "ignored": 14,
+      "log": "review/rough-compat-rust-final.log"
+    },
+    "vitest": {
+      "passed": 49,
+      "skipped": 15,
+      "log": "review/rough-compat-unit.log"
+    },
+    "browser": {
+      "passed": 77,
+      "log": "review/rough-compat-ui-final.log",
+      "scope": [
+        "cooking",
+        "inventory-persistence",
+        "inventory-alerts",
+        "shopping-persistence",
+        "settings",
+        "ai-assistant"
+      ]
+    },
+    "browserSemanticTokenAndReview": {
+      "passed": 3,
+      "log": "review/rough-compat-review-ui.log",
+      "sameCounterDifferentStockCovered": true
+    },
+    "typecheck": true,
+    "eslint": true,
+    "build": {
+      "status": "passed",
+      "signedInstaller": true,
+      "manifestVersionAndSignatureMatch": true,
+      "log": "review/rough-compat-release-build.log",
+      "artifacts": [
+        {
+          "path": "src-tauri\\target\\release\\chefish.exe",
+          "bytes": 62900736
+        },
+        {
+          "path": "src-tauri\\target\\release\\bundle\\nsis\\Chefish_2.4.4_x64-setup.exe",
+          "bytes": 44722606
+        },
+        {
+          "path": "src-tauri\\target\\release\\bundle\\nsis\\Chefish_2.4.4_x64-setup.exe.sig",
+          "bytes": 436
+        },
+        {
+          "path": "src-tauri\\target\\release\\bundle\\nsis\\latest.json",
+          "bytes": 1432
+        }
+      ]
+    },
+    "browserReviewDateLayout": {
+      "passed": 2,
+      "log": "review/rough-compat-alert-layout.log",
+      "dateFitsCellAt1280": true,
+      "screenshotReviewed": true
+    }
+  },
+  "dataSchema": 19,
+  "migrationRequired": false,
+  "personalKitchenAccessed": false,
+  "evidenceLimits": [
+    "SQLite integration and offline two-replica replay are covered; real online two-device sync was not executed.",
+    "Browser evidence uses isolated synthetic IPC fixtures; no real model request or personal kitchen data was used.",
+    "Signed release build completed; real overwrite installation was not exercised."
+  ]
+}

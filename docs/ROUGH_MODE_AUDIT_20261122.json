@@ -1,0 +1,180 @@
+{
+  "date": "2026-11-22",
+  "baseVersion": "2.4.3",
+  "baseCommit": "c93abc9",
+  "scope": "Audit only; no production business code changed or new release published",
+  "confirmedFindings": [
+    {
+      "id": "R01",
+      "priority": "P1",
+      "title": "双端离线档位变更后，旧版本选择仍能通过校验",
+      "probe": "AUDIT_SYNC",
+      "location": "src-tauri/src/db/replication.rs:396",
+      "related": "src-tauri/src/db/inventory.rs:460",
+      "impact": "档位从缺乏变为盈余，批次版本仍是3；基于旧版本3的用完选择被接受，存在无提示覆盖远端变化的条件。",
+      "suggestion": "合并后推进本机有效修订，或为档位保存明确修订标识；保持既定云端顺序合并策略，同时识别陈旧表单。"
+    },
+    {
+      "id": "R02",
+      "priority": "P1",
+      "title": "刷新烹饪建议会清空手动档位调整",
+      "probe": "AUDIT_REFRESH",
+      "location": "src/Cooking.tsx:73",
+      "impact": "先选缺乏，刷新后回到充足；再次提交changes为空。文字还在，但用户的库存调整意图丢失。",
+      "suggestion": "保留手动草稿；重新取回批次版本后，只对确实变化的项目要求核对，不直接清空全部。"
+    },
+    {
+      "id": "R03",
+      "priority": "P1",
+      "title": "粗略采购的预计复查日期没有进入统一提醒",
+      "probe": "AUDIT_ALERT",
+      "location": "src/domain/inventory.ts:23",
+      "related": "src/Inventory.tsx:1297",
+      "impact": "充足批次reviewOn已到，但expires为空时首页及库存需要关注区域均无提醒；预计日期仅显示在详情/表格文字。",
+      "suggestion": "为预计复查建立独立提醒类型，接入首页和库存共用筛选；不要将预计日期当作真实过期日。"
+    },
+    {
+      "id": "R04",
+      "priority": "P2",
+      "title": "仅更新同批次库位仍会阻止粗略烹饪保存",
+      "probe": "AUDIT_MOVE",
+      "location": "src-tauri/src/db/inventory.rs:460",
+      "related": "src-tauri/src/db/steward.rs:777",
+      "impact": "打开烹饪后，后台把未指定库位推测为冷藏，档位没有变化；提交仍报STALE_REVISION，整顿烹饪未保存。",
+      "suggestion": "区分档位/数量的实质变化与库位、估算元数据更新；保留对真实库存变化的冲突保护。"
+    },
+    {
+      "id": "R05",
+      "priority": "P2",
+      "title": "切回精确模式后的残留档位库存显示为零",
+      "probe": "AUDIT_MIXED",
+      "location": "src-tauri/src/db/cooking.rs:114",
+      "related": "src-tauri/src/cooking_ai.rs:23",
+      "impact": "仍为盈余的粗略批次，在精确完成烹饪页显示剩余0g，实际用量输入上限0；精确AI上下文也排除该档位批次。",
+      "suggestion": "明确显示该批次仍按档位管理，提供补填当前数量/按档位处理入口；不能把未知精确数量显示成真实零库存。"
+    },
+    {
+      "id": "R06",
+      "priority": "P2",
+      "title": "无关餐次人数改变另一食材的采购结论",
+      "probe": "AUDIT_PEOPLE",
+      "location": "src-tauri/src/db/shopping.rs:684",
+      "impact": "青菜充足且只安排2人一餐时待买0；同周另加无关的6人牛肉餐后，青菜待买变为200g。",
+      "suggestion": "按该食材实际参与的未完成餐次核算人数，不取全周所有菜的最大人数。"
+    },
+    {
+      "id": "R07",
+      "priority": "P2",
+      "title": "库存详情遇到同批次后台更新会丢失未保存编辑",
+      "probe": "AUDIT_DETAIL",
+      "location": "src/Inventory.tsx:701",
+      "impact": "详情中手调盈余并修改购买日，后台同步批次version变化后编辑器整体重新挂载，档位和日期均恢复为服务端值。该共用问题也影响精确模式。",
+      "suggestion": "按批次ID保持草稿组件；识别脏字段与外部变化，提示核对而非无提示丢弃输入。"
+    }
+  ],
+  "probeResults": [
+    {
+      "probe": "AUDIT_MOVE",
+      "observed": {
+        "code": "STALE_REVISION",
+        "error": "库存已变化，请刷新后调整",
+        "sessionSaved": false
+      },
+      "log": "review\\rough-audit\\rust-probes.log"
+    },
+    {
+      "probe": "AUDIT_PEOPLE",
+      "observed": {
+        "afterUnrelatedSixPeople": "200",
+        "before": "0",
+        "expires": null,
+        "reviewDate": "2000-01-01"
+      },
+      "log": "review\\rough-audit\\rust-probes.log"
+    },
+    {
+      "probe": "AUDIT_SYNC",
+      "observed": {
+        "localLevel": 0,
+        "localVersion": 3,
+        "mergedVersion": 3,
+        "remoteMergedLevel": 2,
+        "staleChoiceAccepted": true
+      },
+      "log": "review\\rough-audit\\rust-probes.log"
+    },
+    {
+      "probe": "AUDIT_REFRESH",
+      "observed": {
+        "selectedBefore": "缺乏",
+        "selectedAfter": "充足",
+        "submittedChanges": [],
+        "textRetained": true
+      },
+      "log": "review\\rough-audit\\ui-probes.log"
+    },
+    {
+      "probe": "AUDIT_ALERT",
+      "observed": {
+        "alerts": 0,
+        "level": 1,
+        "reviewOn": "2026-11-02"
+      },
+      "log": "review\\rough-audit\\ui-probes.log"
+    },
+    {
+      "probe": "AUDIT_MIXED",
+      "observed": {
+        "roughLevel": 2,
+        "exactInputMax": "0",
+        "display": "剩余 0 g"
+      },
+      "log": "review\\rough-audit\\ui-probes.log"
+    },
+    {
+      "probe": "AUDIT_DETAIL",
+      "observed": {
+        "beforeLevel": "盈余",
+        "afterLevel": "缺乏",
+        "editedDate": "2026-10-01",
+        "afterDate": "2026-10-15"
+      },
+      "log": "review\\rough-audit\\ui-probes.log"
+    }
+  ],
+  "checks": {
+    "rustBaselinePassed": 182,
+    "rustBaselineIgnored": 14,
+    "unitPassed": 46,
+    "unitSkipped": 15,
+    "diagnosticRustProbes": 3,
+    "diagnosticBrowserProbes": 4,
+    "browserBaseline": {
+      "passed": 70,
+      "files": [
+        "cooking.spec.ts",
+        "inventory-persistence.spec.ts",
+        "shopping-persistence.spec.ts",
+        "settings.spec.ts",
+        "ai-assistant.spec.ts"
+      ]
+    }
+  },
+  "evidenceLimit": "Probes intentionally assert observed defects; passing probes mean successful reproduction, not that product behavior is correct. Real online two-device sync and actual model calls were not performed.",
+  "personalKitchenAccessed": false,
+  "temporarySourceRestored": true,
+  "resolution": {
+    "date": "2026-11-23",
+    "version": "2.4.4",
+    "validation": "rough-compat-v2.4.4-validation.json",
+    "fixes": {
+      "R01": "库存语义修订标识校验真实档位、数量或基准人数；双端计数相同仍能识别旧选择，保持原同步与撤销事件规则。",
+      "R02": "刷新建议保留手动档位、文字及配方外食材选择；真实冲突由用户核对最新档位后明确保留或替换。",
+      "R03": "首页和库存共用预计复查提醒；预计日期显示待复查，不冒充真实过期。",
+      "R04": "粗略烹饪提交按库存语义校验，单纯补库位不阻断保存；真实库存变化仍整笔回滚。",
+      "R05": "精确烹饪明确显示残留档位，可就地打开现有库存详情补填当前数量；返回后保留烹饪记录。AI上下文单列档位库存，不伪造精确数量。",
+      "R06": "每项食材按实际参与的未完成餐次记录最大人数，无关大份餐不再改变该食材的采购结论。",
+      "R07": "库存编辑器按批次保留草稿；后台变化时显示最新库存，明确核对后合并未编辑字段或使用最新内容。"
+    }
+  }
+}

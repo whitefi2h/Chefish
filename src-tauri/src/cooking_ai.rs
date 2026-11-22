@@ -47,7 +47,13 @@ pub fn context(conn: &rusqlite::Connection, id: &str, servings: i64, date: &str)
         })
         .collect::<Result<Vec<_>>>()?;
     let stock:Vec<Value>=stock.into_iter().map(|mut l|{if rough || l["measurement"]=="level" {l.as_object_mut().unwrap().remove("quantity"); l.as_object_mut().unwrap().remove("countGramsPerUnit"); l.as_object_mut().unwrap().remove("gramsPerUnit");}l}).collect();
-    Ok(json!({"inventoryMode":if rough {"rough"} else {"exact"},"preview":preview,"stock":stock,"recipe":title,"date":date,"servings":servings}))
+    let level_stock = db::inventory_rows(conn)?.into_iter().filter(|l| l["measurement"]=="level" && l["stockPresent"]==true).map(|mut l| {
+        let name: String = conn.query_row("SELECT name FROM ingredients WHERE id=?1", [l["ingredientId"].as_str().unwrap()], |r|r.get(0))?;
+        l["name"] = json!(name);
+        l.as_object_mut().unwrap().remove("quantity");
+        Ok(l)
+    }).collect::<Result<Vec<_>>>()?;
+    Ok(json!({"inventoryMode":if rough {"rough"} else {"exact"},"preview":preview,"stock":stock,"levelStock":level_stock,"recipe":title,"date":date,"servings":servings}))
 }
 // Resolve explicit everyday usage without depending on model output formatting.
 fn explicit_usage(input: &Value, record: &str) -> Option<Value> {
@@ -110,7 +116,7 @@ fn interpret_levels(input:&Value,record:&str)->Result<Value> {
         let stock=input["stock"].as_array().unwrap().iter().find(|l|l["id"]==id).ok_or_else(||fail("只能调整当前库存"))?;
         let level=row["level"].as_i64().filter(|v|(-1..=2).contains(v)).ok_or_else(||fail("库存档位无效"))?;
         if !seen.insert(id){return Err(fail("库存档位重复"));}
-        levels.push(json!({"lot_id":id,"expected_version":stock["version"],"level":level}));
+        levels.push(json!({"lot_id":id,"expected_version":stock["version"],"expected_stock_revision":stock["stockRevision"],"level":level}));
     }
     Ok(json!({"levels":levels,"quantities":{},"summary":if entries.is_empty() {"未发现明确的剩余状态，可直接保存记录。"} else {"已整理剩余状态，手动选择优先。"},"assumptions":[]}))
 }
@@ -266,14 +272,14 @@ fn describe(
     (summary, notes)
 }
 fn level_preview(input:&Value,levels:&Value)->Result<Value> {
-            let valid=levels.as_array().unwrap().iter().all(|l|input["stock"].as_array().unwrap().iter().any(|s|s["id"]==l["lot_id"] && s["version"]==l["expected_version"]));
+            let valid=levels.as_array().unwrap().iter().all(|l|input["stock"].as_array().unwrap().iter().any(|s|s["id"]==l["lot_id"] && (l["expected_stock_revision"].as_str().map_or(s["version"]==l["expected_version"],|token|s["stockRevision"]==token))));
             if !valid {return Err(fail("库存已变化，请重新整理"));}
             let mut preview=input["preview"].clone();
             for change in levels.as_array().unwrap() {
                 let id=&change["lot_id"];
                 if preview["rows"].as_array().unwrap().iter().any(|r|r["lots"].as_array().unwrap().iter().any(|l|l["id"]==*id)){continue;}
                 let lot=input["stock"].as_array().unwrap().iter().find(|l|l["id"]==*id).unwrap();
-                preview["rows"].as_array_mut().unwrap().push(json!({"ingredientId":lot["ingredientId"],"name":lot["name"],"unit":lot["unit"],"required":"0","missing":"0","lots":[{"id":id,"version":lot["version"],"available":"0","unit":lot["unit"],"factor":"1","location":lot["location"],"expires":lot["expires"],"review":false,"suggested":"0","measurement":lot["measurement"],"level":lot["level"]}]}));
+                preview["rows"].as_array_mut().unwrap().push(json!({"ingredientId":lot["ingredientId"],"name":lot["name"],"unit":lot["unit"],"required":"0","missing":"0","lots":[{"id":id,"version":lot["version"],"available":"0","unit":lot["unit"],"factor":"1","location":lot["location"],"expires":lot["expires"],"review":false,"suggested":"0","measurement":lot["measurement"],"level":lot["level"],"stockRevision":lot["stockRevision"]}]}));
             }
             Ok(preview)
 
