@@ -705,7 +705,7 @@ test("proactive inbox stays reachable in long chats, shows every pending item an
   ).toBeVisible();
 });
 
-test("review-date editing uses the styled input modal and cancels safely", async ({
+test("maintenance details contain no review-date controls", async ({
   page,
 }) => {
   await page.addInitScript(() => localStorage.setItem("review-date-test", "1"));
@@ -714,29 +714,8 @@ test("review-date editing uses the styled input modal and cancels safely", async
   await page.getByRole("button", { name: "主动消息", exact: true }).click();
   await page.getByRole("button", { name: "厨房整理已完成，查看任务" }).click();
   await page.getByText("查看自动整理明细（8 项）", { exact: true }).click();
-  await page.getByRole("button", { name: "修正预计复查日期" }).first().click();
-  const prompt = page.getByRole("dialog", { name: "修改内容", exact: true });
-  await expect(prompt.getByLabel("输入内容")).toBeFocused();
-  await prompt.getByLabel("输入内容").fill("2026-11-20");
-  await prompt.getByRole("button", { name: "取消", exact: true }).click();
-  expect(
-    await page.evaluate(() =>
-      (window as unknown as { stewardCalls: string[] }).stewardCalls.includes(
-        "kitchen_steward_review_date",
-      ),
-    ),
-  ).toBe(false);
-  await page.getByRole("button", { name: "修正预计复查日期" }).first().click();
-  await prompt.getByLabel("输入内容").fill("2026-11-20");
-  await prompt.getByRole("button", { name: "保存", exact: true }).click();
-  await expect(prompt).not.toBeVisible();
-  expect(
-    await page.evaluate(() =>
-      (window as unknown as { stewardCalls: string[] }).stewardCalls.includes(
-        "kitchen_steward_review_date",
-      ),
-    ),
-  ).toBe(true);
+  await expect(page.getByRole("button", { name: /复查/ })).toHaveCount(0);
+  await expect(page.locator(".assistant-dialog")).not.toContainText("预计复查");
 });
 
 test("same-meal dishes share one row while other meals stay separate", async ({

@@ -380,22 +380,6 @@ pub fn kitchen_steward_rule(app: tauri::AppHandle, rule: data::IngredientRule) -
     Ok(())
 }
 
-#[tauri::command]
-pub fn kitchen_steward_review_date(
-    app: tauri::AppHandle,
-    id: String,
-    date: Option<String>,
-) -> Result<()> {
-    connection(&app, |c| {
-        db::execute(
-            c,
-            &uuid::Uuid::new_v4().to_string(),
-            db::Command::SetReviewDate { lot_id: id, date },
-        )
-    })?;
-    changed(&app);
-    Ok(())
-}
 fn still_allowed(
     c: &rusqlite::Connection,
     kind: &str,

@@ -122,7 +122,7 @@ for (const [width, height] of [
     ).toBeEnabled();
   });
 }
-test("failed native receipt retains draft and sends explicit unknown expiry", async ({
+test("failed native receipt retains draft and requests automatic expiry", async ({
   page,
 }) => {
   await inventoryIPC(page, true);

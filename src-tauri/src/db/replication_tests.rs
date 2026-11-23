@@ -82,6 +82,8 @@ fn lots(conn: &Connection) -> Value {
 #[test]
 fn steward_business_metadata_and_undo_replicate_without_private_messages() {
     let (_a, mut a, _b, mut b) = pair();
+    // Both replicas start with the same legacy batch lacking an expiry.
+    for c in [&a,&b] { c.execute("UPDATE inventory_lots SET expires_on=NULL",[]).unwrap(); c.execute("DELETE FROM app_settings WHERE key GLOB 'steward_meta:lot:*'",[]).unwrap(); }
     let work = super::super::steward::entities(&a).unwrap();
     let lot = work.iter().find(|v| v["entityKind"] == "lot").unwrap();
     let entry = super::super::steward::MaintenanceEntry {
@@ -90,9 +92,9 @@ fn steward_business_metadata_and_undo_replicate_without_private_messages() {
         signature: lot["signature"].as_str().unwrap().into(),
         category: None,
         tag_ids: vec![],
-        review_on: Some("2026-11-01".into()),
+        expires_on: Some("2026-11-01".into()),
         suggested_location: None,
-        basis: "合成库存预计复查".into(),
+        basis: "合成库存预计到期".into(),
     };
     let operation = Uuid::new_v4().to_string();
     let revision = super::super::steward::revision(&a).unwrap();

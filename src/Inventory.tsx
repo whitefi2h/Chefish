@@ -1188,9 +1188,6 @@ export default function Inventory({
                       }
                     </span>
                   )}
-                  {alerts.some((l) => !l.expires) && (
-                    <span>复查 {alerts.filter((l) => !l.expires).length}</span>
-                  )}
                 </div>
                 <CarouselButtons carousel={attention} label="临期食材" />
               </div>
@@ -1391,11 +1388,19 @@ export default function Inventory({
                           }
                         />
                       </td>
-                      <td className="inventory-expiry" title={l.steward?.basis}>
-                        <span>{l.expires ?? l.steward?.reviewOn ?? "—"}</span>
-                        {!l.expires && l.steward?.reviewOn && (
-                          <small>预计复查</small>
-                        )}
+                      <td
+                        className="inventory-expiry"
+                        title={
+                          l.steward?.estimatedExpires === l.expires
+                            ? l.steward?.expiryBasis
+                            : l.steward?.basis
+                        }
+                      >
+                        <span>{l.expires ?? "—"}</span>
+                        {!!l.expires &&
+                          l.steward?.estimatedExpires === l.expires && (
+                            <small>预计到期</small>
+                          )}
                         {l.steward?.suggestedLocation === l.location && (
                           <small>库位为推测</small>
                         )}
@@ -1403,7 +1408,7 @@ export default function Inventory({
                       <td>
                         {!hasStock(l) ? (
                           <Badge>已用完</Badge>
-                        ) : l.expires || l.steward?.reviewOn ? (
+                        ) : l.expires ? (
                           <Badge tone={inventoryStatus(l, today).tone}>
                             {inventoryStatus(l, today).label}
                           </Badge>

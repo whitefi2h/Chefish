@@ -385,7 +385,9 @@ pub fn forecast(conn: &Connection, scope: &str) -> Result<Value> {
 }
 fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> {
     let coarse=measurement::rough(conn)?;
-    let mut stmt=conn.prepare("SELECT ingredient_id,unit,amount_decimal,expires_on,received_on,COALESCE(json_extract((SELECT value FROM app_settings WHERE key='steward_meta:lot:'||l.id),'$.sourceName'),(SELECT name FROM ingredients WHERE id=l.ingredient_id)),COALESCE(json_extract((SELECT value FROM app_settings WHERE key='steward_meta:lot:'||l.id),'$.sourceUnit'),unit),precision='rough' FROM inventory_lots l WHERE ?1=0 AND NOT EXISTS(SELECT 1 FROM inventory_measurements m WHERE m.lot_id=l.id) AND NOT EXISTS(SELECT 1 FROM app_settings WHERE key='inventory_deleted:'||l.id) ORDER BY expires_on IS NULL,expires_on,received_on,rowid")?;
+    let stock_rows=inventory::lots(conn)?;
+    let expiry_by_id=stock_rows.iter().map(|l|(l["id"].as_str().unwrap(),l["expires"].as_str().map(str::to_owned))).collect::<BTreeMap<_,_>>();
+    let mut stmt=conn.prepare("SELECT ingredient_id,unit,amount_decimal,expires_on,received_on,COALESCE(json_extract((SELECT value FROM app_settings WHERE key='steward_meta:lot:'||l.id),'$.sourceName'),(SELECT name FROM ingredients WHERE id=l.ingredient_id)),COALESCE(json_extract((SELECT value FROM app_settings WHERE key='steward_meta:lot:'||l.id),'$.sourceUnit'),unit),precision='rough',l.id FROM inventory_lots l WHERE ?1=0 AND NOT EXISTS(SELECT 1 FROM inventory_measurements m WHERE m.lot_id=l.id) AND NOT EXISTS(SELECT 1 FROM app_settings WHERE key='inventory_deleted:'||l.id) ORDER BY expires_on IS NULL,expires_on,received_on,rowid")?;
     let lots = stmt
         .query_map([coarse], |r| {
             Ok((
@@ -397,18 +399,19 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
                 r.get::<_, String>(5)?,
                 r.get::<_, String>(6)?,
                 r.get::<_, bool>(7)?,
+                r.get::<_, String>(8)?,
             ))
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
     let mut stock = lots
         .into_iter()
         .map(
-            |(ingredient, unit, n, expires, received, source_name, source_unit, estimated)| {
+            |(ingredient, unit, n, expires, received, source_name, source_unit, estimated, lot_id)| {
                 Ok(Stock {
                     ingredient,
                     unit,
                     remaining: number(&n)?,
-                    expires,
+                    expires: expiry_by_id.get(lot_id.as_str()).cloned().flatten().or(expires),
                     received,
                     source_name,
                     source_unit,
@@ -417,6 +420,7 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
             },
         )
         .collect::<Result<Vec<_>>>()?;
+    stock.sort_by_key(|l|(l.expires.is_none(),l.expires.clone(),l.received.clone()));
     let mut stmt=conn.prepare("SELECT p.day,p.meal,p.servings,v.servings,v.id,v.name,p.custom_title FROM planned_meals p LEFT JOIN recipe_revisions v ON v.id=p.recipe_revision_id WHERE p.removed=0 AND p.cooking_session_id IS NULL AND p.day>=?1 ORDER BY p.day,CASE p.meal WHEN '早餐' THEN 0 WHEN '午餐' THEN 1 ELSE 2 END,p.sort_order,p.rowid")?;
     let plans = stmt
         .query_map([today], |r| {
@@ -675,7 +679,7 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
     for ((ingredient, u), d) in demand {
         items.push(item(conn, None, 0, &ingredient, &u, "plan", scope, d)?);
     }
-    let stock=inventory::lots(conn)?;
+    let stock=stock_rows;
     for row in &mut items {
         let matching=stock.iter().filter(|l| l["measurement"]=="level" && l["stockPresent"]==true && l["ingredientId"]==row["ingredientId"]).collect::<Vec<_>>();
         if !coarse && matching.is_empty(){continue;}

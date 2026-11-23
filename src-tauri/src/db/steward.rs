@@ -127,9 +127,19 @@ pub fn metadata(c: &Connection, kind: &str, id: &str) -> Result<Value> {
             |r| r.get(0),
         )
         .optional()?;
-    Ok(raw
+    let mut value:Value = raw
         .and_then(|v| serde_json::from_str(&v).ok())
-        .unwrap_or(json!({})))
+        .unwrap_or(json!({}));
+    if kind == "lot" {
+        if let Some(fields) = value.as_object_mut() {
+            if fields.remove("reviewOn").is_some_and(|v| !v.is_null()) && !fields.contains_key("estimatedExpires") {
+                fields.insert("expiryOrigin".into(),json!("legacy"));
+            }
+            fields.remove("reviewOrigin");
+            if let Some(basis)=fields.get_mut("basis") {if let Some(text)=basis.as_str() { *basis=json!(text.replace("复查","到期")); }}
+        }
+    }
+    Ok(value)
 }
 pub fn put_item(
     c: &Connection,
@@ -602,7 +612,7 @@ pub struct MaintenanceEntry {
     #[serde(default)]
     pub tag_ids: Vec<String>,
     #[serde(default)]
-    pub review_on: Option<String>,
+    pub expires_on: Option<String>,
     #[serde(default)]
     pub suggested_location: Option<String>,
     pub basis: String,
@@ -713,7 +723,7 @@ pub fn maintain(tx: &Transaction, expected: &str, entries: Vec<MaintenanceEntry>
                     && v["signature"] == e.signature
             })
             .ok_or_else(|| error("STALE_REVISION", "待整理记录已变化"))?;
-        if e.basis.chars().count() > 500 || e.review_on.as_ref().is_some_and(|d| !valid_date(d)) {
+        if e.basis.chars().count() > 500 || e.expires_on.as_ref().is_some_and(|d| !valid_date(d)) {
             return Err(error("INVALID_INPUT", "整理信息无效"));
         }
         let previous = metadata(tx, &e.entity_kind, &e.entity_id)?;
@@ -741,13 +751,6 @@ pub fn maintain(tx: &Transaction, expected: &str, entries: Vec<MaintenanceEntry>
             recipe_tags::set(tx, &e.entity_id, existing, "ai")?;
         }
         if e.entity_kind == "lot" && settings(tx)?.allow_estimates {
-            if original["data"]["expires"].is_null()
-                && previous["reviewOn"].is_null()
-                && previous["reviewOrigin"] != "user"
-                && e.review_on.is_some()
-            {
-                meta["reviewOn"] = json!(e.review_on);
-            }
             if let Some(location) = e.suggested_location {
                 if !["冷藏", "冷冻", "常温"].contains(&location.as_str()) {
                     return Err(error("INVALID_INPUT", "推测库位无效"));
@@ -765,6 +768,18 @@ pub fn maintain(tx: &Transaction, expected: &str, entries: Vec<MaintenanceEntry>
                         Some(&location),
                         &format!("AI推测：{}", e.basis),
                     )?;
+                }
+            }
+        }
+        if e.entity_kind == "lot" && settings(tx)?.allow_estimates {
+            let (version,expires,received):(i64,Option<String>,String)=tx.query_row("SELECT version,expires_on,received_on FROM inventory_lots WHERE id=?1",[&e.entity_id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?;
+            if expires.is_none() {
+                if let Some(date)=e.expires_on {
+                    if date < received {return Err(error("INVALID_INPUT","预计到期日不能早于购买日期"));}
+                    inventory::set_expiry(tx,&e.entity_id,version,Some(&date),&format!("估计：{}",e.basis))?;
+                    meta["estimatedExpires"]=json!(date);
+                    meta["expiryOrigin"]=json!("estimated");
+                    meta["expiryBasis"]=json!(e.basis);
                 }
             }
         }

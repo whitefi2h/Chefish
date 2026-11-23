@@ -9,6 +9,7 @@ mod ingredient_category;
 pub mod ingredient_resolution;
 pub mod ingredient_standard;
 mod inventory;
+mod shelf_life;
 pub use inventory::lots as inventory_rows;
 pub use inventory::update_snapshot as inventory_update;
 mod library;
@@ -124,10 +125,6 @@ pub enum Command {
     ReceiveLevelLot { name: String, category: String, level: i64 },
     PurchaseLevelShopping { line_id: Option<String>, expected_version: i64, ingredient_id: String, unit: String, week_start: Option<String> },
     CompleteLevelCooking { draft: cooking::CompleteDraft, changes: Vec<measurement::LevelChange> },
-    SetReviewDate {
-        lot_id: String,
-        date: Option<String>,
-    },
     SaveRecipeTagDefinitions {
         expected_revision: String,
         entries: Vec<recipe_tags::Definition>,
@@ -1022,7 +1019,7 @@ fn apply(tx: &Transaction, command: Command) -> Result<()> {
             lot_id, operation, ..
         } if operation == "move" => Some((lot_id.clone(), true)),
         Command::SetLotExpiry { lot_id, .. } => Some((lot_id.clone(), false)),
-        Command::EditLot { lot_id, draft, .. } => {
+        Command::EditLot { lot_id, draft, .. } | Command::EditLevelLot { lot_id, draft, .. } => {
             let before: (String,String,Option<String>)=tx.query_row("SELECT s.name,l.received_on,l.expires_on FROM inventory_lots l JOIN storage_locations s ON s.id=l.location_id WHERE l.id=?1",[lot_id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?;
             if before.0 != draft.location || before.1 != draft.received || before.2 != draft.expires
             {
@@ -1059,20 +1056,6 @@ fn apply(tx: &Transaction, command: Command) -> Result<()> {
         Command::ReceiveLevelLot { name,category,level } => {measurement::receive(tx,&name,&category,level)?;}
         Command::PurchaseLevelShopping {line_id,expected_version,ingredient_id,unit,week_start} => shopping::purchase_level(tx,line_id,expected_version,&ingredient_id,&unit,week_start)?,
         Command::CompleteLevelCooking { draft, changes } => cooking::complete_levels(tx,draft,changes)?,
-        Command::SetReviewDate { lot_id, date } => {
-            tx.query_row(
-                "SELECT id FROM inventory_lots WHERE id=?1",
-                [&lot_id],
-                |r| r.get::<_, String>(0),
-            )?;
-            if date.as_ref().is_some_and(|d| !valid_date(d)) {
-                return Err(error("INVALID_INPUT", "预计复查日期无效"));
-            }
-            let mut meta = steward::metadata(tx, "lot", &lot_id)?;
-            meta["reviewOn"] = json!(date);
-            meta["reviewOrigin"] = json!("user");
-            tx.execute("INSERT INTO app_settings(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![format!("steward_meta:lot:{lot_id}"),meta.to_string()])?;
-        }
         Command::SaveRecipeTagDefinitions {
             expected_revision,
             entries,
@@ -1321,7 +1304,7 @@ fn apply(tx: &Transaction, command: Command) -> Result<()> {
             let key = inventory::receive_batch(tx, draft, "手动购买")?;
             if let Some(raw) = original_lot {
                 let estimated = ingredient_standard::amount(&raw.name, &raw.quantity, &raw.unit)?.3;
-                tx.execute("INSERT INTO app_settings(key,value) VALUES(?1,?2)",params![format!("steward_meta:lot:{key}"),json!({"sourceName":raw.name,"sourceQuantity":raw.quantity,"sourceUnit":raw.unit,"quantityOrigin":if estimated{"estimate"}else{"user"},"quantityBasis":if estimated{"按常见包装规格估算，可按实际净重修正"}else{"用户录入"}}).to_string()])?;
+                tx.execute("INSERT INTO app_settings(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=json_patch(app_settings.value,excluded.value)",params![format!("steward_meta:lot:{key}"),json!({"sourceName":raw.name,"sourceQuantity":raw.quantity,"sourceUnit":raw.unit,"quantityOrigin":if estimated{"estimate"}else{"user"},"quantityBasis":if estimated{"按常见包装规格估算，可按实际净重修正"}else{"用户录入"}}).to_string()])?;
             }
         }
         Command::EditLot {
@@ -1514,9 +1497,8 @@ fn apply(tx: &Transaction, command: Command) -> Result<()> {
     if let Some((lot, location_changed)) = reset_estimates {
         let mut meta = steward::metadata(tx, "lot", &lot)?;
         if let Some(fields) = meta.as_object_mut() {
-            if fields.get("reviewOrigin") != Some(&json!("user")) {
-                fields.remove("reviewOn");
-            }
+            fields.remove("reviewOn");
+            fields.remove("reviewOrigin");
             if location_changed {
                 fields.remove("suggestedLocation");
             }

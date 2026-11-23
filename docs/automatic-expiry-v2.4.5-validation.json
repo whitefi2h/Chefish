@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-23",
+  "version": "2.4.5",
+  "behavior": [
+    "All receipt paths calculate and persist a concrete expiry when no date is supplied; a user supplied date takes precedence.",
+    "Expiry is based on receipt date, ingredient and storage; unspecified storage uses an explicit refrigeration assumption in the estimate basis.",
+    "Exact and rough receipts, check-off purchases, undo, restart, backup and replication use the same data fields.",
+    "Review-date command and UI entry points removed; maintenance accepts expiresOn instead of reviewOn.",
+    "Legacy review metadata is ignored as a review date and projected as a purchase-date-based estimated expiry; private chat and raw legacy backup data are preserved.",
+    "Actual and estimated expiry dates share existing expiry reminders and procurement freshness checks."
+  ],
+  "checks": {
+    "rust": {
+      "passed": 190,
+      "ignored": 14,
+      "log": "review/expiry-rust-final.log"
+    },
+    "vitest": {
+      "passed": 50,
+      "skipped": 15,
+      "log": "review/expiry-unit-final.log"
+    },
+    "playwright": {
+      "passed": 96,
+      "log": "review/expiry-ui.log"
+    },
+    "typecheck": true,
+    "eslint": true,
+    "screenshotReviewed": "review/expiry-reminders-v2.4.5.png",
+    "build": {
+      "status": "passed",
+      "signedInstaller": true,
+      "manifestVersionAndSignatureMatch": true,
+      "log": "review/expiry-release-build.log",
+      "artifacts": [
+        {
+          "path": "src-tauri\\target\\release\\chefish.exe",
+          "bytes": 62761984
+        },
+        {
+          "path": "src-tauri\\target\\release\\bundle\\nsis\\Chefish_2.4.5_x64-setup.exe",
+          "bytes": 44743463
+        },
+        {
+          "path": "src-tauri\\target\\release\\bundle\\nsis\\Chefish_2.4.5_x64-setup.exe.sig",
+          "bytes": 436
+        },
+        {
+          "path": "src-tauri\\target\\release\\bundle\\nsis\\latest.json",
+          "bytes": 1351
+        }
+      ]
+    },
+    "legacyFefoProjection": true
+  },
+  "sourceReference": {
+    "url": "https://www.foodsafety.gov/food-safety-charts/cold-food-storage-charts",
+    "usedFor": "Conservative poultry, meat, egg and leftover storage defaults; other defaults are application estimates, not verified package dates."
+  },
+  "schema": 19,
+  "schemaMigrationRequired": false,
+  "personalKitchenAccessed": false,
+  "limits": [
+    "No real model call, online two-device test or overwrite installation was performed; tests use isolated synthetic kitchens and browser IPC fixtures."
+  ]
+}

@@ -496,7 +496,8 @@ fn household_purchase_stocks_once_survives_restart_and_undo_cancels_both() {
     assert_eq!(lots.len(), 1);
     assert_eq!(lots[0]["quantity"], "0.123456");
     assert_eq!(lots[0]["location"], "常温");
-    assert!(lots[0]["expires"].is_null());
+    assert!(lots[0]["expires"].is_string());
+    assert_eq!(lots[0]["steward"]["estimatedExpires"],lots[0]["expires"]);
     let lot = lots[0]["id"].as_str().unwrap().to_string();
     drop(c);
     let mut c = open(&path).unwrap();
@@ -578,7 +579,7 @@ fn household_purchase_failure_rolls_back_purchase_lot_receipt_and_revision() {
 }
 
 #[test]
-fn household_purchase_without_expiry_covers_later_meals_without_duplicate_stock() {
+fn household_purchase_without_expiry_is_estimated_and_expired_stock_does_not_cover_later_meals() {
     let mut c = open(&temp()).unwrap();
     let (revision, ingredient) = recipe(&mut c, "100", 2);
     plan(&mut c, &revision, "2099-01-05", 2);
@@ -594,13 +595,13 @@ fn household_purchase_without_expiry_covers_later_meals_without_duplicate_stock(
     );
     execute(&mut c, &id(), command).unwrap();
     let v = view(&c, "2099-01-05");
-    assert_eq!(v["items"][0]["remaining"], "0");
+    assert_eq!(v["items"][0]["remaining"], "100");
     assert_eq!(v["items"][0]["required"], "100");
     assert_eq!(v["items"][0]["purchased"], "200");
-    assert_eq!(v["items"][0]["shortage"], "0");
-    assert_eq!(v["items"][0]["covered"], "100");
+    assert_eq!(v["items"][0]["shortage"], "100");
+    assert_eq!(v["items"][0]["covered"], "0");
     assert_eq!(v["items"][0]["review"], false);
-    assert_eq!(view(&c, "2099-01-12")["items"][0]["remaining"], "0");
+    assert_eq!(view(&c, "2099-01-12")["items"][0]["remaining"], "100");
 }
 
 #[test]

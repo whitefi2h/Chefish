@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { initialState } from "../src/fixtures/demo";
 
-test("rough review reminders agree on home and inventory without calling estimates expired", async ({
+test("rough estimated expiry agrees on home and inventory with no review controls", async ({
   page,
 }) => {
   await page.clock.setFixedTime(new Date("2026-11-23T12:00:00+08:00"));
@@ -17,8 +17,8 @@ test("rough review reminders agree on home and inventory without calling estimat
       level: 1,
       quantity: 0,
       stockPresent: true,
-      expires: null,
-      steward: { reviewOn: "2026-11-20" },
+      expires: "2026-11-20",
+      steward: { estimatedExpires: "2026-11-20" },
     },
   ];
   state.plans = [];
@@ -44,13 +44,13 @@ test("rough review reminders agree on home and inventory without calling estimat
     .click();
   const home = page.locator(".dashboard-alert");
   await expect(home).toContainText("1 个提醒");
-  await expect(home).toContainText("待复查");
-  await expect(home).not.toContainText("已过期");
+  await expect(home).toContainText("已过期 3 天");
+  await expect(home).not.toContainText("复查");
   await home.getByRole("button", { name: "查看食材库存" }).click();
   const attention = page.getByRole("region", { name: "需要关注" });
-  await expect(attention).toContainText("复查 1");
-  await expect(attention).toContainText("待复查");
-  await expect(attention).not.toContainText("已过期");
+  await expect(attention).toContainText("过期 1");
+  await expect(attention).toContainText("已过期 3 天");
+  await expect(attention).not.toContainText("复查");
   const dateCell = page.locator(".inventory-expiry").first();
   const dateFits = await dateCell.evaluate((el) => {
     const range = document.createRange();
@@ -60,7 +60,7 @@ test("rough review reminders agree on home and inventory without calling estimat
     );
   });
   expect(dateFits).toBe(true);
-  await page.screenshot({ path: "review/rough-compat-review-reminders.png" });
+  await page.screenshot({ path: "review/expiry-reminders-v2.4.5.png" });
 });
 
 test("home and inventory share reminder scope, count and expiry order after inventory changes", async ({

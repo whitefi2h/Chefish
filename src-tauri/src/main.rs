@@ -487,7 +487,6 @@ fn main() {
             steward::kitchen_steward_rebase,
             steward::kitchen_steward_undo,
             steward::kitchen_steward_rule,
-            steward::kitchen_steward_review_date,
             ingredient_images::kitchen_ingredient_images,
             ingredient_images::kitchen_open_image_source,
             kitchen_bootstrap,

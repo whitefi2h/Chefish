@@ -249,7 +249,6 @@ fn destructive(c: &Command) -> bool {
 }
 fn label(c: &Command) -> &'static str {
     match c {
-        Command::SetReviewDate { .. } => "修正预计复查日期",
         Command::SaveRecipeTagDefinitions { .. }
         | Command::SetRecipeTags { .. }
         | Command::ResetRecipeTagVisibility { .. }
@@ -931,8 +930,8 @@ mod tests {
         let before = db::snapshot(&conn).unwrap();
         let lot = &before["lots"][0];
         let store = Proposals::default();
-        let reason = "估计：完整未剥皮大蒜、冷藏；预计复查日期2026-11-05，非包装有效期";
-        let p = preview(&conn, &store, vec![json!({"type":"set_lot_expiry","lot_id":lot["id"],"expected_version":lot["version"],"expires":"2026-11-05","reason":reason})]).unwrap();
+        let reason = "估计：完整未剥皮大蒜、冷藏；预计到期日2026-11-06，非包装有效期";
+        let p = preview(&conn, &store, vec![json!({"type":"set_lot_expiry","lot_id":lot["id"],"expected_version":lot["version"],"expires":"2026-11-06","reason":reason})]).unwrap();
         assert!(p
             .changes
             .iter()
@@ -942,7 +941,7 @@ mod tests {
         let after = db::snapshot(&conn).unwrap();
         assert_eq!(after["lots"].as_array().unwrap().len(), 1);
         assert_eq!(after["lots"][0]["quantity"], "5");
-        assert_eq!(after["lots"][0]["expires"], "2026-11-05");
+        assert_eq!(after["lots"][0]["expires"], "2026-11-06");
     }
     #[test]
     fn local_context_and_full_recipe_read_exclude_media_and_expose_real_ids() {

@@ -20,30 +20,17 @@ export function expiringInventoryLots(
   return lots
     .filter(
       (lot) =>
-        hasStock(lot) &&
-        !!attentionDate(lot) &&
-        daysLeft(attentionDate(lot), today) <= 3,
+        hasStock(lot) && !!lot.expires && daysLeft(lot.expires, today) <= 3,
     )
-    .sort((a, b) =>
-      (attentionDate(a) ?? "").localeCompare(attentionDate(b) ?? ""),
-    );
-}
-export function attentionDate(lot: InventoryLot) {
-  return lot.expires ?? lot.steward?.reviewOn ?? null;
+    .sort((a, b) => (a.expires ?? "").localeCompare(b.expires ?? ""));
 }
 export function inventoryStatus(
   lot: InventoryLot,
   today: string,
 ): { label: string; tone: "red" | "warm" | "green" } {
-  const left = daysLeft(attentionDate(lot), today);
-  if (lot.expires)
-    return {
-      label: expiryLabel(lot.expires, today),
-      tone: left < 0 ? "red" : left <= 3 ? "warm" : "green",
-    };
+  const left = daysLeft(lot.expires, today);
   return {
-    label:
-      left < 0 ? "待复查" : left === 0 ? "今天复查" : `预计${left}天后复查`,
-    tone: left <= 3 ? "warm" : "green",
+    label: expiryLabel(lot.expires, today),
+    tone: left < 0 ? "red" : left <= 3 ? "warm" : "green",
   };
 }

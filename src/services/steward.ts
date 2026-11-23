@@ -28,7 +28,8 @@ export interface StewardSettings {
 }
 export interface StewardMetadata {
   legacyTags?: string[];
-  reviewOn?: string | null;
+  estimatedExpires?: string | null;
+  expiryBasis?: string;
   suggestedLocation?: string | null;
   origin?: string;
   basis?: string;
@@ -126,9 +127,6 @@ export async function startStewardEvents() {
   });
 }
 export const steward = {
-  reviewDate: (id: string, date: string | null) =>
-    invoke("kitchen_steward_review_date", { id, date }),
-
   save: (settings: StewardSettings) =>
     invoke("kitchen_steward_settings", { settings }),
   mark: (id: string, status: string) =>

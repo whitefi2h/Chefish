@@ -164,8 +164,8 @@ export default function StewardSettings({
         </div>
         {toggle(
           "allowEstimates",
-          "自动推测预计复查日期和缺失库位",
-          "补充预计复查日期、缺失库位和标签；保留用户明确填写的值。估计不是包装有效期。",
+          "自动补全保质期和缺失库位",
+          "整理时补全缺失到期日、库位和标签，保留用户填写的信息。入库时会自动估算到期日。",
         )}
         {toggle(
           "allowAutoEnableTags",

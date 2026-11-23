@@ -135,7 +135,8 @@ mod tests {
         assert_eq!(lots[0]["level"], 1);
         assert_eq!(lots[0]["received"], shopping::local_today(&c).unwrap());
         assert_eq!(lots[0]["location"], "未指定");
-        assert!(lots[0]["expires"].is_null());
+        assert_eq!(lots[0]["steward"]["estimatedExpires"],lots[0]["expires"]);
+        assert!(lots[0]["expires"].is_string());
         assert_eq!(
             shopping::forecast(&c, &week).unwrap()["items"][0]["remaining"],
             "0"
@@ -212,7 +213,7 @@ mod tests {
         let today = shopping::local_today(&c).unwrap();
         run(
             &mut c,
-            json!({"type":"receive_lot","draft":{"name":"青菜","category":"蔬菜菌菇","quantity":"700","unit":"g","location":"冷藏","received":today,"expires":null,"precision":"exact"}}),
+            json!({"type":"receive_lot","draft":{"name":"青菜","category":"蔬菜菌菇","quantity":"700","unit":"g","location":"冷藏","received":today,"expires":"2099-12-31","precision":"exact"}}),
         );
         let row = inventory_rows(&c).unwrap()[0].clone();
         let revision = snapshot(&c).unwrap()["recipes"][0]["revisionId"].clone();
@@ -273,6 +274,8 @@ mod tests {
         let base=shopping::week(&c,&today).unwrap();let week:String=c.query_row("SELECT date(?1,'+7 days')",[base],|r|r.get(0)).unwrap();
         let greens=compat_recipe(&mut c,"青菜测试","青菜");compat_plan(&mut c,&greens,&week,2);
         run(&mut c,json!({"type":"receive_level_lot","name":"青菜","category":"自动分类","level":1}));
+        // Quantity coverage is isolated from perishability in this fixture.
+        c.execute("UPDATE inventory_lots SET expires_on='2099-12-31'",[]).unwrap();
         let before=shopping::forecast(&c,&week).unwrap();
         let beef=compat_recipe(&mut c,"牛肉测试","牛肉");let next:String=c.query_row("SELECT date(?1,'+1 day')",[&week],|r|r.get(0)).unwrap();compat_plan(&mut c,&beef,&next,6);
         let after=shopping::forecast(&c,&week).unwrap();
@@ -284,8 +287,11 @@ mod tests {
         assert_eq!(large["maxPeople"],6);
         assert_eq!(large["remaining"],"800");
         let lot=inventory_rows(&c).unwrap()[0].clone();
-        run(&mut c,json!({"type":"set_review_date","lot_id":lot["id"],"date":"2000-01-01"}));
-        let reviewed=inventory_rows(&c).unwrap()[0].clone();assert_eq!(reviewed["steward"]["reviewOn"],"2000-01-01");assert!(reviewed["expires"].is_null());
+        c.execute("UPDATE inventory_lots SET expires_on=NULL WHERE id=?1",[lot["id"].as_str().unwrap()]).unwrap();
+        c.execute("INSERT OR REPLACE INTO app_settings VALUES(?1,?2)",params![format!("steward_meta:lot:{}",lot["id"].as_str().unwrap()),json!({"reviewOn":"2000-01-01"}).to_string()]).unwrap();
+        let converted=inventory_rows(&c).unwrap()[0].clone();
+        assert!(converted["steward"]["reviewOn"].is_null());assert!(converted["expires"].is_string());
+
     }
     #[test]
     fn compat_metadata_move_preserves_pending_rough_cooking() {

@@ -367,6 +367,8 @@ mod tests {
             )
             .unwrap();
         }
+        // An older batch with an explicitly unknown expiry remains supported.
+        c.execute("UPDATE inventory_lots SET expires_on=NULL WHERE amount_decimal='50'",[]).unwrap();
         let key = planner::plans(&c).unwrap()[0]["id"]
             .as_str()
             .unwrap()

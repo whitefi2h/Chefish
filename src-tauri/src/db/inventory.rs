@@ -127,6 +127,8 @@ pub fn receive_batch(tx: &Transaction, draft: InventoryDraft, reason: &str) -> R
         new_id
     };
     let new_id = id();
+    let estimate = if draft.expires.is_none() { Some(shelf_life::estimate(tx, &draft.name, &draft.location, &draft.received)?) } else { None };
+    let expires = draft.expires.as_deref().or_else(|| estimate.as_ref().map(|e| e.0.as_str()));
     tx.execute(
         "INSERT INTO inventory_lots VALUES(?1,?2,?3,?4,?5,?6,?7,?8,1)",
         params![
@@ -136,10 +138,11 @@ pub fn receive_batch(tx: &Transaction, draft: InventoryDraft, reason: &str) -> R
             draft.unit,
             target,
             draft.received,
-            draft.expires,
+            expires,
             draft.precision
         ],
     )?;
+    if let Some((date,basis)) = estimate { shelf_life::mark_estimated(tx,&new_id,&date,&basis)?; }
     event(
         tx,
         &new_id,
@@ -470,6 +473,7 @@ pub fn lots(conn: &Connection) -> Result<Vec<Value>> {
     let mut stmt=conn.prepare("SELECT l.id,l.ingredient_id,l.amount_decimal,l.unit,s.name,l.received_on,l.expires_on,l.precision,l.version FROM inventory_lots l JOIN storage_locations s ON s.id=l.location_id WHERE NOT EXISTS(SELECT 1 FROM app_settings WHERE key='inventory_deleted:'||l.id) ORDER BY (l.amount_decimal='0'),l.expires_on IS NULL,l.expires_on,l.received_on,l.id")?;
     let rows=stmt.query_map([],|r|Ok(json!({"id":r.get::<_,String>(0)?,"ingredientId":r.get::<_,String>(1)?,"quantity":r.get::<_,String>(2)?,"unit":r.get::<_,String>(3)?,"location":r.get::<_,String>(4)?,"received":r.get::<_,String>(5)?,"expires":r.get::<_,Option<String>>(6)?,"precision":r.get::<_,String>(7)?,"version":r.get::<_,i64>(8)?})))?.collect::<std::result::Result<Vec<_>,_>>()?;
     let mut rows = rows;
+    let mut legacy_expiry = false;
     for row in &mut rows {
         let measurement = measurement::get(conn,row["id"].as_str().unwrap())?;
         row["stockRevision"] = json!(measurement::stock_revision(conn,row["id"].as_str().unwrap())?);
@@ -478,6 +482,17 @@ pub fn lots(conn: &Connection) -> Result<Vec<Value>> {
         row["stockPresent"] = json!(measurement.as_ref().map_or(row["quantity"].as_str().unwrap() != "0", |m|m["level"].as_i64().unwrap() >= 0));
         if measurement.is_some() { row["quantity"] = json!("0"); }
         row["steward"] = super::steward::metadata(conn, "lot", row["id"].as_str().unwrap())?;
+        if row["expires"].is_null() && row["steward"]["expiryOrigin"] == "legacy" {
+            legacy_expiry = true;
+            let name: String = conn.query_row("SELECT name FROM ingredients WHERE id=?1", [row["ingredientId"].as_str().unwrap()], |r|r.get(0))?;
+            let (date,basis)=shelf_life::estimate(conn,&name,row["location"].as_str().unwrap(),row["received"].as_str().unwrap())?;
+            row["expires"]=json!(date);
+            row["steward"]["estimatedExpires"]=json!(date);
+            row["steward"]["expiryBasis"]=json!(basis);
+        }
+    }
+    if legacy_expiry {
+        rows.sort_by_key(|r|(r["stockPresent"]==false,r["expires"].is_null(),r["expires"].as_str().unwrap_or("").to_owned(),r["received"].as_str().unwrap_or("").to_owned(),r["id"].as_str().unwrap_or("").to_owned()));
     }
     Ok(rows)
 }
@@ -771,6 +786,7 @@ mod tests {
     fn expiry_update_preserves_stock_is_versioned_and_reversible() {
         let mut c = open(&temp()).unwrap();
         let lot_id = make(&mut c);
+        let original_expiry=lots(&c).unwrap()[0]["expires"].clone();
         let cmd = |version, expiry: Option<&str>| Command::SetLotExpiry {
             lot_id: lot_id.clone(),
             expected_version: version,
@@ -794,7 +810,7 @@ mod tests {
             },
         )
         .unwrap();
-        assert!(lots(&c).unwrap()[0]["expires"].is_null());
+        assert_eq!(lots(&c).unwrap()[0]["expires"],original_expiry);
         execute(&mut c, &id(), cmd(3, Some("2026-11-03"))).unwrap();
         execute(&mut c, &id(), cmd(4, None)).unwrap();
         execute(
@@ -868,7 +884,7 @@ mod tests {
         drop(conn);
         let conn = open(&path).unwrap();
         assert_eq!(snapshot(&conn).unwrap(), before);
-        assert_eq!(lots(&conn).unwrap()[0]["expires"], Value::Null);
+        assert_eq!(lots(&conn).unwrap()[0]["expires"], "2026-10-22");
         assert!(conn
             .execute("UPDATE inventory_events SET reason='edit'", [])
             .is_err());
@@ -997,7 +1013,7 @@ mod tests {
         let rows = lots(&conn).unwrap();
         assert_eq!(rows[0]["expires"], "2026-10-20");
         assert_eq!(rows[1]["expires"], "2026-10-21");
-        assert_eq!(rows[2]["expires"], Value::Null);
+        assert_eq!(rows[2]["expires"], "2026-10-22");
         execute(
             &mut conn,
             &id(),

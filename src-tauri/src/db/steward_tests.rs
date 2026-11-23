@@ -112,6 +112,8 @@ fn maintenance_is_incremental_reversible_and_does_not_replace_expiry() {
         },
     )
     .unwrap();
+    c.execute("UPDATE inventory_lots SET expires_on=NULL",[]).unwrap();
+    c.execute("DELETE FROM app_settings WHERE key GLOB 'steward_meta:lot:*'",[]).unwrap();
     let work = entities(&c).unwrap();
     let lot = work.iter().find(|w| w["entityKind"] == "lot").unwrap();
     let lot_id = lot["entityId"].as_str().unwrap();
@@ -121,7 +123,7 @@ fn maintenance_is_incremental_reversible_and_does_not_replace_expiry() {
         signature: lot["signature"].as_str().unwrap().into(),
         category: None,
         tag_ids: vec![],
-        review_on: Some("2026-10-30".into()),
+        expires_on: Some("2026-10-30".into()),
         suggested_location: Some("冷藏".into()),
         basis: "假设新鲜未冷冻，预计复查".into(),
     };
@@ -141,11 +143,11 @@ fn maintenance_is_incremental_reversible_and_does_not_replace_expiry() {
     assert!(entities(&c).unwrap().is_empty());
     assert_eq!(undo::status(&c).unwrap(), before_undo);
     let s = snapshot(&c).unwrap();
-    assert!(s["lots"][0]["expires"].is_null());
+    assert_eq!(s["lots"][0]["expires"],"2026-10-30");
     assert_eq!(s["lots"][0]["location"], "冷藏");
     assert_eq!(s["lots"][0]["quantity"], "500");
     assert_eq!(
-        metadata(&c, "lot", lot_id).unwrap()["reviewOn"],
+        metadata(&c, "lot", lot_id).unwrap()["estimatedExpires"],
         "2026-10-30"
     );
     execute(
@@ -157,7 +159,7 @@ fn maintenance_is_incremental_reversible_and_does_not_replace_expiry() {
     )
     .unwrap();
     assert_eq!(snapshot(&c).unwrap()["lots"][0]["location"], "未指定");
-    assert!(metadata(&c, "lot", lot_id).unwrap()["reviewOn"].is_null());
+    assert!(metadata(&c, "lot", lot_id).unwrap()["estimatedExpires"].is_null());
     assert!(!entities(&c)
         .unwrap()
         .iter()
@@ -175,7 +177,7 @@ fn user_changes_prevent_maintenance_undo() {
         signature: row["signature"].as_str().unwrap().into(),
         category: None,
         tag_ids: vec!["method.stir-fry".into()],
-        review_on: None,
+        expires_on: None,
         suggested_location: None,
         basis: "根据做法".into(),
     };

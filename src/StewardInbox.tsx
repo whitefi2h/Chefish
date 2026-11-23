@@ -1,4 +1,4 @@
-import { confirmAction, requestText } from "./services/dialogs";
+import { confirmAction } from "./services/dialogs";
 import { invoke } from "@tauri-apps/api/core";
 import type { AssistantProposal } from "./services/aiClient";
 import { useEffect, useRef, useState } from "react";
@@ -522,28 +522,12 @@ export default function StewardInbox({
               <div key={i}>
                 <strong>{v.name}</strong>
                 <p className="hint">
-                  {v.metadata?.reviewOn && ` · 预计复查 ${v.metadata.reviewOn}`}
+                  {v.metadata?.estimatedExpires &&
+                    ` · 预计到期 ${v.metadata.estimatedExpires}`}
                   {v.metadata?.suggestedLocation &&
                     ` · 推测库位 ${v.metadata.suggestedLocation}`}{" "}
-                  {v.metadata?.basis}
+                  {v.metadata?.basis?.replaceAll("复查", "到期")}
                 </p>
-                {v.entityKind === "lot" && (
-                  <button
-                    disabled={busy}
-                    onClick={async () => {
-                      const date = await requestText(
-                        "预计复查日期（YYYY-MM-DD），留空清除；不会修改真实到期日",
-                        v.metadata?.reviewOn ?? "",
-                      );
-                      if (date !== null)
-                        void act(() =>
-                          steward.reviewDate(v.entityId, date.trim() || null),
-                        );
-                    }}
-                  >
-                    修正预计复查日期
-                  </button>
-                )}
               </div>
             ))}
           </details>
