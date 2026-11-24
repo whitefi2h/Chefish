@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-24",
+  "version": "2.4.8",
+  "status": "published",
+  "validation": "rough-policy-v2.4.8-validation.json",
+  "latestStable": true,
+  "buildPassed": true,
+  "signedInstaller": true,
+  "manifestVersionAndSignatureMatch": true,
+  "publicUpdaterManifestVerified": true,
+  "releaseUrl": "https://github.com/whitefi2h/Chefish/releases/tag/v2.4.8",
+  "assets": [
+    {
+      "name": "chefish.exe",
+      "bytes": 62774784,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.8/chefish.exe"
+    },
+    {
+      "name": "Chefish_2.4.8_x64-setup.exe",
+      "bytes": 44743271,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.8/Chefish_2.4.8_x64-setup.exe"
+    },
+    {
+      "name": "Chefish_2.4.8_x64-setup.exe.sig",
+      "bytes": 436,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.8/Chefish_2.4.8_x64-setup.exe.sig"
+    },
+    {
+      "name": "latest.json",
+      "bytes": 1120,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.8/latest.json"
+    }
+  ],
+  "sourceCommit": "3fbda53d4cfef0f57941588d87a7ec0b9e524903",
+  "sourcePushed": true,
+  "publishedAt": "2026-11-24T11:15:43Z",
+  "publicAssetsVerified": true
+}
