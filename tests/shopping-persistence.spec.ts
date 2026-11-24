@@ -591,7 +591,9 @@ test("shopping reminder with four missing seasonings stays compact", async ({
   expect(list!.y - dateRow!.y).toBeLessThan(210);
   const tools = page.locator(".shopping-list-tools");
   const count = await tools.locator(".hint").boundingBox();
-  const label = await tools.locator(".check-label > span").boundingBox();
+  const label = await tools
+    .locator(".check-label > span:first-child")
+    .boundingBox();
   expect(
     Math.abs(count!.y + count!.height / 2 - label!.y - label!.height / 2),
   ).toBeLessThan(1);
@@ -653,6 +655,16 @@ test("rough shopping replaces only the buy action with a checkbox and does not o
     exact: true,
   });
   await expect(checkbox).not.toBeChecked();
+  for (const width of [1280, 1920]) {
+    await page.setViewportSize({ width, height: 1080 });
+    const header = await page
+      .getByRole("checkbox", { name: "显示已买" })
+      .boundingBox();
+    const purchase = await checkbox.boundingBox();
+    expect(header!.width).toBe(18);
+    expect(purchase!.width).toBe(18);
+    expect(Math.abs(header!.x - purchase!.x)).toBeLessThan(1);
+  }
   await checkbox.check();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(checkbox).toBeChecked();

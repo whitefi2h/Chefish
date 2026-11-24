@@ -3641,16 +3641,68 @@ td button > svg {
   font-weight: 400;
   line-height: inherit;
 }
-.shopping-list-tools input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  margin: 0;
-}
 .shopping-list-tools .check-label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+}
+.shopping-list.is-rough .shopping-list-tools {
+  padding-right: 38px;
+}
+.shopping-check-target {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 32px;
+  flex-shrink: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.shopping-check-target input[type="checkbox"] {
+  appearance: none;
+  display: grid;
+  place-content: center;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--card);
+  cursor: pointer;
+  transition: background var(--motion-quick), border-color var(--motion-quick);
+}
+.shopping-check-target input::after {
+  content: "";
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid var(--card);
+  border-bottom: 2px solid var(--card);
+  transform: translateY(-1px) rotate(-45deg);
+  opacity: 0;
+}
+.shopping-check-target:hover input:not(:disabled) {
+  border-color: var(--sage);
+}
+.shopping-check-target input:checked {
+  border-color: var(--sage);
+  background: var(--sage);
+}
+.shopping-check-target input:checked::after {
+  opacity: 1;
+}
+.shopping-check-target input:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: 3px;
+}
+.shopping-check-target:has(input:disabled) {
+  cursor: default;
+}
+.shopping-check-target input:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 .seasoning-reminder .seasoning-list {
   display: grid;

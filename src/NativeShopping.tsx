@@ -424,7 +424,10 @@ export default function NativeShopping() {
       <div className="shopping-layout">
         <div>
           {visible.length > 0 && (
-            <section className="panel shopping-list" aria-label="采购项目">
+            <section
+              className={`panel shopping-list ${preferences.inventoryMode === "rough" ? "is-rough" : ""}`}
+              aria-label="采购项目"
+            >
               <div className="section-heading">
                 <h2>
                   购物清单 <Badge>{visible.length}</Badge>
@@ -432,12 +435,14 @@ export default function NativeShopping() {
                 <div className="inline shopping-list-tools">
                   <span className="hint">{pending.length} 项待买</span>
                   <label className="check-label">
-                    <input
-                      type="checkbox"
-                      checked={showPurchased}
-                      onChange={(e) => setShowPurchased(e.target.checked)}
-                    />
                     <span>显示已买</span>
+                    <span className="shopping-check-target">
+                      <input
+                        type="checkbox"
+                        checked={showPurchased}
+                        onChange={(e) => setShowPurchased(e.target.checked)}
+                      />
+                    </span>
                   </label>
                 </div>
               </div>
@@ -532,35 +537,37 @@ export default function NativeShopping() {
                         </div>
                         <div className="row-actions">
                           {preferences.inventoryMode === "rough" ? (
-                            <input
-                              type="checkbox"
-                              className="purchase-check"
-                              aria-label={`购买完成：${i.name}`}
-                              checked={
-                                i.remaining === "0" &&
-                                i.purchased !== "0" &&
-                                Number(i.unreceived) === 0
-                              }
-                              disabled={
-                                disabled ||
-                                (i.remaining === "0" &&
-                                  Number(i.unreceived) === 0)
-                              }
-                              onChange={async () => {
-                                await mutate(
-                                  {
-                                    type: "purchase_level_shopping",
-                                    line_id: i.id,
-                                    expected_version: i.version,
-                                    ingredient_id: i.ingredientId,
-                                    unit: i.unit,
-                                    week_start: i.weekStart,
-                                  },
-                                  (s) => s,
-                                  "已购买并入库",
-                                );
-                              }}
-                            />
+                            <label className="shopping-check-target">
+                              <input
+                                type="checkbox"
+                                className="purchase-check"
+                                aria-label={`购买完成：${i.name}`}
+                                checked={
+                                  i.remaining === "0" &&
+                                  i.purchased !== "0" &&
+                                  Number(i.unreceived) === 0
+                                }
+                                disabled={
+                                  disabled ||
+                                  (i.remaining === "0" &&
+                                    Number(i.unreceived) === 0)
+                                }
+                                onChange={async () => {
+                                  await mutate(
+                                    {
+                                      type: "purchase_level_shopping",
+                                      line_id: i.id,
+                                      expected_version: i.version,
+                                      ingredient_id: i.ingredientId,
+                                      unit: i.unit,
+                                      week_start: i.weekStart,
+                                    },
+                                    (s) => s,
+                                    "已购买并入库",
+                                  );
+                                }}
+                              />
+                            </label>
                           ) : (
                             <button
                               disabled={disabled || i.remaining === "0"}

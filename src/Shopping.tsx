@@ -109,12 +109,14 @@ function DemoShopping() {
                 <div className="inline shopping-list-tools">
                   <span className="hint">{pending.length} 项待买</span>
                   <label className="check-label">
-                    <input
-                      type="checkbox"
-                      checked={showPurchased}
-                      onChange={(e) => setShowPurchased(e.target.checked)}
-                    />
                     <span>显示已买</span>
+                    <span className="shopping-check-target">
+                      <input
+                        type="checkbox"
+                        checked={showPurchased}
+                        onChange={(e) => setShowPurchased(e.target.checked)}
+                      />
+                    </span>
                   </label>
                 </div>
               </div>

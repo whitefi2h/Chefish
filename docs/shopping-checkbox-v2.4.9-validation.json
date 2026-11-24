@@ -1,0 +1,58 @@
+{
+  "date": "2026-11-24",
+  "version": "2.4.9",
+  "changes": [
+    "Unify purchase and purchased-filter checkboxes at 18px, with rounded borders and existing sage tokens.",
+    "Align filter checkbox with the purchase column in rough mode; retain 44x32 click targets, native checkbox semantics, focus-visible and disabled states.",
+    "Demo filter uses the same style; no database, procurement policy or command changes."
+  ],
+  "checks": {
+    "unit": {
+      "passed": 50,
+      "skipped": 15,
+      "log": "review/shopping-checkbox-unit.log"
+    },
+    "browser": {
+      "passed": 16,
+      "log": "review/shopping-checkbox-ui.log"
+    },
+    "lint": true,
+    "alignment": "18px equal-size controls; x-coordinate difference below 1px at 1280 and 1920 viewport widths",
+    "screenshotReviewed": "docs/screenshots/rough-mode/shopping.png",
+    "interaction": "Purchase checkbox stocks directly; purchased filter toggles visibility without changing demand.",
+    "typecheck": true,
+    "finalBrowser": {
+      "passed": 2,
+      "log": "review/shopping-checkbox-ui-final.log"
+    },
+    "build": {
+      "passed": true,
+      "signedInstaller": true,
+      "manifestVersionAndSignatureMatch": true,
+      "log": "review/shopping-checkbox-release-build-final.log",
+      "assets": [
+        {
+          "path": "src-tauri/target/release/chefish.exe",
+          "bytes": 62773760
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/Chefish_2.4.9_x64-setup.exe",
+          "bytes": 44743044
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/Chefish_2.4.9_x64-setup.exe.sig",
+          "bytes": 436
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/latest.json",
+          "bytes": 943
+        }
+      ]
+    }
+  },
+  "schema": 19,
+  "personalKitchenAccessed": false,
+  "limitations": [
+    "Browser IPC fixtures and isolated unit tests; no production kitchen access or overwrite installation test. Rust business logic is unchanged."
+  ]
+}
