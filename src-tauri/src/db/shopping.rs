@@ -436,6 +436,7 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
     let mut demand: BTreeMap<(String, String), Demand> = BTreeMap::new();
+    let mut dish_counts = BTreeMap::<String, usize>::new();
     let mut review_notes = Vec::<String>::new();
     for (day, meal, servings, standard, revision, name, custom) in plans {
         let in_scope = week(conn, &day)? == scope;
@@ -489,6 +490,7 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
                 ));
             }
         }
+        let mut dish_ingredients = std::collections::BTreeSet::new();
         for (ingredient, n, u) in requirements {
             let raw_name: String = conn.query_row(
                 "SELECT name FROM ingredients WHERE id=?1",
@@ -536,6 +538,9 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
             )?;
             if seasonings::is_seasoning(conn, &rev, &ingredient_name)? {
                 continue;
+            }
+            if in_scope && dish_ingredients.insert(ingredient.clone()) {
+                *dish_counts.entry(ingredient.clone()).or_default() += 1;
             }
             let required = (number(&n)? * Decimal::from(servings)
                 / Decimal::from(standard.unwrap()))
@@ -687,11 +692,11 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
         }
         if !coarse && !matching.iter().any(|l|l["measurement"]=="level"){continue;}
         row["roughStock"]=json!(true);
-        let sources=row["sources"].as_array().cloned().unwrap_or_default();
-        // Bands express the user's current stock judgement, not a two-meal quantity cap.
-        let covered=row["source"]=="plan" && !sources.is_empty() && matching.iter().any(|lot|{
-            ((coarse && lot["measurement"]!="level") || lot["level"].as_i64().is_some_and(|level|level>=1)) &&
-            sources.iter().all(|s| lot["expires"].as_str().is_none_or(|expiry|s.as_str().unwrap_or("").get(..10).is_some_and(|day|expiry>=day)))
+        let ingredient=ingredient_standard::canonical_id(conn,row["ingredientId"].as_str().unwrap())?;
+        let dishes=dish_counts.get(&ingredient).copied().unwrap_or_default();
+        // Rough procurement follows the current band, independently of expiry dates.
+        let covered=row["source"]=="plan" && dishes>0 && matching.iter().any(|lot|{
+            (coarse && lot["measurement"]!="level") || lot["level"].as_i64().is_some_and(|level|level>=1 || (level==0 && dishes==1))
         });
         row["roughCovered"]=json!(covered);
         if covered {

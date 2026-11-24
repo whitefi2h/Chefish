@@ -233,7 +233,7 @@ mod tests {
             json!({"type":"set_stock_level","change":{"lot_id":row["id"],"expected_version":row["version"],"level":0}}),
         );
         let low = shopping::forecast(&c, &week).unwrap();
-        assert_eq!(low["items"][0]["remaining"], "200");
+        assert_eq!(low["items"][0]["remaining"], "0");
         assert_eq!(low["items"][0]["covered"], "0");
         let row = inventory_rows(&c).unwrap()[0].clone();
         run(
@@ -267,6 +267,36 @@ mod tests {
     }
     fn compat_plan(c:&mut Connection,revision:&Value,day:&str,people:i64) {
         run(c,json!({"type":"save_plan","plan_id":null,"expected_version":null,"draft":{"recipe_revision_id":revision,"custom_title":null,"day":day,"meal":"晚餐","servings":people}}));
+    }
+    #[test]
+    fn rough_shopping_ignores_expiry_and_low_stock_covers_one_dish() {
+        let mut c=kitchen();let today=shopping::local_today(&c).unwrap();
+        let week=shopping::week(&c,&today).unwrap();
+        let first=compat_recipe(&mut c,"蒜香青菜","大蒜");
+        let second=compat_recipe(&mut c,"蒜香鸡肉","蒜头");
+        run(&mut c,json!({"type":"receive_level_lot","name":"大蒜","category":"自动分类","level":0}));
+        let lot=inventory_rows(&c).unwrap()[0].clone();
+        c.execute("UPDATE inventory_lots SET expires_on='2000-01-01' WHERE id=?1",[lot["id"].as_str().unwrap()]).unwrap();
+        compat_plan(&mut c,&first,&today,6);
+        let other=compat_recipe(&mut c,"番茄炒蛋","鸡蛋");
+        compat_plan(&mut c,&other,&today,2);
+        let line=|v:Value|v["items"].as_array().unwrap().iter().find(|r|r["name"]=="大蒜").unwrap().clone();
+        assert_eq!(line(shopping::forecast(&c,&week).unwrap())["remaining"],"0");
+        compat_plan(&mut c,&second,&today,2);
+        assert_eq!(line(shopping::forecast(&c,&week).unwrap())["remaining"],"800");
+        for level in [1,2] {
+            let lot=inventory_rows(&c).unwrap()[0].clone();
+            run(&mut c,json!({"type":"set_stock_level","change":{"lot_id":lot["id"],"expected_version":lot["version"],"level":level}}));
+            assert_eq!(line(shopping::forecast(&c,&week).unwrap())["remaining"],"0");
+        }
+        let lot=inventory_rows(&c).unwrap()[0].clone();
+        run(&mut c,json!({"type":"set_stock_level","change":{"lot_id":lot["id"],"expected_version":lot["version"],"level":0}}));
+        // Repeated occurrences of the same recipe also count as two dishes.
+        let p=snapshot(&c).unwrap()["plans"].as_array().unwrap().iter().find(|p|p["recipeRevisionId"]==second).unwrap().clone();
+        run(&mut c,json!({"type":"remove_plan","plan_id":p["id"],"expected_version":p["version"]}));
+        assert_eq!(line(shopping::forecast(&c,&week).unwrap())["remaining"],"0");
+        compat_plan(&mut c,&first,&today,2);
+        assert_eq!(line(shopping::forecast(&c,&week).unwrap())["remaining"],"800");
     }
     #[test]
     fn compat_unrelated_people_do_not_change_coverage_and_review_is_not_expiry() {

@@ -59,6 +59,7 @@ commands 每一项必须包含 type 字段，例如 {"type":"receive_lot","draft
 
 粗略计量兼容：
 preferences.inventoryMode=rough时，库存只以档位表达，不编造当前克数。level=-1用完、0缺乏、1充足、2盈余、null未估计。quantity缺失不是零库存。菜谱配方和采购建议量仍是具体用量。
+粗略模式的菜单采购不按到期日排除库存，到期食材仍参与需求覆盖；到期提醒继续显示。缺乏档仅在本周待做菜品中有至少2道使用该食材时补购，只有1道则不补购；同一菜谱安排两次计为2道，人数不增加菜品数。充足和盈余覆盖当前周需求，不按做饭次数自动降档。采购量由程序计算，不另建手动项重复采购。
 调整剩余状态使用commands:[{type:"set_stock_level",change:{lot_id:真实ID,expected_version:真实版本,expected_stock_revision:该批次stockRevision,level:-1|0|1|2}}]。粗略新增用{type:"receive_level_lot",name,category:"自动分类",level:1}。不要生成change_lot/use/correct来把档位写成数字。
 粗略模式“买好了”优先{type:"purchase_level_shopping",line_id:项目ID或null,expected_version,ingredient_id,unit,week_start:周一起始日或null}，勾选语义为当日购买并默认充足，不追问数量库位或日期。明确手工信息优先，不覆盖。
 只有用户明确描述剩余状态才建议变档；“用了一个”不能推出档位，不每做一顿就降一档。所有写操作仍须用户确认提案。

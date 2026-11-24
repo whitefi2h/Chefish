@@ -1,0 +1,64 @@
+{
+  "date": "2026-11-24",
+  "version": "2.4.8",
+  "changes": [
+    "Rough menu procurement ignores expiry dates for active stock; inventory expiry reminders remain.",
+    "Low stock covers one pending dish in the selected week; two or more occurrences generate the recipe-based purchase requirement. Counts are per canonical ingredient and planned dish, independent of servings or duplicate ingredient rows.",
+    "Adequate and surplus bands still cover weekly demand; exact quantity forecasting and independent manual shopping are preserved.",
+    "General assistant and weekly planner prompts follow the same procurement policy."
+  ],
+  "checks": {
+    "rust": {
+      "passed": 195,
+      "ignored": 14,
+      "log": "review/rough-policy-rust.log"
+    },
+    "unit": {
+      "passed": 50,
+      "skipped": 15,
+      "log": "review/rough-policy-unit.log"
+    },
+    "browser": {
+      "passed": 16,
+      "log": "review/rough-policy-ui.log"
+    },
+    "lint": true,
+    "regression": [
+      "Expired low stock covers one six-person dish even when unrelated dishes exist.",
+      "A second dish using the same canonical ingredient generates procurement; known ingredient aliases match.",
+      "Removing the second dish removes procurement; scheduling the same recipe twice counts as two dishes.",
+      "Expired adequate and surplus stock still covers multiple dishes.",
+      "Existing tests cover plan refresh, manual isolation, purchases, restart, undo, depleted stock and exact forecasting."
+    ],
+    "typecheck": true,
+    "build": {
+      "passed": true,
+      "signedInstaller": true,
+      "manifestVersionAndSignatureMatch": true,
+      "log": "review/rough-policy-release-build.log",
+      "assets": [
+        {
+          "path": "src-tauri/target/release/chefish.exe",
+          "bytes": 62774784
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/Chefish_2.4.8_x64-setup.exe",
+          "bytes": 44743271
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/Chefish_2.4.8_x64-setup.exe.sig",
+          "bytes": 436
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/latest.json",
+          "bytes": 1120
+        }
+      ]
+    }
+  },
+  "schema": 19,
+  "personalKitchenAccessed": false,
+  "limitations": [
+    "Isolated SQLite and browser IPC tests; no live model, two-device production sync or overwrite installation test."
+  ]
+}
