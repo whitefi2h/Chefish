@@ -360,7 +360,7 @@ export default function NativeShopping() {
               void mutate(
                 { type: "refresh_shopping", week_start: weekStart },
                 (s) => s,
-                "已重新计算并恢复本周移除项；购买记录保留",
+                "已更新菜单需求；手动项目与购买记录保留",
               )
             }
           >
@@ -441,113 +441,145 @@ export default function NativeShopping() {
                   </label>
                 </div>
               </div>
-              {displayed.map((i) => (
-                <div
-                  className={`shopping-row ${i.remaining === "0" && i.unreceived === "0" && i.received !== "0" ? "is-stocked" : ""}`}
-                  key={i.id ?? `${i.weekStart}|${i.ingredientId}|${i.unit}`}
-                  tabIndex={0}
-                  role="group"
-                  aria-label={`采购项目 · ${i.name}`}
-                  title="右键查看详情"
-                  onContextMenu={(event) => {
-                    event.preventDefault();
-                    setDetail(i);
-                  }}
-                  onKeyDown={(event) => {
-                    if (
-                      event.target === event.currentTarget &&
-                      (event.key === "ContextMenu" ||
-                        (event.shiftKey && event.key === "F10"))
-                    ) {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setDetail(i);
-                    }
-                  }}
+              {(["plan", "manual"] as const).map((source) => (
+                <section
+                  className="shopping-source-group"
+                  aria-label={source === "plan" ? "菜单需求" : "手动添加"}
+                  key={source}
                 >
-                  <div className="shopping-name">
-                    <div className="shopping-title">
-                      <IngredientAvatar
-                        ingredient={
-                          state.ingredients.find(
-                            (ingredient) => ingredient.id === i.ingredientId,
-                          ) ?? { name: i.name }
-                        }
-                      />
-                      <strong title={i.name}>{i.name}</strong>
-
-                      {i.hidden && <Badge>已忽略</Badge>}
-                      {i.estimated && (
-                        <span title={i.estimates?.join("；")}>
-                          <Badge>含估算</Badge>
-                        </span>
-                      )}
-                      {i.review && <Badge>待核对</Badge>}
-                    </div>
-                    <small>
-                      {i.roughStock
-                        ? `所需 ${format(i.required, i.unit)}${i.roughCovered ? " · 按当前档位暂不补货" : ""}`
-                        : i.source === "plan"
-                          ? `总需 ${format(i.required, i.unit)} · 库存 ${format(i.covered, i.unit)} · 仍缺 ${format(i.remaining, i.unit)}`
-                          : `需求量 ${format(i.required, i.unit)} · 仍缺 ${format(i.remaining, i.unit)}`}
-                    </small>
-                  </div>
-                  <div className="shopping-quantity">
-                    <strong>
-                      {i.remaining !== "0"
-                        ? `待买 ${format(i.remaining, i.unit)}`
-                        : i.purchased !== "0"
-                          ? "已购买"
-                          : "库存充足"}
-                    </strong>
-                  </div>
-                  <div className="row-actions">
-                    {preferences.inventoryMode === "rough" ? (
-                      <input
-                        type="checkbox"
-                        className="purchase-check"
-                        aria-label={`购买完成：${i.name}`}
-                        checked={
-                          i.remaining === "0" &&
-                          i.purchased !== "0" &&
-                          Number(i.unreceived) === 0
-                        }
-                        disabled={
-                          disabled ||
-                          (i.remaining === "0" && Number(i.unreceived) === 0)
-                        }
-                        onChange={async () => {
-                          await mutate(
-                            {
-                              type: "purchase_level_shopping",
-                              line_id: i.id,
-                              expected_version: i.version,
-                              ingredient_id: i.ingredientId,
-                              unit: i.unit,
-                              week_start: i.weekStart,
-                            },
-                            (s) => s,
-                            "已购买并入库",
-                          );
-                        }}
-                      />
-                    ) : (
-                      <button
-                        disabled={disabled || i.remaining === "0"}
-                        onClick={() => setForm({ kind: "buy", line: i })}
-                      >
-                        购买
-                      </button>
+                  <div className="shopping-source-heading">
+                    <h3>
+                      {source === "plan" ? "菜单需求" : "手动添加"}{" "}
+                      <Badge>
+                        {displayed.filter((i) => i.source === source).length}
+                      </Badge>
+                    </h3>
+                    {source === "manual" && (
+                      <span className="hint">更新计划时保留</span>
                     )}
-                    <button
-                      disabled={disabled}
-                      aria-label={`删除${i.name}`}
-                      onClick={() => setForm({ kind: "remove", line: i })}
-                    >
-                      <Trash2 size={15} />
-                    </button>
                   </div>
-                </div>
+                  {!displayed.some((i) => i.source === source) && (
+                    <p className="hint shopping-source-empty">
+                      {source === "plan"
+                        ? "暂无待购菜单需求"
+                        : "暂无手动添加项目"}
+                    </p>
+                  )}
+                  {displayed
+                    .filter((i) => i.source === source)
+                    .map((i) => (
+                      <div
+                        className={`shopping-row ${i.remaining === "0" && i.unreceived === "0" && i.received !== "0" ? "is-stocked" : ""}`}
+                        key={
+                          i.id ?? `${i.weekStart}|${i.ingredientId}|${i.unit}`
+                        }
+                        tabIndex={0}
+                        role="group"
+                        aria-label={`采购项目 · ${i.name}`}
+                        title="右键查看详情"
+                        onContextMenu={(event) => {
+                          event.preventDefault();
+                          setDetail(i);
+                        }}
+                        onKeyDown={(event) => {
+                          if (
+                            event.target === event.currentTarget &&
+                            (event.key === "ContextMenu" ||
+                              (event.shiftKey && event.key === "F10"))
+                          ) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setDetail(i);
+                          }
+                        }}
+                      >
+                        <div className="shopping-name">
+                          <div className="shopping-title">
+                            <IngredientAvatar
+                              ingredient={
+                                state.ingredients.find(
+                                  (ingredient) =>
+                                    ingredient.id === i.ingredientId,
+                                ) ?? { name: i.name }
+                              }
+                            />
+                            <strong title={i.name}>{i.name}</strong>
+
+                            {i.hidden && <Badge>已忽略</Badge>}
+                            {i.estimated && (
+                              <span title={i.estimates?.join("；")}>
+                                <Badge>含估算</Badge>
+                              </span>
+                            )}
+                            {i.review && <Badge>待核对</Badge>}
+                          </div>
+                          <small>
+                            {i.roughStock
+                              ? `所需 ${format(i.required, i.unit)}${i.roughCovered ? " · 按当前档位暂不补货" : ""}`
+                              : i.source === "plan"
+                                ? `总需 ${format(i.required, i.unit)} · 库存 ${format(i.covered, i.unit)} · 仍缺 ${format(i.remaining, i.unit)}`
+                                : `需求量 ${format(i.required, i.unit)} · 仍缺 ${format(i.remaining, i.unit)}`}
+                          </small>
+                        </div>
+                        <div className="shopping-quantity">
+                          <strong>
+                            {i.remaining !== "0"
+                              ? `待买 ${format(i.remaining, i.unit)}`
+                              : i.purchased !== "0"
+                                ? "已购买"
+                                : "库存充足"}
+                          </strong>
+                        </div>
+                        <div className="row-actions">
+                          {preferences.inventoryMode === "rough" ? (
+                            <input
+                              type="checkbox"
+                              className="purchase-check"
+                              aria-label={`购买完成：${i.name}`}
+                              checked={
+                                i.remaining === "0" &&
+                                i.purchased !== "0" &&
+                                Number(i.unreceived) === 0
+                              }
+                              disabled={
+                                disabled ||
+                                (i.remaining === "0" &&
+                                  Number(i.unreceived) === 0)
+                              }
+                              onChange={async () => {
+                                await mutate(
+                                  {
+                                    type: "purchase_level_shopping",
+                                    line_id: i.id,
+                                    expected_version: i.version,
+                                    ingredient_id: i.ingredientId,
+                                    unit: i.unit,
+                                    week_start: i.weekStart,
+                                  },
+                                  (s) => s,
+                                  "已购买并入库",
+                                );
+                              }}
+                            />
+                          ) : (
+                            <button
+                              disabled={disabled || i.remaining === "0"}
+                              onClick={() => setForm({ kind: "buy", line: i })}
+                            >
+                              购买
+                            </button>
+                          )}
+                          <button
+                            disabled={disabled}
+                            aria-label={`删除${i.name}`}
+                            onClick={() => setForm({ kind: "remove", line: i })}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </section>
               ))}
             </section>
           )}

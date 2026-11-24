@@ -1,0 +1,58 @@
+{
+  "date": "2026-11-24",
+  "version": "2.4.7",
+  "changes": [
+    "Shopping uses separate menu-demand and manually-added groups within the existing layout; existing add, purchase and delete controls remain.",
+    "Reuse manual source and NULL week scope; no schema change or data rewrite.",
+    "Manual quantities, versions, purchased and outstanding amounts, source, identity and history survive plan changes, removal, refresh, other weeks and reopening the database, including same-ingredient manual and plan lines in exact and rough modes.",
+    "Assistant menu updates preserve manual purchase intent; demo rows use the manual quantity rather than matching plan figures."
+  ],
+  "checks": {
+    "rust": {
+      "passed": 194,
+      "ignored": 14,
+      "log": "review/manual-shopping-rust.log"
+    },
+    "unit": {
+      "passed": 50,
+      "skipped": 15,
+      "log": "review/manual-shopping-unit.log"
+    },
+    "browser": {
+      "passed": 16,
+      "log": "review/manual-shopping-ui-final.log"
+    },
+    "typecheck": true,
+    "lint": true,
+    "screenshotReviewed": "review/manual-shopping-groups-v2.4.7.png",
+    "build": {
+      "passed": true,
+      "signedInstaller": true,
+      "manifestVersionAndSignatureMatch": true,
+      "log": "review/manual-shopping-release-build.log",
+      "assets": [
+        {
+          "path": "src-tauri\\target\\release\\chefish.exe",
+          "bytes": 62844928
+        },
+        {
+          "path": "src-tauri\\target\\release\\bundle\\nsis\\Chefish_2.4.7_x64-setup.exe",
+          "bytes": 44738760
+        },
+        {
+          "path": "src-tauri\\target\\release\\bundle\\nsis\\Chefish_2.4.7_x64-setup.exe.sig",
+          "bytes": 436
+        },
+        {
+          "path": "src-tauri\\target\\release\\bundle\\nsis\\latest.json",
+          "bytes": 1120
+        }
+      ]
+    }
+  },
+  "schema": 19,
+  "personalKitchenAccessed": false,
+  "limitations": [
+    "Isolated SQLite and browser IPC tests. No live model, online two-device or overwrite installation test was performed."
+  ]
+}

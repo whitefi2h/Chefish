@@ -78,6 +78,31 @@ fn manual(conn: &mut Connection) -> String {
     )
     .unwrap()
 }
+#[test]
+fn same_ingredient_manual_item_survives_plan_changes_refresh_other_weeks_and_restart() {
+    for mode in ["exact","rough"] {
+        let path=temp();let mut c=open(&path).unwrap();
+        let mut prefs=preferences::load(&c).unwrap();prefs.inventory_mode=mode.into();preferences::save(&mut c,prefs).unwrap();
+        let (rev,ingredient)=recipe(&mut c,"100",2);plan(&mut c,&rev,"2099-01-05",2);
+        execute(&mut c,&id(),serde_json::from_value(json!({"type":"save_shopping","line_id":null,"expected_version":null,"draft":{"name":"西兰花","category":"未分类","quantity":"350","unit":"g"}})).unwrap()).unwrap();
+        let manual=view(&c,"2099-01-05")["items"].as_array().unwrap().iter().find(|i|i["source"]=="manual").unwrap().clone();
+        execute(&mut c,&id(),serde_json::from_value(json!({"type":"record_purchase","line_id":manual["id"],"expected_version":manual["version"],"ingredient_id":ingredient,"unit":"g","week_start":null,"quantity":"50"})).unwrap()).unwrap();
+        let before=view(&c,"2099-01-05")["items"].as_array().unwrap().iter().find(|i|i["source"]=="manual").unwrap().clone();
+        let p=planner::plans(&c).unwrap()[0].clone();
+        execute(&mut c,&id(),serde_json::from_value(json!({"type":"save_plan","plan_id":p["id"],"expected_version":p["version"],"draft":{"recipe_revision_id":rev,"custom_title":null,"day":"2099-01-05","meal":"晚餐","servings":6}})).unwrap()).unwrap();
+        execute(&mut c,&id(),Command::RefreshShopping{week_start:"2099-01-05".into()}).unwrap();
+        let changed=view(&c,"2099-01-05");
+        assert_eq!(changed["items"].as_array().unwrap().iter().find(|i|i["source"]=="manual").unwrap(),&before);
+        assert_eq!(changed["items"].as_array().unwrap().iter().find(|i|i["source"]=="plan").unwrap()["required"],"300");
+        let p=planner::plans(&c).unwrap()[0].clone();
+        execute(&mut c,&id(),serde_json::from_value(json!({"type":"remove_plan","plan_id":p["id"],"expected_version":p["version"]})).unwrap()).unwrap();
+        execute(&mut c,&id(),Command::RefreshShopping{week_start:"2099-01-05".into()}).unwrap();
+        drop(c);let c=open(&path).unwrap();
+        for week in ["2099-01-05","2099-01-12"] {
+            assert_eq!(view(&c,week)["items"].as_array().unwrap().iter().find(|i|i["source"]=="manual").unwrap(),&before);
+        }
+    }
+}
 fn buy_cmd(conn: &Connection, key: &str, n: &str, version: i64) -> Command {
     let ingredient = conn
         .query_row(

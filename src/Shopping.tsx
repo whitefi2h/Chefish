@@ -118,75 +118,96 @@ function DemoShopping() {
                   </label>
                 </div>
               </div>
-              {items
-                .filter((item) => showPurchased || item.status === "pending")
-                .map((item) => {
-                  const n = demand.find((n) => keyOf(n) === keyOf(item));
-                  return (
-                    <div
-                      className={`shopping-row ${item.status === "stocked" ? "is-stocked" : ""}`}
-                      key={item.id}
-                      tabIndex={0}
-                      role="group"
-                      aria-label={`采购项目 · ${item.name}`}
-                      title="右键查看详情"
-                      onContextMenu={(event) => {
-                        event.preventDefault();
-                        setDetail(item);
-                      }}
-                      onKeyDown={(event) => {
-                        if (
-                          event.target === event.currentTarget &&
-                          (event.key === "ContextMenu" ||
-                            (event.shiftKey && event.key === "F10"))
-                        ) {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          setDetail(item);
-                        }
-                      }}
-                    >
-                      <div className="shopping-name">
-                        <div className="shopping-title">
-                          <IngredientAvatar
-                            ingredient={
-                              state.ingredients.find(
-                                (i) => i.id === item.ingredientId,
-                              ) ?? { name: item.name }
+              {(["plan", "manual"] as const).map((source) => (
+                <section
+                  className="shopping-source-group"
+                  aria-label={source === "plan" ? "菜单需求" : "手动添加"}
+                  key={source}
+                >
+                  <div className="shopping-source-heading">
+                    <h3>{source === "plan" ? "菜单需求" : "手动添加"}</h3>
+                    {source === "manual" && (
+                      <span className="hint">更新计划时保留</span>
+                    )}
+                  </div>
+                  {items
+                    .filter(
+                      (item) =>
+                        item.source === source &&
+                        (showPurchased || item.status === "pending"),
+                    )
+                    .map((item) => {
+                      const n =
+                        item.source === "plan"
+                          ? demand.find((n) => keyOf(n) === keyOf(item))
+                          : undefined;
+                      return (
+                        <div
+                          className={`shopping-row ${item.status === "stocked" ? "is-stocked" : ""}`}
+                          key={item.id}
+                          tabIndex={0}
+                          role="group"
+                          aria-label={`采购项目 · ${item.name}`}
+                          title="右键查看详情"
+                          onContextMenu={(event) => {
+                            event.preventDefault();
+                            setDetail(item);
+                          }}
+                          onKeyDown={(event) => {
+                            if (
+                              event.target === event.currentTarget &&
+                              (event.key === "ContextMenu" ||
+                                (event.shiftKey && event.key === "F10"))
+                            ) {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setDetail(item);
                             }
-                          />
-                          <strong title={item.name}>{item.name}</strong>
+                          }}
+                        >
+                          <div className="shopping-name">
+                            <div className="shopping-title">
+                              <IngredientAvatar
+                                ingredient={
+                                  state.ingredients.find(
+                                    (i) => i.id === item.ingredientId,
+                                  ) ?? { name: item.name }
+                                }
+                              />
+                              <strong title={item.name}>{item.name}</strong>
+                            </div>
+                            <small>
+                              {n
+                                ? `总需 ${amount(n.required, n.unit)} · 库存 ${amount(n.covered, n.unit)}`
+                                : `需求量 ${amount(item.quantity, item.unit)}`}
+                            </small>
+                          </div>
+                          <div className="shopping-quantity">
+                            <strong>
+                              {item.status === "pending"
+                                ? `待买 ${amount(item.quantity, item.unit)}`
+                                : "已购买"}
+                            </strong>
+                          </div>
+                          <div className="row-actions">
+                            <button
+                              disabled={item.status !== "pending"}
+                              onClick={() => setReceipt(item)}
+                            >
+                              购买
+                            </button>
+                            <button
+                              aria-label={`删除${item.name}`}
+                              onClick={() => setRemove(item)}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </div>
-                        <small>
-                          {n
-                            ? `总需 ${amount(n.required, n.unit)} · 库存 ${amount(n.covered, n.unit)}`
-                            : `需求量 ${amount(item.quantity, item.unit)}`}
-                        </small>
-                      </div>
-                      <div className="shopping-quantity">
-                        <strong>
-                          {item.status === "pending"
-                            ? `待买 ${amount(item.quantity, item.unit)}`
-                            : "已购买"}
-                        </strong>
-                      </div>
-                      <div className="row-actions">
-                        <button
-                          disabled={item.status !== "pending"}
-                          onClick={() => setReceipt(item)}
-                        >
-                          购买
-                        </button>
-                        <button
-                          aria-label={`删除${item.name}`}
-                          onClick={() => setRemove(item)}
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                </section>
+              ))}
             </section>
           )}
           <details className="panel covered">

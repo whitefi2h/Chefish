@@ -5149,3 +5149,10 @@ td button > svg {
 .steward-shopping-list small {
   color: var(--muted);
 }
+
+.shopping-source-group { padding-top: 14px; }
+.shopping-source-group + .shopping-source-group { margin-top: 16px; border-top: 1px solid var(--border); }
+.shopping-source-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.shopping-source-heading h3 { margin:0; font-size:14px; font-weight:600; display:flex; align-items:center; gap:8px; }
+.shopping-source-heading .hint { font-size:12px; }
+.shopping-source-empty { padding:10px 0 0; margin-bottom:0; }

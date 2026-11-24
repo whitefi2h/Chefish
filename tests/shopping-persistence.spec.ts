@@ -233,6 +233,37 @@ async function shoppingIPC(
               f.items.forEach((i) => {
                 i.hidden = false;
               });
+            if (c.type === "save_shopping") {
+              const d = c.draft as {
+                name: string;
+                category: string;
+                quantity: string;
+                unit: string;
+              };
+              const ingredient = state.ingredients.find(
+                (i) => i.name === d.name,
+              );
+              f.items.push({
+                ...f.items.find((i) => i.source === "manual")!,
+                id: "manual-added",
+                version: 1,
+                ingredientId: ingredient?.id ?? "new",
+                source: "manual",
+                weekStart: null,
+                name: d.name,
+                category: d.category,
+                unit: d.unit,
+                required: d.quantity,
+                remaining: d.quantity,
+                shortage: d.quantity,
+                covered: "0",
+                purchased: "0",
+                received: "0",
+                unreceived: "0",
+                sources: [],
+                history: [],
+              });
+            }
             if (c.type === "save_shopping_memo") state.memo = String(c.memo);
             state.dataRevision = String(Number(state.dataRevision) + 1);
             sessionStorage.setItem(
@@ -296,7 +327,7 @@ for (const [width, height] of [
     await expect(page.locator(".shopping-list h2")).toHaveText("购物清单 4");
     await expect(
       page.locator(".shopping-row .shopping-title > strong"),
-    ).toHaveText(["牛肉", "大米", "口蘑", "三文鱼"]);
+    ).toHaveText(["牛肉", "口蘑", "三文鱼", "大米"]);
     await expect(page.getByRole("main")).not.toContainText("累计已买");
     await expect(page.getByRole("main")).not.toContainText("入库");
     await expect(page.getByText("需核对", { exact: true })).toHaveCount(0);
@@ -687,4 +718,51 @@ test("legacy bought stock can be checked into inventory even with no remaining p
   await checkbox.click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(checkbox).toHaveCount(0);
+});
+
+test("manual and menu purchases remain separate for the same ingredient after refresh and week changes", async ({
+  page,
+}) => {
+  await shoppingIPC(page, "", false, false, false, true);
+  const menu = page.getByRole("region", { name: "菜单需求", exact: true });
+  const manual = page.getByRole("region", { name: "手动添加", exact: true });
+  await expect(
+    menu.getByRole("group", { name: "采购项目 · 牛肉", exact: true }),
+  ).toContainText("550");
+  await expect(manual).toContainText("大米");
+  await page.getByRole("button", { name: "手动添加", exact: true }).click();
+  await page.getByLabel("采购食材名称").fill("牛肉");
+  await page.getByLabel("采购数量").fill("250");
+  await page.getByRole("button", { name: "保存采购项目", exact: true }).click();
+  const row = manual.getByRole("group", {
+    name: "采购项目 · 牛肉",
+    exact: true,
+  });
+  await expect(row).toContainText("250");
+  await page.getByRole("button", { name: "更新计划需求", exact: true }).click();
+  await expect(row).toContainText("250");
+  await expect(
+    menu.getByRole("group", { name: "采购项目 · 牛肉", exact: true }),
+  ).toContainText("550");
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.screenshot({
+    path: "review/manual-shopping-groups-v2.4.7.png",
+    fullPage: true,
+  });
+  await page.getByLabel("采购清单周", { exact: true }).fill("2026-10-26");
+  await expect(menu.getByRole("group")).toHaveCount(0);
+  await expect(row).toContainText("250");
+  await page.reload();
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "采购清单" })
+    .click();
+  await expect(
+    manual.getByRole("group", { name: "采购项目 · 牛肉", exact: true }),
+  ).toContainText("250");
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.screenshot({
+    path: "review/manual-shopping-v2.4.7.png",
+    fullPage: true,
+  });
 });
