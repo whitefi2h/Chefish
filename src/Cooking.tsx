@@ -74,6 +74,7 @@ export function CookingForm({
   const [error, setError] = useState("");
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [refresh, setRefresh] = useState(0);
+  const stockRevision = coarse ? state.dataRevision : undefined;
   useEffect(() => {
     let alive = true;
     interpretEpoch.current += 1;
@@ -88,6 +89,14 @@ export function CookingForm({
       .then((p) => {
         if (!alive) return;
         setPreview(p);
+        if (coarse) {
+          const ids = new Set(p.rows.flatMap((r) => r.lots.map((l) => l.id)));
+          setLevelChanges((v) =>
+            Object.fromEntries(Object.entries(v).filter(([id]) => ids.has(id))),
+          );
+          for (const id of touchedLevels.current)
+            if (!ids.has(id)) touchedLevels.current.delete(id);
+        }
         setQuantities(
           Object.fromEntries(
             p.rows.flatMap((r) => r.lots.map((l) => [l.id, l.suggested])),
@@ -108,7 +117,7 @@ export function CookingForm({
       alive = false;
       interpretEpoch.current += 1;
     };
-  }, [plan.id, servings, date, refresh]);
+  }, [plan.id, servings, date, refresh, coarse, stockRevision]);
   const previewLots = preview?.rows.flatMap((r) => r.lots) ?? [];
   const conflicts = Object.entries(levelChanges).filter(([id, change]) => {
     const lot = previewLots.find((l) => l.id === id);

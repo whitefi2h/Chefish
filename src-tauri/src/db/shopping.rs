@@ -681,16 +681,16 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
     }
     let stock=stock_rows;
     for row in &mut items {
-        let matching=stock.iter().filter(|l| l["measurement"]=="level" && l["stockPresent"]==true && l["ingredientId"]==row["ingredientId"]).collect::<Vec<_>>();
-        if !coarse && matching.is_empty(){continue;}
+        let mut matching=Vec::new();
+        for lot in &stock {
+            if lot["stockPresent"]==true && ingredient_standard::matches(conn,lot["ingredientId"].as_str().unwrap(),row["ingredientId"].as_str().unwrap())? {matching.push(lot);}
+        }
+        if !coarse && !matching.iter().any(|l|l["measurement"]=="level"){continue;}
         row["roughStock"]=json!(true);
-        // A band is not a weight. Only the stated two-meal lower bound can cover
-        // a small plan; larger/uncertain plans retain a recipe-based shopping amount.
         let sources=row["sources"].as_array().cloned().unwrap_or_default();
-        let max_people=row["maxPeople"].as_i64().unwrap_or(1);
-        let covered=row["source"]=="plan" && !sources.is_empty() && sources.len()<=2 && matching.iter().any(|lot|{
-            lot["level"].as_i64().unwrap_or(-1)>=1 &&
-            measurement::get(conn,lot["id"].as_str().unwrap()).ok().flatten().is_some_and(|m|m["referenceServings"].as_i64().unwrap_or(1)>=max_people) &&
+        // Bands express the user's current stock judgement, not a two-meal quantity cap.
+        let covered=row["source"]=="plan" && !sources.is_empty() && matching.iter().any(|lot|{
+            ((coarse && lot["measurement"]!="level") || lot["level"].as_i64().is_some_and(|level|level>=1)) &&
             sources.iter().all(|s| lot["expires"].as_str().is_none_or(|expiry|s.as_str().unwrap_or("").get(..10).is_some_and(|day|expiry>=day)))
         });
         row["roughCovered"]=json!(covered);
@@ -753,13 +753,21 @@ fn item(
 #[path = "shopping_tests.rs"]
 mod tests;
 
-pub fn purchase_level(tx:&Transaction,key:Option<String>,expected:i64,ingredient:&str,u:&str,scope:Option<String>)->Result<()> {
+pub fn purchase_level(tx:&Transaction,key:Option<String>,mut expected:i64,ingredient:&str,u:&str,scope:Option<String>)->Result<()> {
     if !measurement::rough(tx)? {return Err(error("INVALID_INPUT","请先开启粗略计量模式"));}
+    if let Some(ref key)=key {
+        version(tx,key,expected)?;
+        let (bought,stocked)=totals(tx,key)?;
+        if bought>stocked {
+            receive_from(tx,key,expected,&show(bought-stocked),"未指定",&local_today(tx)?,None,None)?;
+            expected=tx.query_row("SELECT version FROM shopping_lines WHERE id=?1",[key],|r|r.get(0))?;
+        }
+    }
     let week=scope.clone().unwrap_or(week(tx,&local_today(tx)?)?);
     let forecast=forecast_inner(tx,&week,&local_today(tx)?)?;
-    let line=forecast["items"].as_array().unwrap().iter().find(|row| row["ingredientId"]==ingredient && row["unit"]==u && (key.is_none() || row["id"]==json!(key)))
+    let line=forecast["items"].as_array().unwrap().iter().find(|row| row["ingredientId"]==ingredient && row["unit"]==u && row["weekStart"]==json!(scope) && row["id"]==json!(key))
         .ok_or_else(||error("NOT_FOUND","采购项目已变化，请刷新"))?;
     let amount=line["remaining"].as_str().unwrap();
-    if number(amount)? <= Decimal::ZERO {return Err(error("NO_CHANGE","该项已购买或无需购买"));}
+    if number(amount)? <= Decimal::ZERO {return Ok(());}
     purchase(tx,key,expected,ingredient,u,scope,amount,"未指定",&local_today(tx)?,None)
 }

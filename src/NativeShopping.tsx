@@ -324,10 +324,21 @@ export default function NativeShopping() {
   const missingSeasonings = supplies(state).filter((s) => s.missing);
   const disabled = busy || forecastLoading || !forecast;
   const visible = items
-    .filter((i) => !i.hidden)
+    .filter(
+      (i) =>
+        !i.hidden &&
+        (preferences.inventoryMode !== "rough" ||
+          i.remaining !== "0" ||
+          i.purchased !== "0" ||
+          Number(i.unreceived) > 0),
+    )
     .sort((a, b) => Number(b.remaining !== "0") - Number(a.remaining !== "0"));
   const displayed = visible.filter(
-    (i) => showPurchased || i.remaining !== "0" || i.purchased === "0",
+    (i) =>
+      showPurchased ||
+      Number(i.unreceived) > 0 ||
+      i.remaining !== "0" ||
+      i.purchased === "0",
   );
   return (
     <>
@@ -496,8 +507,15 @@ export default function NativeShopping() {
                         type="checkbox"
                         className="purchase-check"
                         aria-label={`购买完成：${i.name}`}
-                        checked={i.remaining === "0" && i.purchased !== "0"}
-                        disabled={disabled || i.remaining === "0"}
+                        checked={
+                          i.remaining === "0" &&
+                          i.purchased !== "0" &&
+                          Number(i.unreceived) === 0
+                        }
+                        disabled={
+                          disabled ||
+                          (i.remaining === "0" && Number(i.unreceived) === 0)
+                        }
                         onChange={async () => {
                           await mutate(
                             {

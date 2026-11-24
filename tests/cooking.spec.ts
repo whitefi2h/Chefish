@@ -962,3 +962,41 @@ test("exact cooking can refill a qualitative batch without losing the cooking re
     },
   ]);
 });
+
+test("background removal drops obsolete cooking controls but keeps the written record", async ({
+  page,
+}) => {
+  await cookingIPC(page, false, true, true);
+  await page.getByLabel("烹饪记录", { exact: true }).fill("保留记录");
+  await page.getByRole("slider").first().focus();
+  await page.keyboard.press("Home");
+  await page.evaluate(async () => {
+    const t = window as unknown as {
+      __TAURI_INTERNALS__: {
+        invoke: (n: string, a: unknown) => Promise<unknown>;
+      };
+    };
+    const old = t.__TAURI_INTERNALS__.invoke;
+    t.__TAURI_INTERNALS__.invoke = async (n, a) => {
+      const p = await old(n, a);
+      return n === "kitchen_cooking" ? { ...(p as object), rows: [] } : p;
+    };
+    const s = (await old("kitchen_bootstrap", {})) as { dataRevision: string };
+    s.dataRevision = "13";
+    window.dispatchEvent(new Event("chefish:sync-data"));
+  });
+  await expect(page.getByRole("slider")).toHaveCount(0);
+  await expect(page.getByLabel("烹饪记录", { exact: true })).toHaveValue(
+    "保留记录",
+  );
+  await expect(
+    page.getByRole("button", { name: "确认完成", exact: true }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "确认完成", exact: true }).click();
+  const commands = await page.evaluate(
+    () => (window as unknown as { cookingCommands: unknown[] }).cookingCommands,
+  );
+  expect(commands).toMatchObject([
+    { changes: [], draft: { record: "保留记录" } },
+  ]);
+});

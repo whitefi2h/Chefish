@@ -454,8 +454,10 @@ fn manually_opened_menu_draft_reuses_one_persistent_task() {
 
 #[test]
 fn maintenance_reports_merge_legacy_duplicates_and_reuse_pending_task() {
-    let c = open(&temp()).unwrap();
-    let payload = json!({"items":[{"entityKind":"ingredient","entityId":"unknown","name":"AAA"}],"questions":[{"entityKind":"ingredient","entityId":"unknown","name":"AAA","reason":"unknown_identity","question":"AAA是什么？"}],"operations":[]});
+    let mut c = open(&temp()).unwrap();
+    execute(&mut c,&id(),serde_json::from_value(json!({"type":"receive_lot","draft":{"name":"AAA","category":"未分类","quantity":"1","unit":"个","location":"冷藏","received":"2026-11-24","expires":null,"precision":"exact"}})).unwrap()).unwrap();
+    let unknown=snapshot(&c).unwrap()["lots"][0]["ingredientId"].clone();
+    let payload = json!({"items":[{"entityKind":"ingredient","entityId":unknown,"name":"AAA"}],"questions":[{"entityKind":"ingredient","entityId":unknown,"name":"AAA","reason":"unknown_identity","question":"AAA是什么？"}],"operations":[]});
     put_item(&c, "old1", "maintenance", "整理", "旧报告", payload.clone()).unwrap();
     put_item(&c, "old2", "maintenance", "整理", "旧报告", payload.clone()).unwrap();
     let st = state(&c).unwrap();
@@ -502,8 +504,10 @@ fn maintenance_reports_merge_legacy_duplicates_and_reuse_pending_task() {
 
 #[test]
 fn old_replied_maintenance_and_its_duplicate_leave_pending() {
-    let c = open(&temp()).unwrap();
-    let p = json!({"items":[],"questions":[{"entityKind":"ingredient","entityId":"unknown","name":"AAA","reason":"unknown_identity"}],"operations":[]});
+    let mut c = open(&temp()).unwrap();
+    execute(&mut c,&id(),serde_json::from_value(json!({"type":"receive_lot","draft":{"name":"AAA","category":"未分类","quantity":"1","unit":"个","location":"冷藏","received":"2026-11-24","expires":null,"precision":"exact"}})).unwrap()).unwrap();
+    let unknown=snapshot(&c).unwrap()["lots"][0]["ingredientId"].clone();
+    let p = json!({"items":[],"questions":[{"entityKind":"ingredient","entityId":unknown,"name":"AAA","reason":"unknown_identity"}],"operations":[]});
     let task = put_item(&c, "replied", "maintenance", "整理", "报告", p.clone()).unwrap();
     put_item(&c, "duplicate", "maintenance", "整理", "报告", p).unwrap();
     crate::ai::save_task_history(&c,&task,&json!({"messages":[{"role":"user","content":"AAA是黄瓜"},{"role":"assistant","content":"已补充"}],"candidates":[],"proposal":null})).unwrap();

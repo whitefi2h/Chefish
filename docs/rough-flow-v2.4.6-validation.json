@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-24",
+  "version": "2.4.6",
+  "fixes": [
+    "Qualitative sufficient/surplus stock covers plan demand without two-meal or serving-count caps; exact positive stock is also recognized in rough mode; historical aliases use canonical identity matching.",
+    "Stock-covered zero-purchase rows are excluded from the rough shopping list. Low bands and expiry insufficient for planned meals still require purchases.",
+    "Exhausted or deleted stock is removed from rough snapshot and incremental inventory projections, cooking previews, assistant stock and maintenance ingredient/lot tasks. Legacy zero decimal quantities with residual positive bands are recognized as exhausted.",
+    "Obsolete manual cooking controls are removed on background stock refresh while preserving the written record.",
+    "Checking a purchase receives outstanding legacy purchases and buys/receives any remaining need in one transaction, preserves current purchase date and sufficient band, without duplicate purchase events. Source/week matching prevents selecting unrelated shopping lines."
+  ],
+  "historyPolicy": "Active removal is logical. Referenced historical rows, undo events and synchronization tombstones remain to protect cooking history and prevent resurrection. No physical cascade purge.",
+  "checks": {
+    "rust": {
+      "passed": 193,
+      "ignored": 14,
+      "log": "review/rough-flow-rust-final.log"
+    },
+    "unit": {
+      "passed": 50,
+      "skipped": 15,
+      "log": "review/rough-flow-unit.log"
+    },
+    "browser": {
+      "suitePassed": 67,
+      "suiteLog": "review/rough-flow-ui-final.log",
+      "finalCooking": 22,
+      "finalCookingLog": "review/rough-flow-cooking-final.log",
+      "uniqueCases": 68
+    },
+    "lint": true,
+    "build": {
+      "passed": true,
+      "signedInstaller": true,
+      "manifestVersionAndSignatureMatch": true,
+      "log": "review/rough-flow-release-build.log",
+      "assets": [
+        {
+          "path": "src-tauri\\target\\release\\chefish.exe",
+          "bytes": 62840320
+        },
+        {
+          "path": "src-tauri\\target\\release\\bundle\\nsis\\Chefish_2.4.6_x64-setup.exe",
+          "bytes": 44736112
+        },
+        {
+          "path": "src-tauri\\target\\release\\bundle\\nsis\\Chefish_2.4.6_x64-setup.exe.sig",
+          "bytes": 436
+        },
+        {
+          "path": "src-tauri\\target\\release\\bundle\\nsis\\latest.json",
+          "bytes": 1447
+        }
+      ]
+    }
+  },
+  "schema": 19,
+  "personalKitchenAccessed": false,
+  "limitations": [
+    "Isolated SQLite and browser IPC tests; real online two-device, actual model calls and overwrite installation were not performed."
+  ]
+}

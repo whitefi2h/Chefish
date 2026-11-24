@@ -148,7 +148,7 @@ pub fn preview_with_lots(conn: &Connection, key: &str, servings: i64, date: &str
     let present: BTreeSet<String> = rows.iter().flat_map(|r| r["lots"].as_array().unwrap().iter().filter_map(|l| l["id"].as_str().map(str::to_owned))).collect();
     for lot in inventory::lots(conn)? {
         let id = lot["id"].as_str().unwrap();
-        if !lot_ids.iter().any(|wanted| wanted == id) || present.contains(id) { continue; }
+        if lot["stockPresent"]==false || !lot_ids.iter().any(|wanted| wanted == id) || present.contains(id) { continue; }
         let name: String = conn.query_row("SELECT name FROM ingredients WHERE id=?1", [lot["ingredientId"].as_str().unwrap()], |r| r.get(0))?;
         rows.push(json!({"ingredientId":lot["ingredientId"],"name":name,"unit":lot["unit"],"required":"0","missing":"0","lots":[{"id":id,"version":lot["version"],"available":"0","location":lot["location"],"expires":lot["expires"],"review":false,"suggested":"0","unit":lot["unit"],"measurement":lot["measurement"],"level":lot["level"],"stockRevision":lot["stockRevision"]}]}));
     }

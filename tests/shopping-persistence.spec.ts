@@ -190,7 +190,14 @@ async function shoppingIPC(
                 c.type === "purchase_level_shopping"
               ) {
                 i.purchased = String(Number(i.purchased) + n);
-                i.received = String(Number(i.received) + n);
+                i.received = String(
+                  Number(i.received) +
+                    n +
+                    (c.type === "purchase_level_shopping"
+                      ? Number(i.unreceived)
+                      : 0),
+                );
+                if (c.type === "purchase_level_shopping") i.unreceived = "0";
                 i.remaining = String(Math.max(0, Number(i.remaining) - n));
               } else {
                 i.received = String(Number(i.received) + n);
@@ -626,4 +633,58 @@ test("rough shopping replaces only the buy action with a checkbox and does not o
     { type: "purchase_level_shopping", ingredient_id: "beef" },
   ]);
   await page.screenshot({ path: "docs/screenshots/rough-mode/shopping.png" });
+});
+
+test("stock-covered items leave the shopping list after menu refresh", async ({
+  page,
+}) => {
+  await shoppingIPC(page, "", false, false, false, true);
+  await page.evaluate(async () => {
+    const api = (
+      window as unknown as {
+        __TAURI_INTERNALS__: {
+          invoke: (n: string, a: unknown) => Promise<ShoppingForecast>;
+        };
+      }
+    ).__TAURI_INTERNALS__;
+    const f = await api.invoke("kitchen_shopping", { weekStart: "2026-10-19" });
+    const line = f.items.find((i) => i.ingredientId === "beef")!;
+    Object.assign(line, {
+      remaining: "0",
+      purchased: "0",
+      received: "0",
+      unreceived: "0",
+      roughCovered: true,
+    });
+    window.dispatchEvent(new Event("chefish:sync-data"));
+  });
+  await expect(
+    page.getByRole("group", { name: "采购项目 · 牛肉", exact: true }),
+  ).toHaveCount(0);
+});
+test("legacy bought stock can be checked into inventory even with no remaining purchase", async ({
+  page,
+}) => {
+  await shoppingIPC(page, "", false, false, false, true);
+  await page.evaluate(async () => {
+    const api = (
+      window as unknown as {
+        __TAURI_INTERNALS__: {
+          invoke: (n: string, a: unknown) => Promise<ShoppingForecast>;
+        };
+      }
+    ).__TAURI_INTERNALS__;
+    const f = await api.invoke("kitchen_shopping", { weekStart: "2026-10-19" });
+    f.items.find((i) => i.ingredientId === "beef")!.remaining = "0";
+    window.dispatchEvent(new Event("chefish:sync-data"));
+  });
+  const checkbox = page.getByRole("checkbox", {
+    name: "购买完成：牛肉",
+    exact: true,
+  });
+  await expect(checkbox).toBeEnabled();
+  await expect(checkbox).not.toBeChecked();
+  await checkbox.click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(checkbox).toHaveCount(0);
 });

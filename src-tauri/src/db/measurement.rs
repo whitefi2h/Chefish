@@ -227,7 +227,7 @@ mod tests {
         );
         let unestimated=shopping::forecast(&c,&week).unwrap();
         assert_eq!(unestimated["items"][0]["covered"],"0");
-        assert_eq!(unestimated["items"][0]["remaining"],"200");
+        assert_eq!(unestimated["items"][0]["remaining"],"0");
         run(
             &mut c,
             json!({"type":"set_stock_level","change":{"lot_id":row["id"],"expected_version":row["version"],"level":0}}),
@@ -258,8 +258,8 @@ mod tests {
             );
         }
         let repeated = shopping::forecast(&c, &week).unwrap();
-        assert_eq!(repeated["items"][0]["remaining"], "600");
-        assert_eq!(repeated["items"][0]["roughCovered"], false);
+        assert_eq!(repeated["items"][0]["remaining"], "0");
+        assert_eq!(repeated["items"][0]["roughCovered"], true);
     }
     fn compat_recipe(c:&mut Connection,name:&str,ingredient:&str)->Value {
         run(c,json!({"type":"create_recipe","draft":{"name":name,"category":"未分类","minutes":10,"servings":2,"subtitle":"","seasoning":"","ingredients":[{"name":ingredient,"quantity":"200","unit":"g"}],"steps":["煮熟"]}}));
@@ -285,7 +285,7 @@ mod tests {
         compat_plan(&mut c,&greens,&later,6);
         let large = line(shopping::forecast(&c,&week).unwrap());
         assert_eq!(large["maxPeople"],6);
-        assert_eq!(large["remaining"],"800");
+        assert_eq!(large["remaining"],"0");
         let lot=inventory_rows(&c).unwrap()[0].clone();
         c.execute("UPDATE inventory_lots SET expires_on=NULL WHERE id=?1",[lot["id"].as_str().unwrap()]).unwrap();
         c.execute("INSERT OR REPLACE INTO app_settings VALUES(?1,?2)",params![format!("steward_meta:lot:{}",lot["id"].as_str().unwrap()),json!({"reviewOn":"2000-01-01"}).to_string()]).unwrap();
@@ -335,14 +335,60 @@ mod tests {
         let egg=before["rows"].as_array().unwrap().iter().find(|r|r["name"]=="鸡蛋").unwrap()["lots"][0].clone();
         run(&mut c,json!({"type":"set_stock_level","change":{"lot_id":egg_id,"expected_version":egg["version"],"level":-1}}));
         let after=cooking::preview_with_lots(&c,plan,2,&today,&[egg_id]).unwrap();
-        let fresh=&after["rows"].as_array().unwrap().iter().find(|r|r["name"]=="鸡蛋").unwrap()["lots"][0];
-        assert_eq!(fresh["level"],-1);assert_ne!(fresh["stockRevision"],egg["stockRevision"]);
+        assert!(!after["rows"].as_array().unwrap().iter().any(|r|r["name"]=="鸡蛋"));
         let mut prefs=preferences::load(&c).unwrap();prefs.inventory_mode="exact".into();preferences::save(&mut c,prefs).unwrap();
         let context=crate::cooking_ai::context(&c,plan,2,&today).unwrap();
         assert!(context["stock"].as_array().unwrap().is_empty());
         assert_eq!(context["levelStock"][0]["name"],"青菜");
         assert_eq!(context["levelStock"][0]["level"],1);
         assert!(context["levelStock"][0].get("quantity").is_none());
+    }
+
+    #[test]
+    fn depleted_and_deleted_stock_leave_cooking_and_maintenance_and_undo_recovers() {
+        let mut c=kitchen();let today=shopping::local_today(&c).unwrap();
+        let rev=compat_recipe(&mut c,"炒青菜","青菜");compat_plan(&mut c,&rev,&today,2);
+        run(&mut c,json!({"type":"receive_level_lot","name":"青菜","category":"自动分类","level":1}));
+        let s=snapshot(&c).unwrap();let lot=&s["lots"][0];let plan=s["plans"][0]["id"].as_str().unwrap();
+        run(&mut c,json!({"type":"set_stock_level","change":{"lot_id":lot["id"],"expected_version":1,"level":-1}}));
+        assert!(snapshot(&c).unwrap()["lots"].as_array().unwrap().is_empty());
+        assert!(inventory_update(&c,"1").unwrap()["lots"].as_array().unwrap().is_empty());
+        assert!(cooking::preview(&c,plan,2,&today).unwrap()["rows"][0]["lots"].as_array().unwrap().is_empty());
+        assert!(!steward::entities(&c).unwrap().iter().any(|e|e["entityKind"]=="lot" || e["entityKind"]=="ingredient"));
+        let op=undo::status(&c).unwrap()["operationId"].clone();run(&mut c,json!({"type":"undo","operation_id":op}));
+        assert_eq!(snapshot(&c).unwrap()["lots"][0]["level"],1);
+        let lot=snapshot(&c).unwrap()["lots"][0].clone();
+        run(&mut c,json!({"type":"delete_lot","lot_id":lot["id"],"expected_version":lot["version"]}));
+        assert!(snapshot(&c).unwrap()["lots"].as_array().unwrap().is_empty());
+        assert!(!steward::entities(&c).unwrap().iter().any(|e|e["entityKind"]=="ingredient"));
+    }
+    #[test]
+    fn checked_legacy_purchase_receives_existing_purchase_without_duplicate_buying() {
+        let mut c=kitchen();
+        run(&mut c,json!({"type":"save_shopping","line_id":null,"expected_version":null,"draft":{"name":"鸡蛋","category":"肉禽蛋","quantity":"6","unit":"个"}}));
+        let week=shopping::week(&c,&shopping::local_today(&c).unwrap()).unwrap();let row=shopping::forecast(&c,&week).unwrap()["items"][0].clone();
+        run(&mut c,json!({"type":"record_purchase","line_id":row["id"],"expected_version":row["version"],"ingredient_id":row["ingredientId"],"unit":row["unit"],"week_start":null,"quantity":"6"}));
+        let row=shopping::forecast(&c,&week).unwrap()["items"][0].clone();
+        run(&mut c,json!({"type":"purchase_level_shopping","line_id":row["id"],"expected_version":row["version"],"ingredient_id":row["ingredientId"],"unit":row["unit"],"week_start":null}));
+        let lots=inventory_rows(&c).unwrap();assert_eq!(lots.len(),1);assert_eq!(lots[0]["level"],1);assert_eq!(lots[0]["received"],shopping::local_today(&c).unwrap());
+        assert_eq!(c.query_row("SELECT count(*) FROM purchase_events",[],|r|r.get::<_,i64>(0)).unwrap(),1);
+        assert_eq!(shopping::forecast(&c,&week).unwrap()["items"][0]["unreceived"],"0");
+    }
+    #[test]
+    fn legacy_alias_stock_covers_updated_week_and_exhaustion_does_not_resurrect() {
+        let mut c=kitchen();let today=shopping::local_today(&c).unwrap();let rev=compat_recipe(&mut c,"蒜香菜","大蒜");
+        compat_plan(&mut c,&rev,&today,6);
+        run(&mut c,json!({"type":"receive_lot","draft":{"name":"大蒜","category":"蔬菜菌菇","quantity":"20","unit":"g","location":"冷藏","received":today,"expires":"2099-12-31","precision":"exact"}}));
+        let lot=inventory_rows(&c).unwrap()[0].clone();let alias=id();
+        c.execute("INSERT INTO ingredients SELECT ?1,'蒜头',category_id FROM ingredients WHERE id=?2",params![alias,lot["ingredientId"].as_str().unwrap()]).unwrap();
+        c.execute("UPDATE inventory_lots SET ingredient_id=?1 WHERE id=?2",params![alias,lot["id"].as_str().unwrap()]).unwrap();
+        let week=shopping::week(&c,&today).unwrap();assert_eq!(shopping::forecast(&c,&week).unwrap()["items"][0]["remaining"],"0");
+        run(&mut c,json!({"type":"change_lot","lot_id":lot["id"],"expected_version":1,"operation":"use","quantity":"20","location":null,"reason":"用完"}));
+        // Reproduce an old synchronized positive band left beside a zero-use event.
+        c.execute("UPDATE inventory_lots SET amount_decimal='0.00' WHERE id=?1",[lot["id"].as_str().unwrap()]).unwrap();
+        write(&c,lot["id"].as_str().unwrap(),Some(&json!({"level":1,"source":"purchase","referenceServings":2}))).unwrap();
+        assert!(snapshot(&c).unwrap()["lots"].as_array().unwrap().is_empty());
+        assert_eq!(shopping::forecast(&c,&week).unwrap()["items"][0]["remaining"],"600");
     }
 
 }

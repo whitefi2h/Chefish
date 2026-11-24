@@ -475,11 +475,16 @@ pub fn lots(conn: &Connection) -> Result<Vec<Value>> {
     let mut rows = rows;
     let mut legacy_expiry = false;
     for row in &mut rows {
+        let empty=decimal(row["quantity"].as_str().unwrap())?==Decimal::ZERO;
         let measurement = measurement::get(conn,row["id"].as_str().unwrap())?;
         row["stockRevision"] = json!(measurement::stock_revision(conn,row["id"].as_str().unwrap())?);
         row["measurement"] = json!(if measurement.is_some() {"level"} else {"exact"});
         row["level"] = measurement.as_ref().map(|m|m["level"].clone()).unwrap_or(Value::Null);
-        row["stockPresent"] = json!(measurement.as_ref().map_or(row["quantity"].as_str().unwrap() != "0", |m|m["level"].as_i64().unwrap() >= 0));
+        row["stockPresent"] = json!(measurement.as_ref().map_or(!empty, |m|m["level"].as_i64().unwrap() >= 0));
+        if empty && row["stockPresent"]==true {
+            let exhausted:bool=conn.query_row("SELECT coalesce((SELECT kind IN ('use','discard') FROM inventory_events WHERE lot_id=?1 ORDER BY after_version DESC,rowid DESC LIMIT 1),0)",[row["id"].as_str().unwrap()],|r|r.get(0))?;
+            if exhausted {row["stockPresent"]=json!(false);row["level"]=json!(-1);}
+        }
         if measurement.is_some() { row["quantity"] = json!("0"); }
         row["steward"] = super::steward::metadata(conn, "lot", row["id"].as_str().unwrap())?;
         if row["expires"].is_null() && row["steward"]["expiryOrigin"] == "legacy" {
@@ -496,6 +501,10 @@ pub fn lots(conn: &Connection) -> Result<Vec<Value>> {
     }
     Ok(rows)
 }
+pub fn visible_lots(conn:&Connection)->Result<Vec<Value>> {
+    let coarse=measurement::rough(conn)?;
+    Ok(lots(conn)?.into_iter().filter(|l|!coarse || l["stockPresent"]!=false).collect())
+}
 pub fn update_snapshot(conn: &Connection, base_revision: &str) -> Result<Value> {
     let revision: String = conn.query_row(
         "SELECT value FROM app_settings WHERE key='data_revision'",
@@ -503,7 +512,7 @@ pub fn update_snapshot(conn: &Connection, base_revision: &str) -> Result<Value> 
         |r| r.get(0),
     )?;
     Ok(
-        json!({"baseRevision":base_revision,"dataRevision":revision,"lots":lots(conn)?,"inventoryEvents":events(conn)?,"undo":super::undo::status(conn)?}),
+        json!({"baseRevision":base_revision,"dataRevision":revision,"lots":visible_lots(conn)?,"inventoryEvents":events(conn)?,"undo":super::undo::status(conn)?}),
     )
 }
 pub fn events(conn: &Connection) -> Result<Vec<Value>> {

@@ -161,6 +161,7 @@ pub fn state(c: &Connection) -> Result<Value> {
     // Older clients saved replies without moving the task out of pending.
     c.execute("UPDATE local_steward_items SET status='done',unread=0 WHERE status='open' AND EXISTS(SELECT 1 FROM app_settings a WHERE a.key='assistant_session:'||local_steward_items.id AND json_extract(a.value,'$.history.messages[#-1].role')='assistant' AND json_extract(a.value,'$.history.proposal') IS NULL AND NOT EXISTS(SELECT 1 FROM json_each(a.value,'$.history.candidates')) AND EXISTS(SELECT 1 FROM json_each(a.value,'$.history.messages') m WHERE json_extract(m.value,'$.role')='user'))",[])?;
 
+    let active=inventory::lots(c)?.into_iter().filter(|l|l["stockPresent"]==true).collect::<Vec<_>>();
     let mut q=c.prepare("SELECT id,kind,title,body,payload,status,unread,created_at FROM local_steward_items WHERE status='open' OR rowid IN (SELECT rowid FROM local_steward_items WHERE status!='open' AND (created_at >= datetime('now','-30 days') OR EXISTS(SELECT 1 FROM app_settings a WHERE a.key='assistant_session:'||local_steward_items.id)) ORDER BY rowid DESC) ORDER BY created_at DESC,rowid DESC")?;
     let mut items=q.query_map([],|r| {let raw:String=r.get(4)?;Ok(json!({"id":r.get::<_,String>(0)?,"kind":r.get::<_,String>(1)?,"title":r.get::<_,String>(2)?,"body":r.get::<_,String>(3)?,"payload":serde_json::from_str::<Value>(&raw).unwrap_or(json!({})),"status":r.get::<_,String>(5)?,"unread":r.get::<_,i64>(6)?!=0,"createdAt":r.get::<_,String>(7)?}))})?.collect::<std::result::Result<Vec<_>,_>>()?;
     for item in &mut items {
@@ -179,6 +180,13 @@ pub fn state(c: &Connection) -> Result<Value> {
             }
         }
         if item["kind"] == "maintenance" {
+            let had_stock_items=item["payload"]["items"].as_array().is_some_and(|r|!r.is_empty()) || item["payload"]["questions"].as_array().is_some_and(|r|!r.is_empty());
+            let active_entity=|v:&Value| match v["entityKind"].as_str() {Some("lot")=>active.iter().any(|l|l["id"]==v["entityId"]),Some("ingredient")=>active.iter().any(|l|l["ingredientId"]==v["entityId"]),_=>true};
+            if let Some(rows)=item["payload"]["items"].as_array_mut(){rows.retain(&active_entity);}
+            if let Some(questions)=item["payload"]["questions"].as_array_mut(){questions.retain(active_entity);}
+            if had_stock_items && item["payload"]["items"].as_array().is_none_or(|r|r.is_empty()) && item["payload"]["questions"].as_array().is_none_or(|r|r.is_empty()) {
+                item["status"]=json!("done");item["unread"]=json!(false);
+            }
             let rows = item["payload"]["items"]
                 .as_array()
                 .cloned()
@@ -662,6 +670,7 @@ pub fn entities(c: &Connection) -> Result<Vec<Value>> {
                     o.remove("image");
                     o.remove("events");
                 }
+                if kind == "ingredient" && !s["lots"].as_array().unwrap().iter().any(|l|l["stockPresent"]==true && l["ingredientId"]==row["id"]) {continue;}
                 if kind == "lot" && row["stockPresent"] == false {
                     continue;
                 }

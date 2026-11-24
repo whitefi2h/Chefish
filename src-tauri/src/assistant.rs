@@ -57,6 +57,7 @@ pub fn context(conn: &Connection, week: Option<&str>) -> Result<Value> {
     snapshot.as_object_mut().unwrap().remove("preferences");
     let preferences = db::preferences::load(conn)?;
     if let Some(lots)=snapshot["lots"].as_array_mut() {
+        lots.retain(|lot|lot["stockPresent"]!=false);
         for lot in lots {
             if preferences.inventory_mode=="rough" || lot["measurement"]=="level" {
                 lot.as_object_mut().unwrap().remove("quantity");
