@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-24",
+  "version": "2.4.7",
+  "status": "published",
+  "validation": "manual-shopping-v2.4.7-validation.json",
+  "latestStable": true,
+  "buildPassed": true,
+  "signedInstaller": true,
+  "manifestVersionAndSignatureMatch": true,
+  "publicUpdaterManifestVerified": true,
+  "releaseUrl": "https://github.com/whitefi2h/Chefish/releases/tag/v2.4.7",
+  "assets": [
+    {
+      "name": "chefish.exe",
+      "bytes": 62844928,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.7/chefish.exe"
+    },
+    {
+      "name": "Chefish_2.4.7_x64-setup.exe",
+      "bytes": 44738760,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.7/Chefish_2.4.7_x64-setup.exe"
+    },
+    {
+      "name": "Chefish_2.4.7_x64-setup.exe.sig",
+      "bytes": 436,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.7/Chefish_2.4.7_x64-setup.exe.sig"
+    },
+    {
+      "name": "latest.json",
+      "bytes": 1120,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.7/latest.json"
+    }
+  ],
+  "sourceCommit": "d8c880c271ac768097233670f2cd2660a7ea8f2c",
+  "sourcePushed": true,
+  "publishedAt": "2026-11-24T10:46:29Z",
+  "publicAssetsVerified": true
+}
