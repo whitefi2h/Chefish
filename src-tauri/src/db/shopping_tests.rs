@@ -79,6 +79,41 @@ fn manual(conn: &mut Connection) -> String {
     .unwrap()
 }
 #[test]
+fn mixed_chilli_units_merge_and_legacy_purchases_remain_usable() {
+    for rough in [false,true] {
+        let mut c=open(&temp()).unwrap();
+        if rough {
+            let mut p=preferences::load(&c).unwrap();p.inventory_mode="rough".into();
+            preferences::save(&mut c,p).unwrap();
+        }
+        let today=local_today(&c).unwrap();let week=week(&c,&today).unwrap();
+        for (name,quantity,unit) in [("辣椒克数菜","5","g"),("辣椒个数菜","1","个")] {
+            let mut d=recipe_draft();d.name=name.into();d.servings=2;
+            d.ingredients=vec![DraftIngredient{name:"小米辣".into(),quantity:quantity.into(),unit:unit.into()}];
+            d.ingredient_kinds.insert("小米辣".into(),false);
+            execute(&mut c,&id(),Command::CreateRecipe{draft:d}).unwrap();
+            let s=snapshot(&c).unwrap();let rev=s["recipes"].as_array().unwrap().iter().find(|r|r["name"]==name).unwrap()["revisionId"].as_str().unwrap().to_owned();
+            plan(&mut c,&rev,&today,2);
+        }
+        let f=view(&c,&week);let rows=f["items"].as_array().unwrap();
+        assert_eq!(rows.len(),1);assert_eq!(rows[0]["unit"],"g");
+        assert_eq!(rows[0]["remaining"],"10");assert_eq!(rows[0]["estimated"],true);
+        let ingredient=rows[0]["ingredientId"].as_str().unwrap().to_owned();
+        // An existing count-unit purchase remains in its original unit and history.
+        c.execute("INSERT INTO shopping_lines(id,ingredient_id,unit,source,week_start,requested_decimal) VALUES('old-chilli',?1,'个','plan',?2,'0')",params![ingredient,week]).unwrap();
+        c.execute("INSERT INTO purchase_events(id,line_id,amount_decimal) VALUES('old-chilli-buy','old-chilli','1')",[]).unwrap();
+        let f=view(&c,&week);let rows=f["items"].as_array().unwrap();
+        assert_eq!(rows.len(),1);assert_eq!(rows[0]["required"],"2");
+        assert_eq!(rows[0]["remaining"],"1");assert_eq!(rows[0]["history"].as_array().unwrap().len(),1);
+        if rough {
+            execute(&mut c,&id(),Command::PurchaseLevelShopping{line_id:Some("old-chilli".into()),expected_version:1,ingredient_id:ingredient,unit:"个".into(),week_start:Some(week.clone())}).unwrap();
+            let f=view(&c,&week);assert_eq!(f["items"][0]["remaining"],"0");
+            assert_eq!(f["items"][0]["unreceived"],"0");
+            assert!(inventory_rows(&c).unwrap().iter().all(|l|l["level"]==1));
+        }
+    }
+}
+#[test]
 fn same_ingredient_manual_item_survives_plan_changes_refresh_other_weeks_and_restart() {
     for mode in ["exact","rough"] {
         let path=temp();let mut c=open(&path).unwrap();

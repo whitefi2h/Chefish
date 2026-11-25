@@ -1,0 +1,53 @@
+{
+  "date": "2026-11-25",
+  "version": "2.4.10",
+  "changes": [
+    "Add the missing shared chilli count-to-weight rule: one small chilli is estimated at 5g, including 小米椒 alias and 根/颗 units.",
+    "Existing canonical-unit forecasting now combines 5g plus one chilli into an estimated 10g without recipe reimport or history rewrite.",
+    "Reuse the same rule in stock conversion and cooking; retain existing estimate markers and independent manual shopping."
+  ],
+  "checks": {
+    "rust": {
+      "passed": 196,
+      "ignored": 14,
+      "log": "review/mixed-units-rust.log"
+    },
+    "unit": {
+      "passed": 50,
+      "skipped": 15,
+      "log": "review/mixed-units-unit.log"
+    },
+    "regression": "Exact and rough forecasts merge mixed-unit menu demand; legacy count-unit purchases retain their original quantities and history, deduct correctly and can be checked into rough inventory.",
+    "typecheck": true,
+    "build": {
+      "passed": true,
+      "signedInstaller": true,
+      "manifestVersionAndSignatureMatch": true,
+      "log": "review/mixed-units-release-build.log",
+      "assets": [
+        {
+          "path": "src-tauri/target/release/chefish.exe",
+          "bytes": 62774272
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/Chefish_2.4.10_x64-setup.exe",
+          "bytes": 44741696
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/Chefish_2.4.10_x64-setup.exe.sig",
+          "bytes": 440
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/latest.json",
+          "bytes": 1024
+        }
+      ]
+    }
+  },
+  "schema": 19,
+  "personalKitchenAccessed": false,
+  "limitations": [
+    "Default count weights are estimates, not measured product weights. Units without a known conversion are not added as if equivalent.",
+    "Isolated database and unit tests; no live model, production two-device sync or overwrite installation test."
+  ]
+}
