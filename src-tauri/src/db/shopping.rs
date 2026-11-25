@@ -87,8 +87,11 @@ pub fn save_manual(
     draft: ManualDraft,
 ) -> Result<()> {
     text(&draft.name, 120)?;
-    unit(&draft.unit)?;
-    let n = quantity(&draft.quantity)?;
+    let optional=measurement::rough(tx)?;
+    let amount_missing=draft.quantity.trim().is_empty();
+    let u=if optional && draft.unit.trim().is_empty(){"个"}else{draft.unit.as_str()};
+    unit(u)?;
+    let n = if optional && amount_missing {Decimal::ONE}else{quantity(&draft.quantity)?};
     let cat = category(tx, "ingredient", &draft.category)?;
     if let Some(ref key) = key {
         version(tx, key, expected.unwrap_or(0))?;
@@ -118,11 +121,15 @@ pub fn save_manual(
             i
         }
     };
-    if let Some(key) = key {
-        tx.execute("UPDATE shopping_lines SET ingredient_id=?1,unit=?2,requested_decimal=?3,version=version+1 WHERE id=?4",params![ingredient,draft.unit,show(n),key])?;
+    let key=if let Some(key) = key {
+        tx.execute("UPDATE shopping_lines SET ingredient_id=?1,unit=?2,requested_decimal=?3,version=version+1 WHERE id=?4",params![ingredient,u,show(n),key])?;
+        key
     } else {
-        tx.execute("INSERT INTO shopping_lines(id,ingredient_id,unit,source,week_start,requested_decimal) VALUES(?1,?2,?3,'manual',NULL,?4)",params![id(),ingredient,draft.unit,show(n)])?;
-    }
+        let key=id();
+        tx.execute("INSERT INTO shopping_lines(id,ingredient_id,unit,source,week_start,requested_decimal) VALUES(?1,?2,?3,'manual',NULL,?4)",params![key,ingredient,u,show(n)])?;
+        key
+    };
+    tx.execute("INSERT INTO app_settings(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![format!("steward_meta:shopping:{key}"),json!({"manualAmount":{"quantity":draft.quantity,"unit":draft.unit}}).to_string()])?;
     Ok(())
 }
 pub fn buy(
@@ -215,6 +222,7 @@ pub fn purchase(
         received,
         expires,
         Some(&purchase_id),
+        None,
     )
 }
 pub fn receive(
@@ -226,7 +234,7 @@ pub fn receive(
     received: &str,
     expires: Option<String>,
 ) -> Result<()> {
-    receive_from(tx, key, expected, amount, location, received, expires, None)
+    receive_from(tx, key, expected, amount, location, received, expires, None,None)
 }
 fn receive_from(
     tx: &Transaction,
@@ -237,6 +245,7 @@ fn receive_from(
     received: &str,
     expires: Option<String>,
     purchase: Option<&str>,
+    into: Option<&str>,
 ) -> Result<()> {
     version(tx, key, expected)?;
     let n = quantity(amount)?;
@@ -251,7 +260,7 @@ fn receive_from(
         return Err(error("INVALID_INPUT", "收货日期不能晚于今天"));
     }
     let (name,category,u):(String,String,String)=tx.query_row("SELECT i.name,c.name,l.unit FROM shopping_lines l JOIN ingredients i ON i.id=l.ingredient_id JOIN categories c ON c.id=i.category_id WHERE l.id=?1",[key],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?;
-    let lot_id = inventory::receive_batch(
+    let lot_id = if let Some(lot)=into {lot.to_owned()} else { inventory::receive_batch(
         tx,
         InventoryDraft {
             name,
@@ -264,7 +273,7 @@ fn receive_from(
             precision: "exact".into(),
         },
         "采购收货",
-    )?;
+    )? };
     let mut stmt = tx.prepare(
         "SELECT p.id,p.amount_decimal FROM purchase_events p WHERE line_id=?1 AND (?2 IS NULL OR p.id=?2) AND NOT EXISTS(SELECT 1 FROM shopping_combined_purchases b JOIN shopping_receipts r ON r.purchase_id=b.purchase_id JOIN shopping_receipt_undos u ON u.receipt_id=r.id WHERE b.purchase_id=p.id) ORDER BY occurred_at,rowid",
     )?;
@@ -273,7 +282,7 @@ fn receive_from(
             Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
-    if measurement::rough(tx)? {
+    if measurement::rough(tx)? && into.is_none() {
         let event:String=tx.query_row("SELECT id FROM inventory_events WHERE lot_id=?1 ORDER BY after_version DESC LIMIT 1",[&lot_id],|r|r.get(0))?;
         measurement::attach(tx,&event,&lot_id,Some(measurement::value(tx,1,"purchase")?))?;
     }
@@ -327,6 +336,14 @@ pub fn hide(tx: &Transaction, scope: &str, ingredient: &str, u: &str) -> Result<
         "INSERT OR IGNORE INTO shopping_suppressions VALUES(?1,?2,?3)",
         params![scope, ingredient, u],
     )?;
+    if measurement::rough(tx)? {
+        let f=forecast_inner(tx,scope,&local_today(tx)?)?;
+        for row in f["items"].as_array().unwrap() {
+            if row["source"]=="plan" && ingredient_standard::matches(tx,ingredient,row["ingredientId"].as_str().unwrap())? {
+                tx.execute("INSERT OR IGNORE INTO shopping_suppressions VALUES(?1,?2,?3)",params![scope,row["ingredientId"].as_str().unwrap(),row["unit"].as_str().unwrap()])?;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -437,6 +454,7 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
         .collect::<std::result::Result<Vec<_>, _>>()?;
     let mut demand: BTreeMap<(String, String), Demand> = BTreeMap::new();
     let mut dish_counts = BTreeMap::<String, usize>::new();
+    let mut dish_requirements = BTreeMap::<String, Vec<Value>>::new();
     let mut review_notes = Vec::<String>::new();
     for (day, meal, servings, standard, revision, name, custom) in plans {
         let in_scope = week(conn, &day)? == scope;
@@ -492,6 +510,7 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
         }
         let mut dish_ingredients = std::collections::BTreeSet::new();
         for (ingredient, n, u) in requirements {
+            let original_quantity=n.clone();let original_unit=u.clone();
             let raw_name: String = conn.query_row(
                 "SELECT name FROM ingredients WHERE id=?1",
                 [&ingredient],
@@ -541,6 +560,16 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
             }
             if in_scope && dish_ingredients.insert(ingredient.clone()) {
                 *dish_counts.entry(ingredient.clone()).or_default() += 1;
+                // Display the stored recipe units, not AI-resolved purchasing weights.
+                let mut stmt=conn.prepare("SELECT ingredient_id,amount_decimal,unit FROM recipe_ingredients WHERE revision_id=?1 ORDER BY position")?;
+                let raw=stmt.query_map([&rev],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?)))?.collect::<std::result::Result<Vec<_>,_>>()?;
+                let mut display=Vec::new();
+                for (id,n,u) in raw {if ingredient_standard::matches(conn,&id,&ingredient)? {display.push((n,u));}}
+                if display.is_empty(){display.push((original_quantity,original_unit));}
+                for (n,u) in display {
+                    let q=(number(&n)?*Decimal::from(servings)/Decimal::from(standard.unwrap())).round_dp(6);
+                    dish_requirements.entry(ingredient.clone()).or_default().push(json!({"dish":name,"day":day,"meal":meal,"quantity":show(q),"unit":u}));
+                }
             }
             let required = (number(&n)? * Decimal::from(servings)
                 / Decimal::from(standard.unwrap()))
@@ -686,6 +715,9 @@ fn forecast_inner(conn: &Connection, scope: &str, today: &str) -> Result<Value> 
     }
     let stock=stock_rows;
     for row in &mut items {
+        let canonical=ingredient_standard::canonical_id(conn,row["ingredientId"].as_str().unwrap())?;
+        if row["source"]=="plan" {row["dishRequirements"]=json!(dish_requirements.get(&canonical).cloned().unwrap_or_default());}
+        if row["source"]=="manual" {row["manualAmount"]=super::steward::metadata(conn,"shopping",row["id"].as_str().unwrap())?["manualAmount"].clone();}
         let mut matching=Vec::new();
         for lot in &stock {
             if lot["stockPresent"]==true && ingredient_standard::matches(conn,lot["ingredientId"].as_str().unwrap(),row["ingredientId"].as_str().unwrap())? {matching.push(lot);}
@@ -760,11 +792,35 @@ mod tests;
 
 pub fn purchase_level(tx:&Transaction,key:Option<String>,mut expected:i64,ingredient:&str,u:&str,scope:Option<String>)->Result<()> {
     if !measurement::rough(tx)? {return Err(error("INVALID_INPUT","请先开启粗略计量模式"));}
+    if let Some(ref scope)=scope {
+        if let Some(ref key)=key {version(tx,key,expected)?;}
+        let forecast=forecast_inner(tx,scope,&local_today(tx)?)?;
+        let rows=forecast["items"].as_array().unwrap();
+        if !rows.iter().any(|r|r["ingredientId"]==ingredient && r["unit"]==u && r["id"]==json!(key) && r["weekStart"]==*scope) {return Err(error("STALE_REVISION","采购项目已变化，请刷新"));}
+        let canonical=ingredient_standard::canonical_id(tx,ingredient)?;
+        let mut group=Vec::new();
+        for row in rows {
+            if row["source"]=="plan" && row["hidden"]!=true && ingredient_standard::canonical_id(tx,row["ingredientId"].as_str().unwrap())?==canonical && (number(row["remaining"].as_str().unwrap())?>Decimal::ZERO || number(row["unreceived"].as_str().unwrap())?>Decimal::ZERO) {group.push(row);}
+        }
+        if group.is_empty(){return Ok(());}
+        let lot=measurement::receive(tx,group[0]["name"].as_str().unwrap(),"自动分类",1)?;
+        for row in group {
+            let mut key=row["id"].as_str().map(str::to_owned);
+            if number(row["remaining"].as_str().unwrap())?>Decimal::ZERO {
+                let (line,purchase)=buy(tx,key,row["version"].as_i64().unwrap(),row["ingredientId"].as_str().unwrap(),row["unit"].as_str().unwrap(),Some(scope.clone()),row["remaining"].as_str().unwrap())?;
+                tx.execute("INSERT INTO shopping_combined_purchases VALUES(?1)",[purchase])?;key=Some(line);
+            }
+            let key=key.unwrap();let (bought,stocked)=totals(tx,&key)?;
+            let version=tx.query_row("SELECT version FROM shopping_lines WHERE id=?1",[&key],|r|r.get(0))?;
+            receive_from(tx,&key,version,&show(bought-stocked),"未指定",&local_today(tx)?,None,None,Some(&lot))?;
+        }
+        return Ok(());
+    }
     if let Some(ref key)=key {
         version(tx,key,expected)?;
         let (bought,stocked)=totals(tx,key)?;
         if bought>stocked {
-            receive_from(tx,key,expected,&show(bought-stocked),"未指定",&local_today(tx)?,None,None)?;
+            receive_from(tx,key,expected,&show(bought-stocked),"未指定",&local_today(tx)?,None,None,None)?;
             expected=tx.query_row("SELECT version FROM shopping_lines WHERE id=?1",[key],|r|r.get(0))?;
         }
     }

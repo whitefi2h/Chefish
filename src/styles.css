@@ -1212,6 +1212,22 @@ tbody tr:hover {
   grid-template-columns: minmax(0, 1fr) 260px;
   gap: 20px;
 }
+.shopping-layout-by-dish {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 350px);
+}
+.shopping-layout-by-dish .shopping-row {
+  grid-template-columns: minmax(0, 1fr) 82px;
+}
+.shopping-layout-by-dish .shopping-name small {
+  line-height: 1.75;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1350px) {
+  .shopping-layout.shopping-layout-by-dish {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+}
 .shopping-list {
   margin-bottom: 16px;
 }

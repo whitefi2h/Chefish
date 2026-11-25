@@ -1,4 +1,13 @@
+import { quantityText } from "./quantity";
 export interface ShoppingLine {
+  dishRequirements?: {
+    dish: string;
+    day: string;
+    meal: string;
+    quantity: string;
+    unit: string;
+  }[];
+  manualAmount?: { quantity: string; unit: string } | null;
   roughStock?: boolean;
   roughCovered?: boolean;
   id: string | null;
@@ -38,4 +47,32 @@ export interface ShoppingForecast {
   pastPlanCount: number;
 }
 export const shoppingPending = (f?: ShoppingForecast) =>
-  f?.items.filter((i) => i.remaining !== "0") ?? [];
+  shoppingGroups(
+    f?.items.filter((i) => !i.hidden && i.remaining !== "0") ?? [],
+  );
+
+export function shoppingGroups(items: ShoppingLine[]) {
+  const groups: ShoppingLine[] = [];
+  for (const item of items) {
+    if (
+      item.source === "manual" ||
+      !groups.some((g) => g.source === "plan" && g.name === item.name)
+    )
+      groups.push(item);
+  }
+  return groups;
+}
+
+export function shoppingDescription(i: ShoppingLine) {
+  if (i.source === "manual")
+    return i.manualAmount
+      ? i.manualAmount.quantity
+        ? `${quantityText(i.manualAmount.quantity)}${i.manualAmount.unit}`
+        : ""
+      : `${quantityText(i.required)}${i.unit}`;
+  return i.dishRequirements?.length
+    ? i.dishRequirements
+        .map((d) => `${d.dish}：${quantityText(d.quantity)}${d.unit}`)
+        .join("；")
+    : i.sources.join("；");
+}

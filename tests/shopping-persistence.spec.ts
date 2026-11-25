@@ -135,6 +135,18 @@ async function shoppingIPC(
       remaining: "191.666667",
     });
   }
+  for (const item of f.items) {
+    if (item.source === "plan")
+      item.dishRequirements = [
+        {
+          dish: `${item.name}菜`,
+          day: "2026-10-19",
+          meal: "晚餐",
+          quantity: item.required,
+          unit: item.unit,
+        },
+      ];
+  }
   f.items.unshift(f.items.pop()!);
   await page.addInitScript(
     ({ state, f, fail }) => {
@@ -644,6 +656,81 @@ test("shopping rounds presentation to one decimal while purchase input retains p
     .click();
   await carrot.getByRole("button", { name: "购买", exact: true }).click();
   await expect(page.getByLabel("本次购买数量")).toHaveValue("0.666668");
+});
+
+test("rough shopping groups dish quantities and accepts a name-only manual item", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await shoppingIPC(page, "", false, false, false, true);
+  await page.evaluate(async () => {
+    const api = (
+      window as unknown as {
+        __TAURI_INTERNALS__: {
+          invoke: (n: string, a: unknown) => Promise<ShoppingForecast>;
+        };
+      }
+    ).__TAURI_INTERNALS__;
+    const f = await api.invoke("kitchen_shopping", { weekStart: "2026-10-19" });
+    const row = f.items.find((i) => i.ingredientId === "beef")!;
+    row.name = "豆腐";
+    row.dishRequirements = [
+      {
+        dish: "菜品A",
+        quantity: "200",
+        unit: "g",
+        day: "2026-10-20",
+        meal: "晚餐",
+      },
+      {
+        dish: "菜品B",
+        quantity: "1",
+        unit: "盒",
+        day: "2026-10-21",
+        meal: "晚餐",
+      },
+    ];
+    f.items.push({
+      ...row,
+      id: null,
+      unit: "盒",
+      remaining: "1",
+      purchased: "0",
+      received: "0",
+      unreceived: "0",
+      version: 0,
+    });
+    window.dispatchEvent(new Event("chefish:sync-data"));
+  });
+  const row = page.getByRole("group", { name: "采购项目 · 豆腐", exact: true });
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("菜品A：200g；菜品B：1盒");
+  await expect(page.locator(".shopping-quantity")).toHaveCount(0);
+  await page.screenshot({
+    path: "review/dish-shopping-1440.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.screenshot({
+    path: "review/dish-shopping-1920.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "手动添加", exact: true }).click();
+  await expect(page.getByLabel("采购数量", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("采购单位", { exact: true })).toHaveValue("");
+  await page.getByLabel("采购食材名称").fill("面包");
+  await page.getByRole("button", { name: "保存采购项目" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const commands = await page.evaluate(
+    () =>
+      (window as unknown as { shoppingCommands: unknown[] }).shoppingCommands,
+  );
+  expect(commands).toContainEqual(
+    expect.objectContaining({
+      type: "save_shopping",
+      draft: expect.objectContaining({ name: "面包", quantity: "", unit: "" }),
+    }),
+  );
 });
 
 test("rough shopping replaces only the buy action with a checkbox and does not open a form", async ({

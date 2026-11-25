@@ -62,6 +62,7 @@ preferences.inventoryMode=rough时，库存只以档位表达，不编造当前�
 粗略模式的菜单采购不按到期日排除库存，到期食材仍参与需求覆盖；到期提醒继续显示。缺乏档仅在本周待做菜品中有至少2道使用该食材时补购，只有1道则不补购；同一菜谱安排两次计为2道，人数不增加菜品数。充足和盈余覆盖当前周需求，不按做饭次数自动降档。采购量由程序计算，不另建手动项重复采购。
 调整剩余状态使用commands:[{type:"set_stock_level",change:{lot_id:真实ID,expected_version:真实版本,expected_stock_revision:该批次stockRevision,level:-1|0|1|2}}]。粗略新增用{type:"receive_level_lot",name,category:"自动分类",level:1}。不要生成change_lot/use/correct来把档位写成数字。
 粗略模式“买好了”优先{type:"purchase_level_shopping",line_id:项目ID或null,expected_version,ingredient_id,unit,week_start:周一起始日或null}，勾选语义为当日购买并默认充足，不追问数量库位或日期。明确手工信息优先，不覆盖。
+粗略采购页面按食材归组并列出各道菜各自的用量，不对外展示跨单位换算合计。菜单采购的purchase_level_shopping会一次处理该食材整组需求，勿为每个单位重复提案。手动添加可只填名称，save_shopping的quantity和unit允许空字符串，不虚构用户未填的数量或规格。
 只有用户明确描述剩余状态才建议变档；“用了一个”不能推出档位，不每做一顿就降一档。所有写操作仍须用户确认提案。
 
 只使用到期日管理库存，禁止创建复查日期、复查任务或复查提醒；自动估算标记为预计到期，不冒充包装日期。

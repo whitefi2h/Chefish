@@ -79,6 +79,36 @@ fn manual(conn: &mut Connection) -> String {
     .unwrap()
 }
 #[test]
+fn rough_dish_groups_purchase_once_and_blank_manual_amount_survives_restart() {
+    let path=temp();let mut c=open(&path).unwrap();
+    let mut prefs=preferences::load(&c).unwrap();prefs.inventory_mode="rough".into();preferences::save(&mut c,prefs).unwrap();
+    let today=local_today(&c).unwrap();let scope=week(&c,&today).unwrap();
+    for (name,n,u) in [("豆腐菜A","200","g"),("豆腐菜B","1","盒")] {
+        let mut d=recipe_draft();d.name=name.into();d.servings=2;
+        d.ingredients=vec![DraftIngredient{name:"豆腐".into(),quantity:n.into(),unit:u.into()}];
+        execute(&mut c,&id(),Command::CreateRecipe{draft:d}).unwrap();
+        let s=snapshot(&c).unwrap();let rev=s["recipes"].as_array().unwrap().iter().find(|r|r["name"]==name).unwrap()["revisionId"].as_str().unwrap().to_owned();
+        plan(&mut c,&rev,&today,2);
+    }
+    let f=view(&c,&scope);let row=f["items"][0].clone();
+    assert_eq!(row["dishRequirements"][0]["quantity"],"200");assert_eq!(row["dishRequirements"][1]["unit"],"盒");
+    let command=Command::PurchaseLevelShopping{line_id:None,expected_version:0,ingredient_id:row["ingredientId"].as_str().unwrap().into(),unit:row["unit"].as_str().unwrap().into(),week_start:Some(scope.clone())};
+    let request=id();execute(&mut c,&request,command.clone()).unwrap();execute(&mut c,&request,command).unwrap();
+    let lots=inventory_rows(&c).unwrap();assert_eq!(lots.len(),1);assert_eq!(lots[0]["level"],1);
+    let f=view(&c,&scope);assert!(f["items"].as_array().unwrap().iter().all(|r|r["remaining"]=="0" && r["unreceived"]=="0"));
+    assert_eq!(c.query_row("SELECT count(*) FROM purchase_events",[],|r|r.get::<_,i64>(0)).unwrap(),2);
+    execute(&mut c,&id(),Command::UndoInventory{lot_id:lots[0]["id"].as_str().unwrap().into(),expected_version:1}).unwrap();
+    let f=view(&c,&scope);assert!(f["items"].as_array().unwrap().iter().all(|r|r["purchased"]=="0"));
+    execute(&mut c,&id(),Command::HideShopping{week_start:scope.clone(),ingredient_id:row["ingredientId"].as_str().unwrap().into(),unit:row["unit"].as_str().unwrap().into()}).unwrap();
+    assert!(view(&c,&scope)["items"].as_array().unwrap().iter().all(|r|r["hidden"]==true));
+    execute(&mut c,&id(),Command::SaveShopping{line_id:None,expected_version:None,draft:ManualDraft{name:"面包".into(),category:"未分类".into(),quantity:"".into(),unit:"".into()}}).unwrap();
+    drop(c);let mut c=open(&path).unwrap();
+    let f=view(&c,&scope);let manual=f["items"].as_array().unwrap().iter().find(|r|r["source"]=="manual").unwrap();
+    assert_eq!(manual["manualAmount"],json!({"quantity":"","unit":""}));
+    let command:Command=serde_json::from_value(json!({"type":"purchase_level_shopping","line_id":manual["id"],"expected_version":manual["version"],"ingredient_id":manual["ingredientId"],"unit":manual["unit"],"week_start":null})).unwrap();
+    execute(&mut c,&id(),command).unwrap();assert!(inventory_rows(&c).unwrap().iter().any(|l|l["ingredientId"]==manual["ingredientId"] && l["level"]==1));
+}
+#[test]
 fn mixed_chilli_units_merge_and_legacy_purchases_remain_usable() {
     for rough in [false,true] {
         let mut c=open(&temp()).unwrap();

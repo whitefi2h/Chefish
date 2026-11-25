@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-25",
+  "version": "2.4.11",
+  "changes": [
+    "Rough shopping groups menu lines by canonical ingredient name and displays per-dish stored recipe quantities and units, rather than converted totals. Manual entries stay independent.",
+    "Remove rough quantity column and estimate/review badges; widen overview and memo column; copy uses per-dish amounts.",
+    "Existing rough purchase command handles the complete ingredient group atomically, preserving per-unit purchases and receipts while creating one adequate stock lot. Undo and group hide retain history.",
+    "Rough manual items allow empty quantity and/or unit. Original display values are retained in synchronized steward_meta:shopping metadata; internal purchase counters are not displayed as user-entered amounts."
+  ],
+  "checks": {
+    "rust": {
+      "passed": 197,
+      "ignored": 14,
+      "log": "review/dish-shopping-rust-final.log"
+    },
+    "unit": {
+      "passed": 50,
+      "skipped": 15,
+      "log": "review/dish-shopping-unit-final.log"
+    },
+    "browser": {
+      "passed": 17,
+      "log": "review/dish-shopping-ui-final.log"
+    },
+    "finalBrowser": {
+      "passed": 3,
+      "log": "review/dish-shopping-ui-last.log"
+    },
+    "lint": true,
+    "screenshotsReviewed": [
+      "review/dish-shopping-1440.png",
+      "review/dish-shopping-1920.png"
+    ],
+    "regression": "Mixed g/box dish requirements, grouped purchase and retry identity, one stock lot, undo, group hide, name-only manual persistence and purchase, manual independence, legacy receipts, exact-mode UI.",
+    "typecheck": true,
+    "build": {
+      "passed": true,
+      "signedInstaller": true,
+      "manifestVersionAndSignatureMatch": true,
+      "log": "review/dish-shopping-release-build.log",
+      "assets": [
+        {
+          "path": "src-tauri/target/release/chefish.exe",
+          "bytes": 62993408
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/Chefish_2.4.11_x64-setup.exe",
+          "bytes": 44766829
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/Chefish_2.4.11_x64-setup.exe.sig",
+          "bytes": 440
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/latest.json",
+          "bytes": 1205
+        }
+      ]
+    }
+  },
+  "schema": 19,
+  "personalKitchenAccessed": false,
+  "limitations": [
+    "Changes target rough shopping; exact-mode quantity accounting and shared historical unit conversion remain available.",
+    "Isolated SQLite and browser IPC tests; no live model, production two-device sync or overwrite installation test."
+  ]
+}

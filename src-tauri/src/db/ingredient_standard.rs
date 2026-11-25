@@ -289,7 +289,9 @@ pub fn command(command: Command) -> Result<Command> {
             expected_version,
             mut draft,
         } => {
-            let (n, q, u, _) = amount(&draft.name, &draft.quantity, &draft.unit)?;
+            let (n, q, u, _) = if draft.quantity.trim().is_empty() || draft.unit.trim().is_empty() {
+                (name(&draft.name),draft.quantity.clone(),draft.unit.clone(),false)
+            } else { amount(&draft.name, &draft.quantity, &draft.unit)? };
             draft.name = n;
             draft.quantity = q;
             draft.unit = u;

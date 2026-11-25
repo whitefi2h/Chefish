@@ -14,7 +14,12 @@ import {
 import { weekLabel, weekOf, shiftDate, validDate } from "./model";
 import { useDemo } from "./store";
 import { Badge, Empty, Modal } from "./components";
-import { shoppingPending, type ShoppingLine } from "./domain/shopping";
+import {
+  shoppingDescription,
+  shoppingGroups,
+  shoppingPending,
+  type ShoppingLine,
+} from "./domain/shopping";
 const format = (n: string, u: string) => `${quantityText(n)} ${u}`;
 function PurchaseForm({
   line,
@@ -143,11 +148,16 @@ function ManualForm({
   line?: ShoppingLine;
   onClose: () => void;
 }) {
-  const { state, mutate, busy } = useDemo();
+  const { state, preferences, mutate, busy } = useDemo();
   const [name, setName] = useState(line?.name ?? "");
   const [category, setCategory] = useState(line?.category ?? "未分类");
-  const [quantity, setQuantity] = useState(line?.required ?? "100");
-  const [unit, setUnit] = useState(line?.unit ?? "g");
+  const rough = preferences.inventoryMode === "rough";
+  const [quantity, setQuantity] = useState(
+    line?.manualAmount?.quantity ?? line?.required ?? (rough ? "" : "100"),
+  );
+  const [unit, setUnit] = useState(
+    line?.manualAmount?.unit ?? line?.unit ?? (rough ? "" : "g"),
+  );
   return (
     <Modal title={line ? "编辑手动采购项目" : "添加采购项目"} onClose={onClose}>
       <form
@@ -186,7 +196,7 @@ function ManualForm({
               min="0.000001"
               max="100000"
               step="0.000001"
-              required
+              required={!rough}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
             />
@@ -198,6 +208,7 @@ function ManualForm({
               value={unit}
               onChange={(e) => setUnit(e.target.value)}
             >
+              {rough && <option value=""></option>}
               {["g", "ml", "个", "片", "盒"].map((x) => (
                 <option key={x}>{x}</option>
               ))}
@@ -323,7 +334,8 @@ export default function NativeShopping() {
   const pending = shoppingPending(forecast);
   const missingSeasonings = supplies(state).filter((s) => s.missing);
   const disabled = busy || forecastLoading || !forecast;
-  const visible = items
+  const rough = preferences.inventoryMode === "rough";
+  const visibleLines = items
     .filter(
       (i) =>
         !i.hidden &&
@@ -332,7 +344,12 @@ export default function NativeShopping() {
           i.purchased !== "0" ||
           Number(i.unreceived) > 0),
     )
-    .sort((a, b) => Number(b.remaining !== "0") - Number(a.remaining !== "0"));
+    .sort(
+      (a, b) =>
+        Number(b.remaining !== "0" || Number(b.unreceived) > 0) -
+        Number(a.remaining !== "0" || Number(a.unreceived) > 0),
+    );
+  const visible = rough ? shoppingGroups(visibleLines) : visibleLines;
   const displayed = visible.filter(
     (i) =>
       showPurchased ||
@@ -421,7 +438,9 @@ export default function NativeShopping() {
           正在按菜单日期与库存计算…
         </p>
       )}
-      <div className="shopping-layout">
+      <div
+        className={`shopping-layout ${rough ? "shopping-layout-by-dish" : ""}`}
+      >
         <div>
           {visible.length > 0 && (
             <section
@@ -511,30 +530,34 @@ export default function NativeShopping() {
                             <strong title={i.name}>{i.name}</strong>
 
                             {i.hidden && <Badge>已忽略</Badge>}
-                            {i.estimated && (
+                            {!rough && i.estimated && (
                               <span title={i.estimates?.join("；")}>
                                 <Badge>含估算</Badge>
                               </span>
                             )}
-                            {i.review && <Badge>待核对</Badge>}
+                            {!rough && i.review && <Badge>待核对</Badge>}
                           </div>
                           <small>
-                            {i.roughStock
-                              ? `所需 ${format(i.required, i.unit)}${i.roughCovered ? " · 按当前档位暂不补货" : ""}`
-                              : i.source === "plan"
-                                ? `总需 ${format(i.required, i.unit)} · 库存 ${format(i.covered, i.unit)} · 仍缺 ${format(i.remaining, i.unit)}`
-                                : `需求量 ${format(i.required, i.unit)} · 仍缺 ${format(i.remaining, i.unit)}`}
+                            {rough
+                              ? shoppingDescription(i)
+                              : i.roughStock
+                                ? `所需 ${format(i.required, i.unit)}${i.roughCovered ? " · 按当前档位暂不补货" : ""}`
+                                : i.source === "plan"
+                                  ? `总需 ${format(i.required, i.unit)} · 库存 ${format(i.covered, i.unit)} · 仍缺 ${format(i.remaining, i.unit)}`
+                                  : `需求量 ${format(i.required, i.unit)} · 仍缺 ${format(i.remaining, i.unit)}`}
                           </small>
                         </div>
-                        <div className="shopping-quantity">
-                          <strong>
-                            {i.remaining !== "0"
-                              ? `待买 ${format(i.remaining, i.unit)}`
-                              : i.purchased !== "0"
-                                ? "已购买"
-                                : "库存充足"}
-                          </strong>
-                        </div>
+                        {!rough && (
+                          <div className="shopping-quantity">
+                            <strong>
+                              {i.remaining !== "0"
+                                ? `待买 ${format(i.remaining, i.unit)}`
+                                : i.purchased !== "0"
+                                  ? "已购买"
+                                  : "库存充足"}
+                            </strong>
+                          </div>
+                        )}
                         <div className="row-actions">
                           {preferences.inventoryMode === "rough" ? (
                             <label className="shopping-check-target">
@@ -638,9 +661,10 @@ export default function NativeShopping() {
                 try {
                   await navigator.clipboard.writeText(
                     [
-                      ...visible.map(
-                        (i) =>
-                          `${i.name}：待买 ${format(i.remaining, i.unit)}，已购买 ${format(i.purchased, i.unit)}`,
+                      ...visible.map((i) =>
+                        rough
+                          ? `${i.name}：${shoppingDescription(i)}`
+                          : `${i.name}：待买 ${format(i.remaining, i.unit)}，已购买 ${format(i.purchased, i.unit)}`,
                       ),
                       ...supplies(state)
                         .filter((s) => s.missing)
