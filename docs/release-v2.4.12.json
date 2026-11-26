@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-27",
+  "version": "2.4.12",
+  "status": "published",
+  "validation": "inventory-cooking-import-v2.4.12-validation.json",
+  "latestStable": true,
+  "buildPassed": true,
+  "signedInstaller": true,
+  "manifestVersionAndSignatureMatch": true,
+  "publicUpdaterManifestVerified": true,
+  "releaseUrl": "https://github.com/whitefi2h/Chefish/releases/tag/v2.4.12",
+  "assets": [
+    {
+      "name": "chefish.exe",
+      "bytes": 62853120,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.12/chefish.exe"
+    },
+    {
+      "name": "Chefish_2.4.12_x64-setup.exe",
+      "bytes": 44745411,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.12/Chefish_2.4.12_x64-setup.exe"
+    },
+    {
+      "name": "Chefish_2.4.12_x64-setup.exe.sig",
+      "bytes": 440,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.12/Chefish_2.4.12_x64-setup.exe.sig"
+    },
+    {
+      "name": "latest.json",
+      "bytes": 1046,
+      "url": "https://github.com/whitefi2h/Chefish/releases/download/v2.4.12/latest.json"
+    }
+  ],
+  "sourceCommit": "a36c8b6fb980c377ba794f109bacf3cd419dc80e",
+  "sourcePushed": true,
+  "publishedAt": "2026-11-26T17:23:21Z",
+  "publicAssetsVerified": true
+}
