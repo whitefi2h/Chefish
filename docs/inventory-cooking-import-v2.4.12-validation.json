@@ -1,0 +1,64 @@
+{
+  "date": "2026-11-27",
+  "version": "2.4.12",
+  "schema": 19,
+  "changes": [
+    "Positive numeric lots display as adequate in rough inventory and cooking without converting stored quantities.",
+    "The site reader checks the loaded address and page content before asking for manual verification.",
+    "Cooking refreshes on inventory revisions and excludes unavailable batches.",
+    "Visible recipe steps and their images share the same indexes in direct and AI-assisted import."
+  ],
+  "checks": {
+    "rust": {
+      "ignored": 14,
+      "log": "review/four-fixes-rust-final.log",
+      "passed": 197
+    },
+    "unit": {
+      "skipped": 15,
+      "passed": 51
+    },
+    "browser": {
+      "log": "review/four-fixes-ui-final.log",
+      "passed": 63
+    },
+    "roughStockDefault": {
+      "log": "review/four-fixes-inventory-final.log",
+      "passed": true
+    },
+    "nativeWebView2": {
+      "log": "review/four-fixes-site-rust.log",
+      "passed": 1
+    },
+    "lint": true,
+    "typecheck": true,
+    "build": {
+      "assets": [
+        {
+          "path": "src-tauri/target/release/chefish.exe",
+          "bytes": 62853120
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/Chefish_2.4.12_x64-setup.exe",
+          "bytes": 44745411
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/Chefish_2.4.12_x64-setup.exe.sig",
+          "bytes": 440
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/latest.json",
+          "bytes": 1046
+        }
+      ],
+      "manifestVersionAndSignatureMatch": true,
+      "signedInstaller": true,
+      "passed": true,
+      "log": "review/four-fixes-release-final.log"
+    }
+  },
+  "personalKitchenAccessed": false,
+  "limitations": [
+    "Verification and import regressions use isolated HTML, browser IPC fixtures and a local native WebView2 page. No manual completion of a live captcha, live AI validation or personal overwrite installation."
+  ]
+}

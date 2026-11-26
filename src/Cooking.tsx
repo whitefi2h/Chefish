@@ -59,6 +59,7 @@ export function CookingForm({
   const submitting = useRef(false);
   const [saving, setSaving] = useState(false);
   const touchedLevels = useRef(new Set<string>());
+  const touchedQuantities = useRef(new Set<string>());
   const [servings, setServings] = useState(plan.servings);
   const [date, setDate] = useState(plan.day);
   const [note, setNote] = useState("");
@@ -74,7 +75,7 @@ export function CookingForm({
   const [error, setError] = useState("");
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [refresh, setRefresh] = useState(0);
-  const stockRevision = coarse ? state.dataRevision : undefined;
+  const stockRevision = state.dataRevision;
   useEffect(() => {
     let alive = true;
     interpretEpoch.current += 1;
@@ -97,11 +98,22 @@ export function CookingForm({
           for (const id of touchedLevels.current)
             if (!ids.has(id)) touchedLevels.current.delete(id);
         }
-        setQuantities(
+        setQuantities((previous) =>
           Object.fromEntries(
-            p.rows.flatMap((r) => r.lots.map((l) => [l.id, l.suggested])),
+            p.rows.flatMap((r) =>
+              r.lots.map((lot) => [
+                lot.id,
+                touchedQuantities.current.has(lot.id) &&
+                previous[lot.id] !== undefined
+                  ? Number(previous[lot.id]) <= Number(lot.available)
+                    ? previous[lot.id]
+                    : "0"
+                  : lot.suggested,
+              ]),
+            ),
           ),
         );
+        setInterpreted("");
         setError("");
       })
       .catch((e) => {
@@ -318,6 +330,7 @@ export function CookingForm({
                 onChange={(e) => {
                   setPreview(undefined);
                   setManual(false);
+                  touchedQuantities.current.clear();
                   setServings(Number(e.target.value));
                 }}
               />
@@ -335,6 +348,7 @@ export function CookingForm({
                 onChange={(e) => {
                   setPreview(undefined);
                   setManual(false);
+                  touchedQuantities.current.clear();
                   setDate(e.target.value);
                 }}
               />
@@ -351,7 +365,7 @@ export function CookingForm({
                     </strong>
                     <StockSlider
                       name={r.name}
-                      value={levelChanges[l.id]?.level ?? l.level ?? null}
+                      value={levelChanges[l.id]?.level ?? l.level ?? 1}
                       disabled={busy || saving}
                       onTouch={() => touchedLevels.current.add(l.id)}
                       onChange={(level) => {
@@ -385,7 +399,7 @@ export function CookingForm({
                   </p>
                   {lot && (
                     <p className="hint">
-                      {lot.location} · 最新：{stockLevelText(lot.level)}
+                      {lot.location} · 最新：{stockLevelText(lot.level ?? 1)}
                     </p>
                   )}
                   <div className="actions">
@@ -489,72 +503,69 @@ export function CookingForm({
           {!coarse && (
             <details className="cooking-manual">
               <summary>手动调整实际用量</summary>
-              {preview?.rows.map((r) => (
-                <section
-                  className="cooking-ingredient"
-                  key={`${r.ingredientId}|${r.unit}`}
-                >
-                  <div className="section-heading">
-                    <h3>{r.name}</h3>
-                    <span className="hint">
-                      配方用量 {quantityText(r.required)} {r.unit}
-                    </span>
-                  </div>
-                  {r.lots.map((l) =>
-                    l.measurement === "level" ? (
-                      <div className="cooking-lot" key={l.id}>
-                        <span>
-                          {l.location}
-                          <small>
-                            仍按档位记录 · {stockLevelText(l.level)}
-                          </small>
-                        </span>
-                        <button
-                          type="button"
-                          disabled={saving || interpreting}
-                          onClick={() => setEditingLot(l.id)}
-                        >
-                          补填当前数量
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="cooking-lot" key={l.id}>
-                        <span>
-                          {l.location}
-                          {l.expires ? ` · ${l.expires}` : ""}
-                          <small>
-                            剩余 {l.available} {l.unit ?? r.unit}
-                            {l.review && l.expires ? " · 已过期" : ""}
-                          </small>
-                        </span>
-                        <input
-                          aria-label={`${r.name} ${l.id} 实际用量`}
-                          disabled={interpreting || saving}
-                          type="number"
-                          min="0"
-                          max={l.available}
-                          step="0.000001"
-                          required
-                          value={quantities[l.id] ?? "0"}
-                          onChange={(e) => {
-                            setManual(true);
-                            setQuantities((q) => ({
-                              ...q,
-                              [l.id]: e.target.value,
-                            }));
-                          }}
-                        />
-                        <span>{l.unit ?? r.unit}</span>
-                      </label>
-                    ),
-                  )}
-                  {!r.lots.length && (
-                    <p className="hint">
-                      本次配方食材未记入库存，烹饪记录仍会保留。
-                    </p>
-                  )}
-                </section>
-              ))}
+              {preview?.rows
+                .filter((r) => r.lots.length)
+                .map((r) => (
+                  <section
+                    className="cooking-ingredient"
+                    key={`${r.ingredientId}|${r.unit}`}
+                  >
+                    <div className="section-heading">
+                      <h3>{r.name}</h3>
+                      <span className="hint">
+                        配方用量 {quantityText(r.required)} {r.unit}
+                      </span>
+                    </div>
+                    {r.lots.map((l) =>
+                      l.measurement === "level" ? (
+                        <div className="cooking-lot" key={l.id}>
+                          <span>
+                            {l.location}
+                            <small>
+                              仍按档位记录 · {stockLevelText(l.level)}
+                            </small>
+                          </span>
+                          <button
+                            type="button"
+                            disabled={saving || interpreting}
+                            onClick={() => setEditingLot(l.id)}
+                          >
+                            补填当前数量
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="cooking-lot" key={l.id}>
+                          <span>
+                            {l.location}
+                            {l.expires ? ` · ${l.expires}` : ""}
+                            <small>
+                              剩余 {l.available} {l.unit ?? r.unit}
+                              {l.review && l.expires ? " · 已过期" : ""}
+                            </small>
+                          </span>
+                          <input
+                            aria-label={`${r.name} ${l.id} 实际用量`}
+                            disabled={interpreting || saving}
+                            type="number"
+                            min="0"
+                            max={l.available}
+                            step="0.000001"
+                            value={quantities[l.id] ?? "0"}
+                            onChange={(e) => {
+                              setManual(true);
+                              touchedQuantities.current.add(l.id);
+                              setQuantities((q) => ({
+                                ...q,
+                                [l.id]: e.target.value,
+                              }));
+                            }}
+                          />
+                          <span>{l.unit ?? r.unit}</span>
+                        </label>
+                      ),
+                    )}
+                  </section>
+                ))}
             </details>
           )}
           {!coarse && preview && (!preview.rows.length || short) && (

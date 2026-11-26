@@ -59,3 +59,18 @@ mod tests {
 pub fn verification_required() -> ApiError {
     ApiError {code:"SITE_VERIFICATION".into(),message:"下厨房需要在站内窗口完成验证后继续读取".into()}
 }
+
+pub fn is_verification_url(url: &reqwest::Url) -> bool {
+    url.path().trim_end_matches('/') == "/auth/humancheck_captcha"
+}
+
+pub fn is_verification_document(root: &scraper::Html) -> bool {
+    let selector = scraper::Selector::parse("title, h1, h2, p, div, span").unwrap();
+    root.select(&selector).any(|element| {
+        !element.children().any(|node| node.value().is_element())
+            && matches!(
+                element.text().collect::<String>().trim(),
+                "请滑动完成验证" | "滑动验证"
+            )
+    })
+}

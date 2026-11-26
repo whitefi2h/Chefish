@@ -20,11 +20,7 @@ pub fn context(conn: &rusqlite::Connection, id: &str, servings: i64, date: &str)
     let stock = db::inventory_rows(conn)?
         .into_iter()
         .filter(|l| {
-            if l["measurement"]=="level" {return rough && l["stockPresent"]==true;}
-            l["quantity"]
-                .as_str()
-                .and_then(|s| Decimal::from_str(s).ok())
-                .is_some_and(|q| q > Decimal::ZERO)
+            l["stockPresent"] == true && (rough || l["measurement"] != "level")
         })
         .map(|mut l| {
             let name: String = conn.query_row(

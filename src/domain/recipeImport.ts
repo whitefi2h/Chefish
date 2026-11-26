@@ -30,7 +30,9 @@ function recipes(v: unknown): Node[] {
   const types = Array.isArray(v["@type"]) ? v["@type"] : [v["@type"]];
   return types.includes("Recipe") ? [v] : recipes(v["@graph"]);
 }
-function instructions(v: unknown): { title: string; body: string }[] {
+type SourceStep = { title: string; body: string; image?: string };
+
+function instructions(v: unknown): SourceStep[] {
   if (Array.isArray(v)) return v.flatMap(instructions);
   if (typeof v === "string") return [{ title: "", body: v.trim() }];
   if (!object(v)) return [];
@@ -40,6 +42,7 @@ function instructions(v: unknown): { title: string; body: string }[] {
     ? [
         {
           body,
+          image: imageUrl(v.image),
           title: typeof v.name === "string" && v.name !== body ? v.name : "",
         },
       ]
@@ -101,13 +104,7 @@ export function parseRecipeHtml(
             `${row.querySelector(".name")?.textContent?.trim() ?? ""} ${row.querySelector(".unit")?.textContent?.trim() ?? ""}`.trim(),
           )
           .filter(Boolean);
-  let steps = instructions(data?.recipeInstructions);
-  if (!steps.length)
-    steps = [...root.querySelectorAll(".steps li p.text")].map((p) => ({
-      title: "",
-      body: p.textContent?.trim() ?? "",
-    }));
-  steps = steps.filter((s) => s.body);
+  const steps = sourceSteps(root, data);
   if (!name || !steps.length)
     throw new Error(
       "未找到菜谱正文，请选择菜谱页面保存的 HTML，或使用 JSON / 手动创建",
@@ -208,38 +205,63 @@ export function parseRecipeHtml(
   };
 }
 
-export function recipeImageSources(root: DocumentFragment) {
-  const imageUrl = (value: unknown): string | undefined => {
-    if (typeof value === "string") return value;
-    if (Array.isArray(value)) return imageUrl(value[0]);
-    if (object(value)) return imageUrl(value.url ?? value.contentUrl);
-  };
-  let cover: string | undefined;
-  for (const script of root.querySelectorAll(
-    'script[type="application/ld+json"]',
-  )) {
-    try {
-      cover = imageUrl(recipes(JSON.parse(script.textContent ?? ""))[0]?.image);
-    } catch {
-      /* Try visible markup. */
-    }
-    if (cover) break;
-  }
-  const imgUrl = (img: Element | null) =>
-    img?.getAttribute("data-src") ??
-    img?.getAttribute("data-original") ??
-    img?.getAttribute("data-lazy-src") ??
-    img?.getAttribute("src") ??
-    img?.getAttribute("srcset")?.split(/[ ,]/)[0] ??
-    undefined;
-  cover ??= imgUrl(root.querySelector(".recipe-cover img"));
-  const steps = [...root.querySelectorAll(".steps li")].flatMap(
-    (step, index) => {
-      const url = imgUrl(step.querySelector("img"));
-      return url && !url.startsWith("data:")
-        ? [{ url, sourceStep: index + 1 }]
-        : [];
-    },
+function imageUrl(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(imageUrl).find(Boolean);
+  if (object(value)) return imageUrl(value.url ?? value.contentUrl);
+}
+
+function imgUrl(img: Element) {
+  return ["data-src", "data-original", "data-lazy-src", "src", "srcset"]
+    .map((attr) => img.getAttribute(attr)?.trim().split(/[ ,]/)[0])
+    .find((url) => url && !url.startsWith("data:"));
+}
+
+function sourceSteps(root: DocumentFragment, data?: Node): SourceStep[] {
+  const structured = instructions(data?.recipeInstructions).filter(
+    (step) => step.body,
+  );
+  const visible = [...root.querySelectorAll(".steps li")].filter(
+    (step) => !step.parentElement?.closest(".steps li"),
+  );
+  const rows = visible.map((step, index) => {
+    const counterpart =
+      structured.length === visible.length ? structured[index] : undefined;
+    const textNodes = step.querySelectorAll(".text, [itemprop=text]");
+    const body = [
+      ...(textNodes.length ? textNodes : step.querySelectorAll("p")),
+    ]
+      .filter((node) => !node.parentElement?.closest(".text, [itemprop=text]"))
+      .map((node) => node.textContent?.trim())
+      .filter(Boolean)
+      .join("\n");
+    const image =
+      [...step.querySelectorAll("img")].map(imgUrl).find(Boolean) ??
+      counterpart?.image;
+    return {
+      title: counterpart?.title ?? "",
+      body: body || counterpart?.body || (image ? "见步骤图" : ""),
+      image,
+    };
+  });
+  return (
+    rows.some((row) => row.body && row.body !== "见步骤图") ||
+    structured.length < rows.length
+      ? rows
+      : structured
+  ).filter((step) => step.body);
+}
+
+function recipeImageSources(
+  root: DocumentFragment,
+  data: Node | undefined,
+  rows: SourceStep[],
+) {
+  const cover =
+    imageUrl(data?.image) ??
+    [...root.querySelectorAll(".recipe-cover img")].map(imgUrl).find(Boolean);
+  const steps = rows.flatMap(({ image }, index) =>
+    image ? [{ url: image, sourceStep: index + 1 }] : [],
   );
   return { cover, steps };
 }
@@ -253,13 +275,22 @@ export function recipeTextFromHtml(html: string): string {
   const structured = [
     ...root.querySelectorAll('script[type="application/ld+json"]'),
   ].map((v) => v.textContent ?? "");
-  const imageSources = recipeImageSources(root);
+  const data = structured.flatMap((raw) => {
+    try {
+      return recipes(JSON.parse(raw));
+    } catch {
+      return [];
+    }
+  })[0];
+  const rows = sourceSteps(root, data);
+  const imageSources = recipeImageSources(root, data, rows);
   root
     .querySelectorAll("script,style,nav,header,footer,iframe,noscript")
     .forEach((v) => v.remove());
   const content = JSON.stringify({
     structured,
     imageSources,
+    sourceSteps: rows.map(({ title, body }) => ({ title, body })),
     ingredientRows: [...root.querySelectorAll(".ings tr")]
       .map((row) => ({
         name: row.querySelector(".name")?.textContent?.trim() ?? "",

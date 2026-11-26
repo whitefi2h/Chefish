@@ -126,10 +126,12 @@ pub(crate) fn validate_document(html: &str) -> Result<()> {
                 .is_some_and(|v| recipe(&v))
         });
     if !visible && !structured {
-        if html.contains("humancheck_captcha") || html.contains("请滑动完成验证") {return Err(crate::site_access::verification_required());}
+        if crate::site_access::is_verification_document(&root) {
+            return Err(crate::site_access::verification_required());
+        }
         return Err(failure(
             "SITE_CONTENT",
-            "下厨房返回了异常内容或验证页，未取得菜谱正文；请稍后重试，或提供正常显示的 HTML。",
+            "下厨房未返回可读取的菜谱正文；请稍后重试，或提供正常显示的 HTML。",
         ));
     }
     Ok(())
@@ -249,7 +251,7 @@ mod tests {
     fn accepts_recipe_type_arrays_and_known_site_alias() {
         assert!(validate_document(r#"<script type="application/ld+json">{"@type":["Recipe"],"recipeIngredient":["鸡蛋2个"]}</script>"#).is_ok());
         assert_eq!(canonical_url("https://hanwuji.xiachufang.com/recipe/123/").unwrap(),"https://www.xiachufang.com/recipe/123/");
-        assert_eq!(validate_document("请滑动完成验证").unwrap_err().code,"SITE_VERIFICATION");
+        assert_eq!(validate_document("<h1>请滑动完成验证</h1>").unwrap_err().code,"SITE_VERIFICATION");
         assert!(validate_document("<h1 class='page-title'>菜谱</h1><div class='steps'>炒熟</div><script>const challenge='/auth/humancheck_captcha/';</script>").is_ok());
     }
     #[test]

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { roughStockLevel } from "../src/domain/stock";
 import { initialState } from "../src/model";
 import {
   expiringInventoryLots,
@@ -57,4 +58,12 @@ describe("estimated expiry reminders", () => {
     };
     expect(expiringInventoryLots([legacy], "2026-11-23")).toEqual([]);
   });
+});
+
+it("defaults positive numeric stock to adequate in rough mode", () => {
+  const lot = initialState().lots[0];
+  expect(roughStockLevel(lot)).toBe(1);
+  expect(roughStockLevel({ ...lot, quantity: 0 })).toBe(-1);
+  expect(roughStockLevel({ ...lot, stockPresent: false })).toBe(-1);
+  expect(roughStockLevel({ ...lot, measurement: "level", level: 0 })).toBe(0);
 });

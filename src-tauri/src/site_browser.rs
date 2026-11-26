@@ -9,6 +9,12 @@ fn error(message: &str) -> ApiError {
         message: message.into(),
     }
 }
+fn loading() -> ApiError {
+    ApiError {
+        code: "SITE_LOADING".into(),
+        message: "下厨房页面仍在加载，请稍后重试".into(),
+    }
+}
 fn allowed(url: &Url) -> bool {
     url.scheme() == "https"
         && url.port().is_none()
@@ -66,9 +72,11 @@ pub async fn kitchen_site_open(
     main_only(&window)?;
     let url = target(&url)?;
     if let Some(browser) = app.get_webview_window(LABEL) {
-        browser
-            .navigate(url)
-            .map_err(|_| error("无法打开站内页面"))?;
+        if !browser.url().is_ok_and(|actual| same_page(&url, &actual)) {
+            browser
+                .navigate(url)
+                .map_err(|_| error("无法打开站内页面"))?;
+        }
         browser.show().map_err(|_| error("无法显示站内窗口"))?;
         let _ = browser.set_focus();
         return Ok(());
@@ -80,7 +88,7 @@ pub async fn kitchen_site_open(
         .join("xiachufang-session");
     std::fs::create_dir_all(&directory).map_err(|_| error("无法保存站内会话"))?;
     tauri::WebviewWindowBuilder::new(&app, LABEL, tauri::WebviewUrl::External(url))
-        .title("下厨房 · 完成验证后返回 Chefish 继续")
+        .title("下厨房 · Chefish 站内读取")
         .inner_size(1080.0, 800.0)
         .data_directory(directory)
         .on_navigation(allowed)
@@ -90,15 +98,15 @@ pub async fn kitchen_site_open(
 }
 async fn capture(browser: &tauri::WebviewWindow) -> Result<Value> {
     let (send, recv) = std::sync::mpsc::sync_channel(1);
-    browser.eval_with_callback("(()=>({url:location.href,html:document.documentElement.outerHTML.slice(0,2000001)}))()",move |result|{let _=send.try_send(result);})
-        .map_err(|_|error("页面暂未准备好，请稍后继续"))?;
+    browser.eval_with_callback("(()=>({url:location.href,ready:document.readyState,html:document.documentElement.outerHTML.slice(0,2000001)}))()",move |result|{let _=send.try_send(result);})
+        .map_err(|_|loading())?;
     let raw = tauri::async_runtime::spawn_blocking(move || {
         recv.recv_timeout(std::time::Duration::from_secs(10))
     })
     .await
     .map_err(|_| error("页面读取中断"))?
     .map_err(|_| error("页面读取超时，请重试"))?;
-    serde_json::from_str(&raw).map_err(|_| error("页面暂未准备好"))
+    serde_json::from_str(&raw).map_err(|_| loading())
 }
 #[tauri::command]
 pub async fn kitchen_site_read(
@@ -118,10 +126,17 @@ pub async fn kitchen_site_read(
     let data = capture(&browser).await?;
     let actual =
         Url::parse(data["url"].as_str().unwrap_or("")).map_err(|_| error("页面地址无效"))?;
+    if actual.as_str() == "about:blank" || data["ready"] == "loading" {
+        return Err(loading());
+    }
+    if allowed(&actual) && crate::site_access::is_verification_url(&actual) {
+        return Err(crate::site_access::verification_required());
+    }
     if !same_page(&expected, &actual) {
-        return Err(error(
-            "请在下厨房窗口完成验证，并返回原来的菜谱或搜索页后继续",
-        ));
+        return Err(ApiError {
+            code: "SITE_PAGE_MISMATCH".into(),
+            message: "当前页面与要读取的菜谱或搜索不匹配，请返回原页面后重试".into(),
+        });
     }
     let html = data["html"]
         .as_str()

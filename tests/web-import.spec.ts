@@ -260,3 +260,54 @@ test("visible source ingredients remain authoritative and unified amounts can ch
     page.locator(".ingredient-line").filter({ hasText: "大蒜" }),
   ).toContainText("5 g");
 });
+
+test("visible steps and their original images survive a flattened source and model result", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(
+    async ({ url }) => {
+      const html = `<h1 class="page-title">三步菜</h1>
+      <script type="application/ld+json">{"@type":"Recipe","name":"三步菜","recipeInstructions":"切块，然后煮，最后沥干。"}</script>
+      <ol class="steps">
+        <li><p class="text">切块。</p><img data-src="https://i2.chuimg.com/1.jpg"></li>
+        <li><p class="text">煮熟。</p></li>
+        <li><p class="text">沥干。</p><img src="data:image/gif;base64,AAA" srcset="https://i2.chuimg.com/3.jpg 900w"></li>
+      </ol>`;
+      const { parseRecipeHtml } = await import(
+        ["/src/domain/recipeImport.ts"].join("")
+      );
+      const { organizeRecipeFromHtml } = await import(
+        ["/src/services/aiClient.ts"].join("")
+      );
+      const { draft } = parseRecipeHtml(html, url);
+      const imageSources: { steps?: unknown[] } = {};
+      Object.assign(window, {
+        __TAURI_INTERNALS__: {
+          invoke: async (name: string, args: { content: string }) => {
+            if (name === "kitchen_ai_organize")
+              return {
+                draft: { ...draft, steps: ["合并的一步"], stepTitles: [""] },
+                warnings: [],
+              };
+            Object.assign(imageSources, JSON.parse(args.content).imageSources);
+            return { warnings: [] };
+          },
+        },
+      });
+      const organized = await organizeRecipeFromHtml(html, url, []);
+      return {
+        original: draft.steps,
+        organized: organized.draft.steps,
+        images: imageSources.steps,
+      };
+    },
+    { url },
+  );
+  expect(result.original).toEqual(["切块。", "煮熟。", "沥干。"]);
+  expect(result.organized).toEqual(result.original);
+  expect(result.images).toEqual([
+    { url: "https://i2.chuimg.com/1.jpg", sourceStep: 1 },
+    { url: "https://i2.chuimg.com/3.jpg", sourceStep: 3 },
+  ]);
+});

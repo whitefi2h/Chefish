@@ -3,9 +3,10 @@ import { initialState } from "../src/fixtures/demo";
 import { answerAppDialog } from "./helpers/appDialog";
 const html =
   '<h1 class="page-title">验证后测试菜</h1><div class="ings"><table><tr><td class="name">鸡蛋</td><td class="unit">2个</td></tr></table></div><div class="steps"><li><p class="text">炒熟。</p></li></div>';
-async function setup(page: import("@playwright/test").Page) {
+async function setup(page: import("@playwright/test").Page, challenge = false) {
   await page.addInitScript(
-    ({ state, html }) => {
+    ({ state, html, challenge }) => {
+      let verificationReads = challenge ? 2 : 0;
       Object.assign(window, {
         isTauri: true,
         siteCalls: [],
@@ -21,14 +22,20 @@ async function setup(page: import("@playwright/test").Page) {
             if (name === "kitchen_import_url")
               throw { code: "SITE_VERIFICATION", message: "需要验证" };
             if (name === "kitchen_site_open") return null;
-            if (name === "kitchen_site_read") return html;
+            if (name === "kitchen_site_read") {
+              if (verificationReads > 0) {
+                verificationReads--;
+                throw { code: "SITE_VERIFICATION", message: "需要验证" };
+              }
+              return html;
+            }
             if (name === "kitchen_import_images") return { warnings: [] };
             throw { message: "测试未提供的命令" };
           },
         },
       });
     },
-    { state: initialState(), html },
+    { state: initialState(), html, challenge },
   );
   await page.goto("/");
   await page
@@ -45,7 +52,7 @@ async function setup(page: import("@playwright/test").Page) {
 test("verification returns to an editable preview without saving automatically", async ({
   page,
 }) => {
-  await setup(page);
+  await setup(page, true);
   await page.getByRole("button", { name: "打开下厨房", exact: true }).click();
   await page.getByRole("button", { name: "继续读取", exact: true }).click();
   await expect(
@@ -56,19 +63,28 @@ test("verification returns to an editable preview without saving automatically",
       (window as unknown as { siteCalls: { name: string; args: unknown }[] })
         .siteCalls,
   );
-  expect(calls.filter((c) => c.name === "kitchen_site_read")).toEqual([
-    {
-      name: "kitchen_site_read",
-      args: {
-        url: "https://www.xiachufang.com/recipe/107076587/",
-        mode: "recipe",
-      },
-    },
-  ]);
+  const reads = calls.filter((c) => c.name === "kitchen_site_read");
+  expect(reads).toHaveLength(3);
+  expect(reads[2]?.args).toEqual({
+    url: "https://www.xiachufang.com/recipe/107076587/",
+    mode: "recipe",
+  });
   expect(calls.some((c) => c.name === "kitchen_execute")).toBe(false);
   await page.screenshot({
     path: "docs/screenshots/site-verification/preview.png",
   });
+});
+test("an already loaded recipe needs no manual verification", async ({
+  page,
+}) => {
+  await setup(page);
+  await page.getByRole("button", { name: "打开下厨房", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "验证后测试菜" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "继续读取", exact: true }),
+  ).toHaveCount(0);
 });
 test("cancelling verification never opens the site window or writes a recipe", async ({
   page,
@@ -124,7 +140,6 @@ test("search verification resumes with the requested site results", async ({
     return searchRecipePages("鸡蛋", 50);
   });
   await page.getByRole("button", { name: "打开下厨房", exact: true }).click();
-  await page.getByRole("button", { name: "继续读取", exact: true }).click();
   expect(await result).toMatchObject([
     { id: "verified", title: "验证后的候选" },
   ]);

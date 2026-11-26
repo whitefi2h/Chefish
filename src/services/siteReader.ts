@@ -2,6 +2,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { confirmAction } from "./dialogs";
 import { canonicalRecipeUrl } from "../domain/recipeImport";
 import type { Candidate } from "./aiClient";
+const hasCode = (error: unknown, code: string) =>
+  !!error &&
+  typeof error === "object" &&
+  "code" in error &&
+  error.code === code;
+
 async function read<T>(
   request: () => Promise<T>,
   url: string,
@@ -10,29 +16,44 @@ async function read<T>(
   try {
     return await request();
   } catch (error) {
+    if (!hasCode(error, "SITE_VERIFICATION")) throw error;
     if (
-      !error ||
-      typeof error !== "object" ||
-      !("code" in error) ||
-      error.code !== "SITE_VERIFICATION"
-    )
-      throw error;
-    if (
-      !(await confirmAction(
-        "下厨房需要验证。请在站内窗口手动完成验证，再返回 Chefish 继续读取。",
-        { title: "下厨房验证", confirmLabel: "打开下厨房" },
-      ))
+      !(await confirmAction("链接暂未返回正文，可以通过下厨房窗口继续读取。", {
+        title: "通过站内窗口读取",
+        confirmLabel: "打开下厨房",
+      }))
     )
       throw new Error("已取消读取，原内容仍保留");
     await invoke("kitchen_site_open", { url });
-    if (
-      !(await confirmAction(
-        "完成验证并看到原来的菜谱或搜索结果后，点击继续读取。",
-        { title: "等待下厨房验证", confirmLabel: "继续读取" },
-      ))
-    )
-      throw new Error("已取消读取，可稍后重试");
-    return invoke<T>("kitchen_site_read", { url, mode });
+    const readPage = async () => {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          return await invoke<T>("kitchen_site_read", { url, mode });
+        } catch (error) {
+          const navigating =
+            hasCode(error, "SITE_LOADING") ||
+            hasCode(error, "SITE_PAGE_MISMATCH");
+          const mayBeRedirecting =
+            attempt === 0 && hasCode(error, "SITE_VERIFICATION");
+          if ((attempt >= 15 || !navigating) && !mayBeRedirecting) throw error;
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+      }
+    };
+    for (;;) {
+      try {
+        return await readPage();
+      } catch (error) {
+        if (!hasCode(error, "SITE_VERIFICATION")) throw error;
+        if (
+          !(await confirmAction(
+            "下厨房当前显示验证页。请在站内窗口手动完成验证，再继续读取。",
+            { title: "下厨房验证", confirmLabel: "继续读取" },
+          ))
+        )
+          throw new Error("已取消读取，可稍后重试");
+      }
+    }
   }
 }
 export const readRecipePage = (url: string) =>

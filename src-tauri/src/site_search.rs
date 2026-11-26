@@ -64,7 +64,11 @@ pub(crate) fn parse(html: &str) -> Result<Value> {
     let root = Html::parse_document(html);
     let select = |s: &str| Selector::parse(s).unwrap();
     if root.select(&select(".search-result-list")).next().is_none() {
-        return Err(crate::site_access::verification_required());
+        return Err(if crate::site_access::is_verification_document(&root) {
+            crate::site_access::verification_required()
+        } else {
+            fail("当前页面未提供站内搜索结果")
+        });
     }
     let mut seen = std::collections::HashSet::new();
     let mut rows = Vec::new();

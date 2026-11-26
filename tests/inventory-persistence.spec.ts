@@ -360,6 +360,7 @@ test("rough inventory keeps the existing table and uses compact continuous stock
   const row = page.locator("tbody tr").first();
   const slider = row.getByRole("slider");
   await expect(slider).toBeVisible();
+  await expect(slider).toHaveAttribute("aria-valuetext", "充足");
   await expect(row.locator(".lot-quantity")).toHaveCount(0);
   const box = await slider.boundingBox();
   expect(box!.width).toBeLessThan(240);

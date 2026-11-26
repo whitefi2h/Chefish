@@ -94,6 +94,9 @@ pub fn preview(conn: &Connection, key: &str, servings: i64, date: &str) -> Resul
     let (rev, version) = plan(conn, key)?;
     editable(conn, key)?;
     let mut rows = Vec::new();
+    let rough = measurement::rough(conn)?;
+    let stock = inventory::lots(conn)?;
+    let mut shown = BTreeSet::new();
     for ((ingredient, unit), required) in requirements(conn, rev.as_deref(), servings)? {
         let name: String = conn.query_row(
             "SELECT name FROM ingredients WHERE id=?1",
@@ -102,16 +105,19 @@ pub fn preview(conn: &Connection, key: &str, servings: i64, date: &str) -> Resul
         )?;
         let mut left = required;
         let mut lots = Vec::new();
-        for lot in inventory::lots(conn)? {
+        for lot in stock.iter().filter(|lot| lot["stockPresent"] == true) {
             if !ingredient_standard::matches(
                 conn,
                 lot["ingredientId"].as_str().unwrap(),
                 &ingredient,
-            )? || lot["stockPresent"] == false
+            )?
             {
                 continue;
             }
-            if measurement::rough(conn)? || lot["measurement"] == "level" {
+            if rough || lot["measurement"] == "level" {
+                if !shown.insert(lot["id"].as_str().unwrap()) {
+                    continue;
+                }
                 lots.push(json!({"id":lot["id"],"version":lot["version"],"available":"0","location":lot["location"],"expires":lot["expires"],"review":false,"suggested":"0","unit":lot["unit"],"factor":"1","measurement":lot["measurement"],"level":lot["level"],"stockRevision":lot["stockRevision"]}));
                 continue;
             }
@@ -148,7 +154,7 @@ pub fn preview_with_lots(conn: &Connection, key: &str, servings: i64, date: &str
     let present: BTreeSet<String> = rows.iter().flat_map(|r| r["lots"].as_array().unwrap().iter().filter_map(|l| l["id"].as_str().map(str::to_owned))).collect();
     for lot in inventory::lots(conn)? {
         let id = lot["id"].as_str().unwrap();
-        if lot["stockPresent"]==false || !lot_ids.iter().any(|wanted| wanted == id) || present.contains(id) { continue; }
+        if lot["stockPresent"]!=true || !lot_ids.iter().any(|wanted| wanted == id) || present.contains(id) { continue; }
         let name: String = conn.query_row("SELECT name FROM ingredients WHERE id=?1", [lot["ingredientId"].as_str().unwrap()], |r| r.get(0))?;
         rows.push(json!({"ingredientId":lot["ingredientId"],"name":name,"unit":lot["unit"],"required":"0","missing":"0","lots":[{"id":id,"version":lot["version"],"available":"0","location":lot["location"],"expires":lot["expires"],"review":false,"suggested":"0","unit":lot["unit"],"measurement":lot["measurement"],"level":lot["level"],"stockRevision":lot["stockRevision"]}]}));
     }

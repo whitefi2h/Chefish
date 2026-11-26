@@ -75,9 +75,29 @@ export async function organizeRecipe(
     url: canonicalRecipeUrl(url),
     categories,
   });
+  // The source text and downloaded images share the same step order.
+  let source: {
+    sourceSteps?: { title: string; body: string }[];
+    imageSources?: { steps?: unknown[] };
+  } = {};
+  try {
+    source = JSON.parse(content) ?? {};
+  } catch {
+    // Pasted plain text has no structured steps.
+  }
+  const sourceSteps =
+    Array.isArray(source.sourceSteps) &&
+    source.sourceSteps.length > 0 &&
+    (source.sourceSteps.length > 1 || source.imageSources?.steps?.length)
+      ? source.sourceSteps
+      : undefined;
   const draft = parseRecipe(
     JSON.stringify({
       ...result.draft,
+      ...(sourceSteps && {
+        steps: sourceSteps.map((step) => step.body),
+        stepTitles: sourceSteps.map((step) => step.title),
+      }),
       ingredients: result.draft.ingredients.map((i) => ({
         ...i,
         quantity: Number(i.quantity),

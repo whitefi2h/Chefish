@@ -1,5 +1,5 @@
 import StockSlider from "./StockSlider";
-import { hasStock, stockLevelText } from "./domain/stock";
+import { hasStock, roughStockLevel, stockLevelText } from "./domain/stock";
 import { confirmAction } from "./services/dialogs";
 import { CarouselButtons, useHorizontalCarousel } from "./HorizontalCarousel";
 import IngredientAvatar, { IngredientAvatarCredit } from "./IngredientAvatar";
@@ -408,13 +408,7 @@ function LotEditor({
     category: ingredient.category,
     coarse: preferences.inventoryMode === "rough",
   });
-  const [level, setLevel] = useState<number | null>(
-    lot.measurement === "level"
-      ? (lot.level ?? null)
-      : lot.quantity === 0
-        ? -1
-        : null,
-  );
+  const [level, setLevel] = useState(roughStockLevel(lot));
   const coarse = baseline.coarse;
   const [quantity, setQuantity] = useState(
     lot.measurement === "level" && !coarse
@@ -435,20 +429,7 @@ function LotEditor({
   function review(keep: boolean) {
     const old = baseline.lot;
     const nextCoarse = preferences.inventoryMode === "rough";
-    const oldLevel =
-      old.measurement === "level"
-        ? (old.level ?? null)
-        : old.quantity === 0
-          ? -1
-          : null;
-    if (!keep || level === oldLevel)
-      setLevel(
-        lot.measurement === "level"
-          ? (lot.level ?? null)
-          : lot.quantity === 0
-            ? -1
-            : null,
-      );
+    if (!keep || level === roughStockLevel(old)) setLevel(roughStockLevel(lot));
     const oldQuantity =
       old.measurement === "level" && !coarse
         ? ""
@@ -468,12 +449,7 @@ function LotEditor({
     setBaseline({ lot, category: ingredient.category, coarse: nextCoarse });
   }
   const changed =
-    level !==
-      (baseline.lot.measurement === "level"
-        ? (baseline.lot.level ?? null)
-        : baseline.lot.quantity === 0
-          ? -1
-          : null) ||
+    level !== roughStockLevel(baseline.lot) ||
     (baseline.lot.measurement === "level" && !coarse
       ? quantity !== ""
       : Number(quantity) !== baseline.lot.quantity) ||
@@ -497,7 +473,7 @@ function LotEditor({
             ...(coarse
               ? {
                   type: "edit_level_lot" as const,
-                  level,
+                  level: level === roughStockLevel(baseline.lot) ? null : level,
                   expected_stock_revision: baseline.lot.stockRevision,
                 }
               : { type: "edit_lot" as const }),
@@ -554,7 +530,7 @@ function LotEditor({
             最新库存：
             {lot.measurement === "level" ||
             preferences.inventoryMode === "rough"
-              ? stockLevelText(lot.level)
+              ? stockLevelText(roughStockLevel(lot))
               : amount(lot.quantity, lot.unit)}{" "}
             · {lot.location}
           </p>
@@ -780,7 +756,7 @@ export function LotDetail({
                 批次 {i + 1} ·{" "}
                 {l.measurement === "level" ||
                 state.preferences?.inventoryMode === "rough"
-                  ? stockLevelText(l.level)
+                  ? stockLevelText(roughStockLevel(l))
                   : amount(l.quantity, l.unit)}{" "}
                 · {l.expires ?? "—"}
               </option>
@@ -883,13 +859,7 @@ function LotQuantity({ lot, name }: { lot: InventoryLot; name: string }) {
     return (
       <StockSlider
         name={name}
-        value={
-          lot.measurement === "level"
-            ? (lot.level ?? null)
-            : lot.quantity === 0
-              ? -1
-              : null
-        }
+        value={roughStockLevel(lot)}
         disabled={busy}
         onChange={(level) =>
           mutate(
@@ -1214,7 +1184,7 @@ export default function Inventory({
                         <small>
                           {l.measurement === "level" ||
                           state.preferences?.inventoryMode === "rough"
-                            ? stockLevelText(l.level)
+                            ? stockLevelText(roughStockLevel(l))
                             : amount(l.quantity, l.unit)}{" "}
                           · {l.location}
                         </small>

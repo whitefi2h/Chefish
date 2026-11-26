@@ -1000,3 +1000,52 @@ test("background removal drops obsolete cooking controls but keeps the written r
     { changes: [], draft: { record: "保留记录" } },
   ]);
 });
+
+test("exact cooking removes depleted batches on background refresh", async ({
+  page,
+}) => {
+  await cookingIPC(page);
+  await page.getByText("手动调整实际用量").click();
+  const amount = page.getByLabel("牛肉 lot-early 实际用量");
+  await expect(amount).toBeVisible();
+  await amount.fill("25");
+  await page.evaluate(async () => {
+    const bridge = (
+      window as unknown as {
+        __TAURI_INTERNALS__: {
+          invoke: (command: string, args: unknown) => Promise<unknown>;
+        };
+      }
+    ).__TAURI_INTERNALS__;
+    const invoke = bridge.invoke;
+    bridge.invoke = async (command, args) => {
+      const result = await invoke(command, args);
+      return command === "kitchen_cooking"
+        ? {
+            ...(result as object),
+            rows: [
+              {
+                ingredientId: "beef",
+                name: "牛肉",
+                unit: "g",
+                required: "100",
+                missing: "100",
+                lots: [],
+              },
+            ],
+          }
+        : result;
+    };
+    const state = (await invoke("kitchen_bootstrap", {})) as {
+      dataRevision: string;
+    };
+    state.dataRevision = "13";
+    window.dispatchEvent(new Event("chefish:sync-data"));
+  });
+  await expect(amount).toHaveCount(0);
+  await page.getByRole("button", { name: "确认完成", exact: true }).click();
+  const commands = await page.evaluate(
+    () => (window as unknown as { cookingCommands: unknown[] }).cookingCommands,
+  );
+  expect(commands).toMatchObject([{ draft: { consumptions: [] } }]);
+});
