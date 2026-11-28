@@ -1,0 +1,55 @@
+{
+  "date": "2026-11-28",
+  "version": "2.4.13",
+  "schema": 19,
+  "changes": [
+    "Explicit receipt lists resolve before assistant context construction or model dispatch.",
+    "Rough receipts default each item to adequate; exact receipts use explicit quantities and units.",
+    "The assistant can send local requests with no model configured. The existing confirmation and transactional apply are reused."
+  ],
+  "checks": {
+    "rust": {
+      "passed": 198,
+      "log": "review/local-receipt-rust.log",
+      "ignored": 14
+    },
+    "unit": {
+      "passed": 51,
+      "skipped": 15
+    },
+    "browser": {
+      "passed": 16,
+      "log": "review/local-receipt-ui.log"
+    },
+    "lint": true,
+    "typecheck": true,
+    "build": {
+      "passed": true,
+      "signedInstaller": true,
+      "manifestVersionAndSignatureMatch": true,
+      "log": "review/local-receipt-release-final.log",
+      "assets": [
+        {
+          "path": "src-tauri/target/release/chefish.exe",
+          "bytes": 61495808
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/Chefish_2.4.13_x64-setup.exe",
+          "bytes": 43360467
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/Chefish_2.4.13_x64-setup.exe.sig",
+          "bytes": 440
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/latest.json",
+          "bytes": 911
+        }
+      ]
+    }
+  },
+  "personalKitchenAccessed": false,
+  "limitations": [
+    "Validated isolated SQLite with an oversized context and Playwright with a mocked native bridge. Receipt lists with extra instructions still use the conversational route."
+  ]
+}

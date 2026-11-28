@@ -45,14 +45,7 @@ fn without_media(v: &mut Value) {
 }
 pub fn context(conn: &Connection, week: Option<&str>) -> Result<Value> {
     let today = db::shopping::local_today(conn)?;
-    let week = match week {
-        Some(s) => s.to_string(),
-        None => conn.query_row(
-            "SELECT date(?1,'-'||((CAST(strftime('%w',?1) AS INTEGER)+6)%7)||' days')",
-            [&today],
-            |r| r.get(0),
-        )?,
-    };
+    let week = context_week(conn, week, &today)?;
     let mut snapshot = db::snapshot(conn)?;
     snapshot.as_object_mut().unwrap().remove("preferences");
     let preferences = db::preferences::load(conn)?;
@@ -93,6 +86,136 @@ pub fn context(conn: &Connection, week: Option<&str>) -> Result<Value> {
     Ok(
         json!({"today":today,"weekStart":week,"snapshot":snapshot,"preferences":{"inventoryMode":preferences.inventory_mode,"defaultServings":preferences.default_servings,"taste":preferences.taste,"restrictions":preferences.restrictions,"equipment":preferences.equipment},"shopping":db::shopping::forecast(conn,&week)?,"ingredientDefaultUnits":db::ingredient_standard::default_units(),"toolResults":[]}),
     )
+}
+
+fn context_week(conn: &Connection, week: Option<&str>, today: &str) -> Result<String> {
+    match week {
+        Some(week) => Ok(week.to_owned()),
+        None => Ok(conn.query_row(
+            "SELECT date(?1,'-'||((CAST(strftime('%w',?1) AS INTEGER)+6)%7)||' days')",
+            [today],
+            |r| r.get(0),
+        )?),
+    }
+}
+
+// Recognize the explicit receipt-list form, leaving dates, locations and other
+// instructions to the conversational path.
+struct ReceiptItem<'a> {
+    name: &'a str,
+    amount: Option<(&'a str, &'a str)>,
+}
+
+fn receipt_items(messages: &Value) -> Option<Vec<ReceiptItem<'_>>> {
+    let latest = messages.as_array()?.last()?;
+    if latest["role"] != "user" {
+        return None;
+    }
+    let (prefix, list) = latest["content"].as_str()?.trim().split_once(['：', ':'])?;
+    if !matches!(prefix.trim(), "今天入库" | "入库" | "帮我入库" | "食材入库") {
+        return None;
+    }
+    let items = list
+        .trim()
+        .trim_end_matches(['。', '！', '!'])
+        .split(['、', '，', ',', '\n'])
+        .map(|entry| {
+            let entry = entry.trim();
+            let (name, amount) = if let Some(start) = entry.find(|c: char| c.is_ascii_digit()) {
+                let (name, amount) = entry.split_at(start);
+                let unit_start = amount.find(|c: char| !c.is_ascii_digit() && c != '.')?;
+                let (quantity, unit) = amount.split_at(unit_start);
+                let unit = unit.trim();
+                if !matches!(
+                    unit,
+                    "g" | "克" | "kg" | "千克" | "ml" | "毫升" | "个" | "片" | "盒"
+                ) {
+                    return None;
+                }
+                (name.trim(), Some((quantity, unit)))
+            } else {
+                (entry, None)
+            };
+            let chinese_amount = ["个", "克", "斤", "片", "盒", "袋", "包", "瓶", "毫升"]
+                .iter()
+                .filter_map(|unit| name.strip_suffix(unit))
+                .any(|stem| stem.ends_with(|c| "一二两三四五六七八九十百半几".contains(c)));
+            if name.is_empty()
+                || name.chars().count() > 30
+                || !name.chars().all(|c| c.is_alphabetic() || c == ' ')
+                || chinese_amount
+                || [
+                    "不要",
+                    "不用",
+                    "改成",
+                    "冷藏",
+                    "冷冻",
+                    "常温",
+                    "昨天",
+                    "明天",
+                    "到期",
+                    "保质期",
+                    "缺乏",
+                    "盈余",
+                    "适量",
+                    "然后",
+                    "顺便",
+                    "用完",
+                    "删除",
+                    "安排",
+                ]
+                .iter()
+                .any(|word| name.contains(word))
+            {
+                return None;
+            }
+            Some(ReceiptItem { name, amount })
+        })
+        .collect::<Option<Vec<_>>>()?;
+    (items.len() <= 50).then_some(items)
+}
+
+pub fn receipt_proposal(
+    conn: &Connection,
+    store: &Proposals,
+    messages: &Value,
+    week: Option<&str>,
+) -> Result<Option<Value>> {
+    let Some(items) = receipt_items(messages) else {
+        return Ok(None);
+    };
+    let rough = db::measurement::rough(conn)?;
+    if rough && items.iter().any(|item| item.amount.is_some()) {
+        return Ok(None);
+    }
+    if !rough && items.iter().any(|item| item.amount.is_none()) {
+        return Ok(Some(
+            json!({"action":"none","message":"当前使用精确计量，请补上每样食材的数量和单位，例如「今天入库：橙子3个、芹菜200g」。"}),
+        ));
+    }
+    let today = db::shopping::local_today(conn)?;
+    let commands = items.iter().map(|&ReceiptItem { name, amount }| {
+        if let Some((quantity, unit)) = amount {
+            json!({"type":"receive_lot","draft":{"name":name,"category":"自动分类","quantity":quantity,"unit":unit,"location":"未指定","received":today,"expires":null,"precision":"exact"}})
+        } else {
+            json!({"type":"receive_level_lot","name":name,"category":"自动分类","level":1})
+        }
+    }).collect();
+    let revision: String = conn.query_row(
+        "SELECT value FROM app_settings WHERE key='data_revision'",
+        [],
+        |r| r.get(0),
+    )?;
+    let proposal = prepare(
+        conn,
+        store,
+        commands,
+        &revision,
+        &context_week(conn, week, &today)?,
+    )?;
+    Ok(Some(
+        json!({"action":"operate","proposal":proposal,"message":"已整理入库清单，请核对后确认。"}),
+    ))
 }
 
 // Resolve only an explicit "already bought / cross off" statement against actual pending items.
@@ -901,6 +1024,36 @@ mod tests {
         assert!(purchase_intent(&c, &json!([{"role":"user","content":"鸡翅买了12个"}])).is_none());
         assert!(purchase_intent(&c, &json!([{"role":"user","content":"买了豆腐"}])).is_none());
     }
+    #[test]
+    fn named_receipt_with_oversized_kitchen_is_local_and_waits_for_confirmation() {
+        let mut conn = seed();
+        conn.execute("UPDATE app_settings SET value=?1 WHERE key='shopping_memo'", ["旧采购备忘".repeat(20000)]).unwrap();
+        assert!(context(&conn, None).unwrap().to_string().len() > 250_000);
+        let messages = json!([{"role":"user","content":"今天入库：苹果、小白菜、鸡蛋、南瓜、口蘑、面条。"}]);
+        let store = Proposals::default();
+        let clarification = receipt_proposal(&conn, &store, &messages, None).unwrap().unwrap();
+        assert_eq!(clarification["action"], "none");
+        let measured = json!([{"role":"user","content":"今天入库：橙子3个、芹菜200g"}]);
+        let exact = receipt_proposal(&conn, &store, &measured, None).unwrap().unwrap();
+        assert_eq!(exact["proposal"]["operations"].as_array().unwrap().len(), 2);
+        assert!(db::snapshot(&conn).unwrap()["lots"].as_array().unwrap().is_empty());
+
+        let mut preferences = db::preferences::load(&conn).unwrap();
+        preferences.inventory_mode = "rough".into();
+        conn.execute("INSERT INTO app_settings(key,value) VALUES('preferences_v1',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [serde_json::to_string(&preferences).unwrap()]).unwrap();
+        let response = receipt_proposal(&conn, &store, &messages, None).unwrap().unwrap();
+        let proposal = &response["proposal"];
+        assert_eq!(proposal["operations"].as_array().unwrap().len(), 6);
+        assert!(db::snapshot(&conn).unwrap()["lots"].as_array().unwrap().is_empty());
+        apply(&mut conn, &store, proposal["id"].as_str().unwrap(), false).unwrap();
+        let snapshot = db::snapshot(&conn).unwrap();
+        let lots = snapshot["lots"].as_array().unwrap();
+        assert_eq!(lots.len(), 6);
+        assert!(lots.iter().all(|lot| lot["level"] == 1));
+        assert_eq!(receipt_items(&json!([{"role":"user","content":"今天入库：芹菜、橙子两个"}])).map(|v| v.len()), None);
+        assert_eq!(receipt_items(&json!([{"role":"user","content":"今天入库：芹菜、橙子放冷藏"}])).map(|v| v.len()), None);
+    }
+
     fn seed() -> Connection {
         let path =
             std::env::temp_dir().join(format!("chefish-assistant-{}.sqlite3", Uuid::new_v4()));

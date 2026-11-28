@@ -1234,8 +1234,7 @@ export default function KitchenAssistant({
                 e.nativeEvent.keyCode !== 229
               ) {
                 e.preventDefault();
-                if (!busy && configured && historyReady && input.trim())
-                  void send();
+                void send();
               }
             }}
             rows={2}
@@ -1248,13 +1247,13 @@ export default function KitchenAssistant({
           <div className="assistant-compose-actions">
             <span className="assistant-connection">
               <i className={configured ? "connected" : ""} />
-              {configured ? "厨房助手" : "请先配置模型"}
+              {configured ? "厨房助手" : "模型未配置"}
             </span>
             <button
               className="primary assistant-send"
               aria-label="发送"
               title="发送"
-              disabled={busy || !historyReady || !configured || !input.trim()}
+              disabled={busy || !historyReady || !input.trim()}
             >
               <ArrowUp size={18} />
             </button>

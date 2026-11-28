@@ -656,13 +656,16 @@ async fn kitchen_ai_route(
             code: "DATABASE_ERROR".into(),
             message: "数据库不可用".into(),
         })?;
-        assistant::context(
-            guard.as_ref().ok_or_else(|| db::ApiError {
-                code: "DATABASE_ERROR".into(),
-                message: database.1.clone(),
-            })?,
-            week_start.as_deref(),
-        )?
+        let conn = guard.as_ref().ok_or_else(|| db::ApiError {
+            code: "DATABASE_ERROR".into(),
+            message: database.1.clone(),
+        })?;
+        if let Some(result) =
+            assistant::receipt_proposal(conn, &proposals, &messages, week_start.as_deref())?
+        {
+            return Ok(result);
+        }
+        assistant::context(conn, week_start.as_deref())?
     };
     local["pendingProposal"] = assistant::pending(&proposals, proposal_id.as_deref());
     let mut revision = local["snapshot"]["dataRevision"]

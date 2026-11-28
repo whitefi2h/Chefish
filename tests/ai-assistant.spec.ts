@@ -25,7 +25,7 @@ async function stub(page: Page, failure = "") {
         timeout: 90,
         maxTokens: 8192,
       };
-      let configured = ["deepseek"];
+      let configured = failure === "local-receipt" ? [] : ["deepseek"];
       let history = {
         messages: [],
         candidates: [],
@@ -70,6 +70,20 @@ async function stub(page: Page, failure = "") {
           }
           if (name === "kitchen_ai_route") {
             target.aiCalls.push(args);
+            if (failure === "local-receipt")
+              return {
+                action: "operate",
+                message: "已整理入库清单",
+                proposal: {
+                  id: "receipt-proposal",
+                  operations: ["食材入库"],
+                  changes: [
+                    { section: "库存", before: "", after: "橙子 · 充足" },
+                  ],
+                  destructive: false,
+                  expectedRevision: "1",
+                },
+              };
             const messages = args.messages as { content: string }[];
             return messages.at(-1)?.content.includes("第二")
               ? {
@@ -561,4 +575,22 @@ test("malformed model reply uses genuine page content and never turns a challeng
     unit: "个",
   });
   expect(result.rejected).toBe(true);
+});
+
+test("local receipt can be sent without a configured model", async ({
+  page,
+}) => {
+  await stub(page, "local-receipt");
+  await assistant(page);
+  await expect(page.getByText("模型未配置", { exact: true })).toBeVisible();
+  const input = page.getByLabel("对厨房助手说");
+  await input.fill("今天入库：橙子");
+  await expect(
+    page.getByRole("button", { name: "发送", exact: true }),
+  ).toBeEnabled();
+  await input.press("Enter");
+  await expect(page.getByText("橙子 · 充足", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "同意并执行", exact: true }),
+  ).toBeVisible();
 });
